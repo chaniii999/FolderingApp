@@ -455,7 +455,7 @@ function FileContentViewer({ filePath, onSelectPreviousFile, onSelectNextFile, o
       </div>
       <div 
         ref={scrollContainerRef}
-        className="flex-1 overflow-auto bg-white relative"
+        className={`flex-1 bg-white relative ${isEditing ? 'overflow-hidden' : 'overflow-auto'}`}
       >
         {loading ? (
           <div className="flex items-center justify-center h-full">
@@ -472,7 +472,7 @@ function FileContentViewer({ filePath, onSelectPreviousFile, onSelectNextFile, o
             ref={textareaRef}
             value={content}
             onChange={handleContentChange}
-            className="w-full h-full font-mono resize-none border-none outline-none"
+            className="w-full h-full font-mono resize-none border-none outline-none overflow-auto"
             style={{
               paddingLeft: `${config.horizontalPadding}px`,
               paddingRight: `${config.horizontalPadding}px`,
