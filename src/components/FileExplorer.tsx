@@ -336,6 +336,12 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
       }
 
       setShowDeleteDialog(null);
+      
+      // 삭제된 파일이 선택된 파일이면 선택 해제
+      if (onFileSelect && selectedFilePath === item.path) {
+        onFileSelect('');
+      }
+      
       loadDirectory(currentPath);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : '삭제 중 오류가 발생했습니다.';

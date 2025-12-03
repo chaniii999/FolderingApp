@@ -18,9 +18,10 @@ interface FileContentViewerProps {
   onRenameRequest?: (filePath: string) => void;
   onEditModeChange?: (isEditing: boolean) => void;
   onFileDeleted?: () => void;
+  isDialogOpen?: boolean;
 }
 
-function FileContentViewer({ filePath, onSelectPreviousFile, onSelectNextFile, onDeselectFile, textEditorConfig, autoEdit = false, onEditModeEntered, onRenameRequest, onEditModeChange, onFileDeleted }: FileContentViewerProps) {
+function FileContentViewer({ filePath, onSelectPreviousFile, onSelectNextFile, onDeselectFile, textEditorConfig, autoEdit = false, onEditModeEntered, onRenameRequest, onEditModeChange, onFileDeleted, isDialogOpen = false }: FileContentViewerProps) {
   const config = textEditorConfig || { horizontalPadding: 80, fontSize: 14 };
   const [content, setContent] = useState<string>('');
   const [originalContent, setOriginalContent] = useState<string>('');
@@ -157,11 +158,16 @@ function FileContentViewer({ filePath, onSelectPreviousFile, onSelectNextFile, o
 
   // 전역 키 이벤트 리스너 추가 (파일이 선택되었을 때 화살표 키 처리)
   useEffect(() => {
-    if (!filePath || loading || isEditing || showSaveDialog) {
+    if (!filePath || loading || isEditing || showSaveDialog || isDialogOpen) {
       return;
     }
 
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // 다이얼로그가 열려있으면 키 이벤트 처리하지 않음
+      if (isDialogOpen) {
+        return;
+      }
+
       // "i" 키로 편집 모드 진입 (파일이 선택되어 있을 때만)
       if ((e.key === 'i' || e.key === 'I') && !e.ctrlKey && !e.altKey && !e.metaKey) {
         e.preventDefault();
@@ -251,7 +257,7 @@ function FileContentViewer({ filePath, onSelectPreviousFile, onSelectNextFile, o
       window.removeEventListener('keydown', handleGlobalKeyDown, true);
       window.removeEventListener('keyup', handleGlobalKeyUp, true);
     };
-  }, [filePath, loading, error, isEditing, showSaveDialog, stopScrolling, performScroll, onSelectPreviousFile, onSelectNextFile, onDeselectFile, isHotkey]);
+  }, [filePath, loading, error, isEditing, showSaveDialog, isDialogOpen, stopScrolling, performScroll, onSelectPreviousFile, onSelectNextFile, onDeselectFile, isHotkey]);
 
   useEffect(() => {
     if (content !== originalContent) {
@@ -546,7 +552,7 @@ function FileContentViewer({ filePath, onSelectPreviousFile, onSelectNextFile, o
       className="flex flex-col h-full relative"
       onKeyDown={handleKeyDown}
       onKeyUp={handleKeyUp}
-      tabIndex={isEditing || (filePath && !loading && !error) ? 0 : -1}
+      tabIndex={isDialogOpen ? -1 : (isEditing || (filePath && !loading && !error) ? 0 : -1)}
     >
       <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
         <div className="flex items-center justify-between gap-2">

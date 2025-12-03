@@ -280,6 +280,12 @@ function App() {
   };
 
   const handleFileSelect = (filePath: string) => {
+    // 빈 문자열이 전달되면 선택 해제
+    if (!filePath || filePath === '') {
+      setSelectedFilePath(null);
+      setNewlyCreatedFilePath(null);
+      return;
+    }
     setSelectedFilePath(filePath);
     // 파일 선택 후에는 포커스를 이동시키지 않음 (뒤로가기 버튼을 누를 때만 포커스 이동)
   };
@@ -592,6 +598,7 @@ function App() {
                 fileExplorerRef.current.refresh();
               }
             }}
+            isDialogOpen={showNewFileDialog}
           />
         </div>
         {showHelp && (
