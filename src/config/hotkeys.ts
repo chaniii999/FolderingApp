@@ -6,6 +6,7 @@ export interface HotkeyConfig {
   edit: string;
   save: string;
   cancel: string;
+  toggleExplorer: string;
 }
 
 export const defaultHotkeys: HotkeyConfig = {
@@ -16,6 +17,7 @@ export const defaultHotkeys: HotkeyConfig = {
   edit: 'i',
   save: 'Control+F5',
   cancel: 'Escape',
+  toggleExplorer: 'Control+B',
 };
 
 let currentHotkeys: HotkeyConfig = { ...defaultHotkeys };

@@ -11,9 +11,11 @@ interface FileContentViewerProps {
   onSelectNextFile?: () => void;
   onDeselectFile?: () => void;
   textEditorConfig?: TextEditorConfig;
+  autoEdit?: boolean;
+  onEditModeEntered?: () => void;
 }
 
-function FileContentViewer({ filePath, onSelectPreviousFile, onSelectNextFile, onDeselectFile, textEditorConfig }: FileContentViewerProps) {
+function FileContentViewer({ filePath, onSelectPreviousFile, onSelectNextFile, onDeselectFile, textEditorConfig, autoEdit = false, onEditModeEntered }: FileContentViewerProps) {
   const config = textEditorConfig || { horizontalPadding: 80, fontSize: 14 };
   const [content, setContent] = useState<string>('');
   const [originalContent, setOriginalContent] = useState<string>('');
@@ -89,6 +91,16 @@ function FileContentViewer({ filePath, onSelectPreviousFile, onSelectNextFile, o
       textareaRef.current.focus();
     }
   }, [isEditing]);
+
+  // 새로 생성된 파일인 경우 자동으로 편집 모드 진입
+  useEffect(() => {
+    if (autoEdit && filePath && !loading && !error && !isEditing) {
+      setIsEditing(true);
+      if (onEditModeEntered) {
+        onEditModeEntered();
+      }
+    }
+  }, [autoEdit, filePath, loading, error, isEditing, onEditModeEntered]);
 
   useEffect(() => {
     // 파일이 선택되었을 때 FileContentViewer에 포커스를 주어서 키 이벤트를 받을 수 있게 함

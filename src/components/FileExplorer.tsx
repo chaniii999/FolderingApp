@@ -135,7 +135,7 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
         // 그 외에는 다음 인덱스로 이동
         return prev < maxIndex ? prev + 1 : prev;
       });
-    } else if (isHotkey(e.key, 'enter')) {
+    } else if (isHotkey(e.key, 'enter') || (e.key === 'Enter' && !e.shiftKey)) {
       e.preventDefault();
       handleEnter();
     } else if (isHotkey(e.key, 'goBack')) {

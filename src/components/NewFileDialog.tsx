@@ -6,7 +6,7 @@ export type FileType = 'folder' | 'file' | 'markdown';
 interface NewFileDialogProps {
   currentPath: string;
   onClose: () => void;
-  onCreated: () => void;
+  onCreated: (filePath?: string) => void;
 }
 
 const fileTypes: { type: FileType; label: string; extension: string }[] = [
@@ -75,12 +75,13 @@ function NewFileDialog({ currentPath, onClose, onCreated }: NewFileDialogProps) 
 
       if (selectedType.type === 'folder') {
         await window.api.filesystem.createDirectory(fullPath);
+        onCreated(); // 폴더는 경로 전달 안 함
       } else {
         const initialContent = selectedType.type === 'markdown' ? '# ' : '';
         await window.api.filesystem.createFile(fullPath, initialContent);
+        onCreated(fullPath); // 파일은 경로 전달
       }
 
-      onCreated();
       onClose();
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : '생성 중 오류가 발생했습니다.';

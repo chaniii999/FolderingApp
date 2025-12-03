@@ -4,6 +4,7 @@ import FileContentViewer from './components/FileContentViewer';
 import Resizer from './components/Resizer';
 import NewFileDialog from './components/NewFileDialog';
 import { BackIcon } from './components/icons/BackIcon';
+import { ForwardIcon } from './components/icons/ForwardIcon';
 import { getHotkeys } from './config/hotkeys';
 import { loadTextEditorConfig, saveTextEditorConfig, type TextEditorConfig } from './services/textEditorConfigService';
 
@@ -14,6 +15,8 @@ function App() {
   const [explorerWidth, setExplorerWidth] = useState<number>(240);
   const [textEditorConfig, setTextEditorConfig] = useState<TextEditorConfig>({ horizontalPadding: 80, fontSize: 14 });
   const [showNewFileDialog, setShowNewFileDialog] = useState(false);
+  const [newlyCreatedFilePath, setNewlyCreatedFilePath] = useState<string | null>(null);
+  const [isExplorerVisible, setIsExplorerVisible] = useState<boolean>(true);
   const fileExplorerRef = useRef<FileExplorerRef>(null);
 
   const initializeCurrentPath = async () => {
@@ -60,6 +63,21 @@ function App() {
     };
   }, [currentPath]);
 
+  // Ctrl+B 핫키 처리 (디렉토리 탭 토글)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && (e.key === 'b' || e.key === 'B')) {
+        e.preventDefault();
+        setIsExplorerVisible((prev) => !prev);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
   const handleConfigChange = async (updates: Partial<TextEditorConfig>) => {
     const newConfig = { ...textEditorConfig, ...updates };
     setTextEditorConfig(newConfig);
@@ -71,13 +89,23 @@ function App() {
     setSelectedFilePath(null);
   };
 
-  const handleNewFileCreated = () => {
+  const handleNewFileCreated = (filePath?: string) => {
     // 파일/폴더 생성 후 디렉토리 새로고침
     if (fileExplorerRef.current) {
       fileExplorerRef.current.refresh();
-      setTimeout(() => {
-        fileExplorerRef.current?.focus();
-      }, 100);
+      
+      // 파일이 생성된 경우 해당 파일 선택 및 편집 모드 진입
+      if (filePath) {
+        setTimeout(() => {
+          setSelectedFilePath(filePath);
+          setNewlyCreatedFilePath(filePath);
+        }, 200); // 디렉토리 새로고침 후 파일 선택
+      } else {
+        // 폴더 생성 시에는 FileExplorer에 포커스
+        setTimeout(() => {
+          fileExplorerRef.current?.focus();
+        }, 100);
+      }
     }
   };
 
@@ -152,26 +180,22 @@ function App() {
     }
   };
 
-  const canGoBack = currentPath !== '';
+  const handleToggleExplorer = () => {
+    setIsExplorerVisible(!isExplorerVisible);
+  };
 
   return (
     <div className="flex flex-col h-screen w-screen">
       <header className="flex flex-col gap-2 px-6 py-4 border-b border-gray-200 bg-gray-50">
         <div className="flex items-center gap-4">
           <button
-            onClick={handleBackClick}
-            disabled={!canGoBack}
-            className={`flex items-center justify-center w-8 h-8 rounded ${
-              canGoBack
-                ? 'bg-gray-200 hover:bg-gray-300 cursor-pointer'
-                : 'bg-gray-100 cursor-not-allowed opacity-50'
-            }`}
-            title={`뒤로가기 (${getHotkeys().goBack})`}
+            onClick={handleToggleExplorer}
+            className="flex items-center justify-center w-8 h-8 rounded bg-gray-200 hover:bg-gray-300 cursor-pointer"
+            title={`${isExplorerVisible ? '디렉토리 탭 닫기' : '디렉토리 탭 열기'} (${getHotkeys().toggleExplorer})`}
           >
-            <BackIcon />
+            {isExplorerVisible ? <BackIcon /> : <ForwardIcon />}
           </button>
           <div className="flex items-center gap-2 flex-1">
-            <h1 className="text-2xl font-bold">폴더링 앱</h1>
             {currentPath && (
               <span className="text-sm text-gray-500 font-mono">
                 {currentPath}
@@ -218,30 +242,34 @@ function App() {
         </div>
       </header>
       <main className="flex-1 flex overflow-hidden">
-        <div
-          className="flex flex-col p-4 overflow-hidden border-r border-gray-200"
-          style={{ width: `${explorerWidth}px`, minWidth: `${explorerWidth}px` }}
-        >
-          {error && (
-            <div className="mb-4 px-4 py-2 bg-red-100 text-red-700 rounded">
-              {error}
+        {isExplorerVisible && (
+          <>
+            <div
+              className="flex flex-col p-4 overflow-hidden border-r border-gray-200"
+              style={{ width: `${explorerWidth}px`, minWidth: `${explorerWidth}px` }}
+            >
+              {error && (
+                <div className="mb-4 px-4 py-2 bg-red-100 text-red-700 rounded">
+                  {error}
+                </div>
+              )}
+              <div className="flex-1 overflow-hidden">
+                <FileExplorer
+                  ref={fileExplorerRef}
+                  currentPath={currentPath}
+                  onPathChange={handlePathChange}
+                  onFileSelect={handleFileSelect}
+                  selectedFilePath={selectedFilePath}
+                />
+              </div>
             </div>
-          )}
-          <div className="flex-1 overflow-hidden">
-            <FileExplorer
-              ref={fileExplorerRef}
-              currentPath={currentPath}
-              onPathChange={handlePathChange}
-              onFileSelect={handleFileSelect}
-              selectedFilePath={selectedFilePath}
+            <Resizer
+              onResize={setExplorerWidth}
+              minWidth={200}
+              maxWidth={600}
             />
-          </div>
-        </div>
-        <Resizer
-          onResize={setExplorerWidth}
-          minWidth={200}
-          maxWidth={600}
-        />
+          </>
+        )}
         <div className="flex-1 overflow-hidden">
           <FileContentViewer 
             filePath={selectedFilePath}
@@ -249,11 +277,14 @@ function App() {
             onSelectNextFile={handleSelectNextFile}
             onDeselectFile={() => {
               setSelectedFilePath(null);
+              setNewlyCreatedFilePath(null);
               setTimeout(() => {
                 fileExplorerRef.current?.focus();
               }, 100);
             }}
             textEditorConfig={textEditorConfig}
+            autoEdit={newlyCreatedFilePath === selectedFilePath}
+            onEditModeEntered={() => setNewlyCreatedFilePath(null)}
           />
         </div>
       </main>
