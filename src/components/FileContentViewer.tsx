@@ -3,6 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { getHotkeys, isHotkey } from '../config/hotkeys';
 import { isTextFile } from '../utils/fileUtils';
+import { undoService } from '../services/undoService';
 
 import type { TextEditorConfig } from '../services/textEditorConfigService';
 
@@ -16,9 +17,10 @@ interface FileContentViewerProps {
   onEditModeEntered?: () => void;
   onRenameRequest?: (filePath: string) => void;
   onEditModeChange?: (isEditing: boolean) => void;
+  onFileDeleted?: () => void;
 }
 
-function FileContentViewer({ filePath, onSelectPreviousFile, onSelectNextFile, onDeselectFile, textEditorConfig, autoEdit = false, onEditModeEntered, onRenameRequest, onEditModeChange }: FileContentViewerProps) {
+function FileContentViewer({ filePath, onSelectPreviousFile, onSelectNextFile, onDeselectFile, textEditorConfig, autoEdit = false, onEditModeEntered, onRenameRequest, onEditModeChange, onFileDeleted }: FileContentViewerProps) {
   const config = textEditorConfig || { horizontalPadding: 80, fontSize: 14 };
   const [content, setContent] = useState<string>('');
   const [originalContent, setOriginalContent] = useState<string>('');
@@ -28,6 +30,8 @@ function FileContentViewer({ filePath, onSelectPreviousFile, onSelectNextFile, o
   const [hasChanges, setHasChanges] = useState(false);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [dialogSelectedOption, setDialogSelectedOption] = useState<'save' | 'cancel'>('save');
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const deleteDialogRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -462,6 +466,67 @@ function FileContentViewer({ filePath, onSelectPreviousFile, onSelectNextFile, o
     setShowSaveDialog(false);
   };
 
+  const handleDeleteClick = () => {
+    if (filePath) {
+      setShowDeleteDialog(true);
+    }
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!filePath) return;
+
+    try {
+      if (!window.api?.filesystem) {
+        throw new Error('API가 로드되지 않았습니다.');
+      }
+
+      // 삭제 전에 파일 내용 읽기 (되돌리기용)
+      let fileContent = '';
+      if (window.api?.filesystem?.readFile) {
+        try {
+          const content = await window.api.filesystem.readFile(filePath);
+          fileContent = content || '';
+        } catch (err) {
+          console.error('Error reading file for undo:', err);
+        }
+      }
+
+      // 작업 히스토리에 추가
+      undoService.addAction({
+        type: 'delete',
+        path: filePath,
+        isDirectory: false,
+        content: fileContent,
+      });
+
+      // 파일 삭제
+      await window.api.filesystem.deleteFile(filePath);
+
+      setShowDeleteDialog(false);
+      
+      // 파일 선택 해제
+      if (onDeselectFile) {
+        onDeselectFile();
+      }
+
+      // 디렉토리 새로고침
+      if (onFileDeleted) {
+        onFileDeleted();
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : '삭제 중 오류가 발생했습니다.';
+      alert(errorMessage);
+      console.error('Error deleting file:', err);
+      setShowDeleteDialog(false);
+    }
+  };
+
+  useEffect(() => {
+    if (showDeleteDialog && deleteDialogRef.current) {
+      deleteDialogRef.current.focus();
+    }
+  }, [showDeleteDialog]);
+
   if (!filePath) {
     return (
       <div className="flex flex-col h-full">
@@ -494,13 +559,22 @@ function FileContentViewer({ filePath, onSelectPreviousFile, onSelectNextFile, o
             </div>
           </div>
           {!isEditing && (
-            <button
-              onClick={handleEditClick}
-              className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600"
-              title={`편집 (${getHotkeys().edit})`}
-            >
-              편집
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleEditClick}
+                className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600"
+                title={`편집 (${getHotkeys().edit})`}
+              >
+                편집
+              </button>
+              <button
+                onClick={handleDeleteClick}
+                className="px-3 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600 flex items-center justify-center"
+                title="삭제"
+              >
+                🗑️
+              </button>
+            </div>
           )}
           {isEditing && (
             <div className="flex items-center gap-2">
@@ -631,6 +705,53 @@ function FileContentViewer({ filePath, onSelectPreviousFile, onSelectNextFile, o
                 <span className="text-xs bg-blue-700 text-white px-1.5 py-0.5 rounded">
                   {getHotkeys().enter}/Enter
                 </span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {showDeleteDialog && (
+        <div 
+          className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 dark:bg-opacity-70 z-50"
+          onClick={(e) => {
+            // 다이얼로그 외부 클릭 시 이벤트 차단
+            e.stopPropagation();
+          }}
+        >
+          <div 
+            ref={deleteDialogRef}
+            className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4"
+            onKeyDown={(e) => {
+              // 다이얼로그 외부의 키 이벤트 차단
+              e.stopPropagation();
+              
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleDeleteConfirm();
+              } else if (e.key === 'Escape' || e.key === 'Esc') {
+                e.preventDefault();
+                setShowDeleteDialog(false);
+              }
+            }}
+            tabIndex={0}
+          >
+            <h3 className="text-lg font-semibold mb-4 dark:text-gray-200">삭제 확인</h3>
+            <p className="text-gray-600 dark:text-gray-300 mb-6">
+              {filePath?.split(/[/\\]/).pop() || filePath}을(를) 삭제하시겠습니까?
+            </p>
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => setShowDeleteDialog(false)}
+                className="px-4 py-2 rounded bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600"
+              >
+                취소 (Esc)
+              </button>
+              <button
+                onClick={handleDeleteConfirm}
+                className="px-4 py-2 rounded bg-red-500 text-white hover:bg-red-600"
+              >
+                삭제 (Enter)
               </button>
             </div>
           </div>

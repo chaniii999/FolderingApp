@@ -586,6 +586,12 @@ function App() {
                 }, 100);
               }
             }}
+            onFileDeleted={() => {
+              // 파일 삭제 후 디렉토리 새로고침
+              if (fileExplorerRef.current) {
+                fileExplorerRef.current.refresh();
+              }
+            }}
           />
         </div>
         {showHelp && (
