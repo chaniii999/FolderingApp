@@ -27,6 +27,18 @@ function NewFileDialog({ currentPath, onClose, onCreated }: NewFileDialogProps) 
     }
   }, []);
 
+  // 다이얼로그 내부 클릭 시에도 입력 필드에 포커스 유지
+  const handleDialogClick = (e: React.MouseEvent) => {
+    // 버튼이나 입력 필드가 아닌 곳을 클릭했을 때만 포커스 유지
+    const target = e.target as HTMLElement;
+    if (target.tagName !== 'BUTTON' && target.tagName !== 'INPUT' && target.tagName !== 'SELECT') {
+      e.preventDefault();
+      if (inputRef.current) {
+        inputRef.current.focus();
+      }
+    }
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     // Enter로 확인 처리
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -104,7 +116,10 @@ function NewFileDialog({ currentPath, onClose, onCreated }: NewFileDialogProps) 
     >
       <div
         className="bg-white rounded-lg p-6 max-w-md w-full mx-4"
-        onClick={(e) => e.stopPropagation()}
+        onClick={(e) => {
+          e.stopPropagation();
+          handleDialogClick(e);
+        }}
         onKeyDown={handleKeyDown}
         tabIndex={0}
       >

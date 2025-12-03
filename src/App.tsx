@@ -188,20 +188,25 @@ function App() {
           setNewlyCreatedFilePath(filePath);
         }, 200); // 디렉토리 새로고침 후 파일 선택
       } else {
-        // 폴더 생성은 FileExplorer에서 처리하므로 여기서는 포커스만
-        setTimeout(() => {
-          fileExplorerRef.current?.focus();
-        }, 100);
+        // 폴더 생성은 FileExplorer에서 처리하므로 여기서는 포커스만 (다이얼로그가 닫힌 후)
+        // 다이얼로그가 열려있지 않을 때만 포커스 이동
+        if (!showNewFileDialog) {
+          setTimeout(() => {
+            fileExplorerRef.current?.focus();
+          }, 100);
+        }
       }
     }
   };
 
   const handleFileSelect = (filePath: string) => {
     setSelectedFilePath(filePath);
-    // 파일 선택 후에도 FileExplorer에 포커스 유지 (편집 모드가 아니므로)
-    setTimeout(() => {
-      fileExplorerRef.current?.focus();
-    }, 50);
+    // 파일 선택 후에도 FileExplorer에 포커스 유지 (편집 모드가 아니고 다이얼로그가 열려있지 않을 때)
+    if (!showNewFileDialog) {
+      setTimeout(() => {
+        fileExplorerRef.current?.focus();
+      }, 50);
+    }
   };
 
   const getFileList = async (): Promise<string[]> => {
@@ -242,12 +247,19 @@ function App() {
   };
 
   const handleBackClick = async () => {
+    // 다이얼로그가 열려있으면 뒤로가기 무시
+    if (showNewFileDialog) {
+      return;
+    }
+    
     // 파일이 선택되어 있으면 파일 선택 해제
     if (selectedFilePath) {
       setSelectedFilePath(null);
-      setTimeout(() => {
-        fileExplorerRef.current?.focus();
-      }, 100);
+      if (!showNewFileDialog) {
+        setTimeout(() => {
+          fileExplorerRef.current?.focus();
+        }, 100);
+      }
       return;
     }
     
@@ -262,9 +274,11 @@ function App() {
       const parentPath = await window.api.filesystem.getParentDirectory(currentPath);
       if (parentPath) {
         setCurrentPath(parentPath);
-        setTimeout(() => {
-          fileExplorerRef.current?.focus();
-        }, 100);
+        if (!showNewFileDialog) {
+          setTimeout(() => {
+            fileExplorerRef.current?.focus();
+          }, 100);
+        }
       }
     } catch (err) {
       console.error('Error going back:', err);
@@ -351,6 +365,7 @@ function App() {
                   onPathChange={handlePathChange}
                   onFileSelect={handleFileSelect}
                   selectedFilePath={selectedFilePath}
+                  isDialogOpen={showNewFileDialog}
                 />
               </div>
             </div>
@@ -369,23 +384,25 @@ function App() {
             onDeselectFile={() => {
               setSelectedFilePath(null);
               setNewlyCreatedFilePath(null);
-              setTimeout(() => {
-                fileExplorerRef.current?.focus();
-              }, 100);
+              if (!showNewFileDialog) {
+                setTimeout(() => {
+                  fileExplorerRef.current?.focus();
+                }, 100);
+              }
             }}
             textEditorConfig={textEditorConfig}
             autoEdit={newlyCreatedFilePath === selectedFilePath}
             onEditModeEntered={() => setNewlyCreatedFilePath(null)}
             onEditModeChange={(isEditing) => {
-              // 편집 모드가 끝나면 FileExplorer에 포커스 복귀
-              if (!isEditing && fileExplorerRef.current) {
+              // 편집 모드가 끝나면 FileExplorer에 포커스 복귀 (다이얼로그가 열려있지 않을 때만)
+              if (!isEditing && fileExplorerRef.current && !showNewFileDialog) {
                 setTimeout(() => {
                   fileExplorerRef.current?.focus();
                 }, 100);
               }
             }}
             onRenameRequest={(filePath) => {
-              if (fileExplorerRef.current) {
+              if (fileExplorerRef.current && !showNewFileDialog) {
                 fileExplorerRef.current.startRenameForPath(filePath);
                 setTimeout(() => {
                   fileExplorerRef.current?.focus();
@@ -398,7 +415,13 @@ function App() {
       {showNewFileDialog && (
         <NewFileDialog
           currentPath={currentPath}
-          onClose={() => setShowNewFileDialog(false)}
+          onClose={() => {
+            setShowNewFileDialog(false);
+            // 다이얼로그가 닫힐 때 FileExplorer에 포커스 복귀
+            setTimeout(() => {
+              fileExplorerRef.current?.focus();
+            }, 100);
+          }}
           onCreated={handleNewFileCreated}
         />
       )}

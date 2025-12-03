@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useImperativeHandle, forwardRef } from 'react';
 import type { FileSystemItem } from '../types/electron';
 import { isHotkey } from '../config/hotkeys';
+import { undoService } from '../services/undoService';
 
 interface FileExplorerProps {
   currentPath: string;
@@ -8,6 +9,7 @@ interface FileExplorerProps {
   onFileSelect?: (filePath: string) => void;
   selectedFilePath?: string | null;
   onFileCreated?: (filePath: string, isDirectory: boolean) => void;
+  isDialogOpen?: boolean;
 }
 
 export interface FileExplorerRef {
@@ -17,7 +19,7 @@ export interface FileExplorerRef {
 }
 
 const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
-  ({ currentPath, onPathChange, onFileSelect, selectedFilePath, onFileCreated }, ref) => {
+  ({ currentPath, onPathChange, onFileSelect, selectedFilePath, onFileCreated, isDialogOpen = false }, ref) => {
   const [items, setItems] = useState<FileSystemItem[]>([]);
   const [cursorIndex, setCursorIndex] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -28,6 +30,7 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
   const listRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
   const renameInputRef = useRef<HTMLInputElement>(null);
+  const deleteDialogRef = useRef<HTMLDivElement>(null);
 
   const loadDirectory = async (path: string) => {
     try {
@@ -78,10 +81,11 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
   }));
 
   useEffect(() => {
-    if (!loading && listRef.current) {
+    // 다이얼로그가 열려있지 않을 때만 자동 포커스
+    if (!loading && listRef.current && !isDialogOpen) {
       listRef.current.focus();
     }
-  }, [loading]);
+  }, [loading, isDialogOpen]);
 
   useEffect(() => {
     // ".." 항목은 별도 처리 (ref가 없음)
@@ -267,7 +271,20 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
     if (cursorIndex < 0 || cursorIndex >= items.length) return;
     const item = items[cursorIndex];
     setShowDeleteDialog({ item, index: cursorIndex });
+    // 다이얼로그가 열릴 때 포커스를 다이얼로그로 이동
+    setTimeout(() => {
+      if (deleteDialogRef.current) {
+        deleteDialogRef.current.focus();
+      }
+    }, 100);
   };
+
+  useEffect(() => {
+    // 삭제 다이얼로그가 열릴 때 포커스 설정
+    if (showDeleteDialog && deleteDialogRef.current) {
+      deleteDialogRef.current.focus();
+    }
+  }, [showDeleteDialog]);
 
   const handleDeleteConfirm = async () => {
     if (!showDeleteDialog) return;
@@ -447,25 +464,28 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
       {showDeleteDialog && (
         <div 
           className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50"
-          onKeyDown={(e) => {
-            // 다이얼로그 외부의 키 이벤트 차단
-            e.stopPropagation();
-            
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault();
-              handleDeleteConfirm();
-            } else if (e.key === 'Escape' || e.key === 'Esc') {
-              e.preventDefault();
-              setShowDeleteDialog(null);
-            }
-          }}
           onClick={(e) => {
             // 다이얼로그 외부 클릭 시 이벤트 차단
             e.stopPropagation();
           }}
-          tabIndex={0}
         >
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+          <div 
+            ref={deleteDialogRef}
+            className="bg-white rounded-lg p-6 max-w-md w-full mx-4"
+            onKeyDown={(e) => {
+              // 다이얼로그 외부의 키 이벤트 차단
+              e.stopPropagation();
+              
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleDeleteConfirm();
+              } else if (e.key === 'Escape' || e.key === 'Esc') {
+                e.preventDefault();
+                setShowDeleteDialog(null);
+              }
+            }}
+            tabIndex={0}
+          >
             <h3 className="text-lg font-semibold mb-4">삭제 확인</h3>
             <p className="text-gray-600 mb-6">
               {showDeleteDialog.item.name}을(를) 삭제하시겠습니까?
