@@ -34,3 +34,6 @@ docs/
 rule/
 config/dev.json
 
+.cursorrules
+.cursor/commit-prompt.md
+.cursor/settings.json

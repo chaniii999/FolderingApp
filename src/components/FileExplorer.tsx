@@ -6,6 +6,7 @@ interface FileExplorerProps {
   currentPath: string;
   onPathChange: (path: string) => void;
   onFileSelect?: (filePath: string) => void;
+  selectedFilePath?: string | null;
 }
 
 export interface FileExplorerRef {
@@ -13,7 +14,7 @@ export interface FileExplorerRef {
 }
 
 const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
-  ({ currentPath, onPathChange, onFileSelect }, ref) => {
+  ({ currentPath, onPathChange, onFileSelect, selectedFilePath }, ref) => {
   const [items, setItems] = useState<FileSystemItem[]>([]);
   const [cursorIndex, setCursorIndex] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -66,6 +67,16 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
       });
     }
   }, [cursorIndex]);
+
+  // selectedFilePath가 변경되면 해당 파일의 인덱스를 찾아 cursorIndex 업데이트
+  useEffect(() => {
+    if (selectedFilePath && items.length > 0) {
+      const fileIndex = items.findIndex(item => item.path === selectedFilePath);
+      if (fileIndex !== -1) {
+        setCursorIndex(fileIndex);
+      }
+    }
+  }, [selectedFilePath, items]);
 
   const handleBack = async () => {
     if (!window.api?.filesystem) {

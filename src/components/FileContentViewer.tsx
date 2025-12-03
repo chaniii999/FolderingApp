@@ -5,9 +5,12 @@ import { getHotkeys, isHotkey } from '../config/hotkeys';
 
 interface FileContentViewerProps {
   filePath: string | null;
+  onSelectPreviousFile?: () => void;
+  onSelectNextFile?: () => void;
+  onDeselectFile?: () => void;
 }
 
-function FileContentViewer({ filePath }: FileContentViewerProps) {
+function FileContentViewer({ filePath, onSelectPreviousFile, onSelectNextFile, onDeselectFile }: FileContentViewerProps) {
   const [content, setContent] = useState<string>('');
   const [originalContent, setOriginalContent] = useState<string>('');
   const [loading, setLoading] = useState(false);
@@ -18,6 +21,7 @@ function FileContentViewer({ filePath }: FileContentViewerProps) {
   const [dialogSelectedOption, setDialogSelectedOption] = useState<'save' | 'cancel'>('save');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const isMarkdownFile = (path: string | null): boolean => {
     if (!path) return false;
@@ -165,11 +169,41 @@ function FileContentViewer({ filePath }: FileContentViewerProps) {
         return;
       }
     } else {
-      // i 키로 편집 모드 진입
-      if ((e.key === 'i' || e.key === 'I') && filePath && !loading && !error) {
-        e.preventDefault();
-        setIsEditing(true);
-        return;
+      // 파일이 선택되어 있고 편집 모드가 아닐 때
+      if (filePath && !loading && !error) {
+        // 위/아래 화살표: 텍스트 스크롤
+        if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+          // 기본 스크롤 동작 허용 (preventDefault 하지 않음)
+          return;
+        }
+        
+        // 왼쪽 화살표: 이전 파일 선택
+        if (e.key === 'ArrowLeft' && onSelectPreviousFile) {
+          e.preventDefault();
+          onSelectPreviousFile();
+          return;
+        }
+        
+        // 오른쪽 화살표: 다음 파일 선택
+        if (e.key === 'ArrowRight' && onSelectNextFile) {
+          e.preventDefault();
+          onSelectNextFile();
+          return;
+        }
+        
+        // x 키로 파일 선택 해제 (뒤로가기)
+        if (isHotkey(e.key, 'goBack') && onDeselectFile) {
+          e.preventDefault();
+          onDeselectFile();
+          return;
+        }
+        
+        // i 키로 편집 모드 진입
+        if ((e.key === 'i' || e.key === 'I')) {
+          e.preventDefault();
+          setIsEditing(true);
+          return;
+        }
       }
     }
   };
@@ -291,7 +325,10 @@ function FileContentViewer({ filePath }: FileContentViewerProps) {
           )}
         </div>
       </div>
-      <div className="flex-1 overflow-auto bg-white relative">
+      <div 
+        ref={scrollContainerRef}
+        className="flex-1 overflow-auto bg-white relative"
+      >
         {loading ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-gray-500">로딩 중...</div>

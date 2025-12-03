@@ -47,7 +47,53 @@ function App() {
     setSelectedFilePath(filePath);
   };
 
+  const getFileList = async (): Promise<string[]> => {
+    if (!currentPath) return [];
+    
+    try {
+      if (!window.api?.filesystem) {
+        return [];
+      }
+      
+      const items = await window.api.filesystem.listDirectory(currentPath);
+      // 폴더 제외하고 파일만 반환
+      return items.filter(item => !item.isDirectory).map(item => item.path);
+    } catch (err) {
+      console.error('Error getting file list:', err);
+      return [];
+    }
+  };
+
+  const handleSelectPreviousFile = async () => {
+    const files = await getFileList();
+    if (files.length === 0 || !selectedFilePath) return;
+    
+    const currentIndex = files.indexOf(selectedFilePath);
+    if (currentIndex > 0) {
+      setSelectedFilePath(files[currentIndex - 1]);
+    }
+  };
+
+  const handleSelectNextFile = async () => {
+    const files = await getFileList();
+    if (files.length === 0 || !selectedFilePath) return;
+    
+    const currentIndex = files.indexOf(selectedFilePath);
+    if (currentIndex < files.length - 1) {
+      setSelectedFilePath(files[currentIndex + 1]);
+    }
+  };
+
   const handleBackClick = async () => {
+    // 파일이 선택되어 있으면 파일 선택 해제
+    if (selectedFilePath) {
+      setSelectedFilePath(null);
+      setTimeout(() => {
+        fileExplorerRef.current?.focus();
+      }, 100);
+      return;
+    }
+    
     if (!currentPath) return;
     
     try {
@@ -112,6 +158,7 @@ function App() {
               currentPath={currentPath}
               onPathChange={handlePathChange}
               onFileSelect={handleFileSelect}
+              selectedFilePath={selectedFilePath}
             />
           </div>
         </div>
@@ -121,7 +168,17 @@ function App() {
           maxWidth={600}
         />
         <div className="flex-1 overflow-hidden">
-          <FileContentViewer filePath={selectedFilePath} />
+          <FileContentViewer 
+            filePath={selectedFilePath}
+            onSelectPreviousFile={handleSelectPreviousFile}
+            onSelectNextFile={handleSelectNextFile}
+            onDeselectFile={() => {
+              setSelectedFilePath(null);
+              setTimeout(() => {
+                fileExplorerRef.current?.focus();
+              }, 100);
+            }}
+          />
         </div>
       </main>
     </div>
