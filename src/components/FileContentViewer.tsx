@@ -106,7 +106,12 @@ function FileContentViewer({ filePath, onSelectPreviousFile, onSelectNextFile, o
 
   useEffect(() => {
     if (isEditing && textareaRef.current) {
-      textareaRef.current.focus();
+      // 약간의 지연을 두어 DOM 업데이트 후 포커스
+      setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.focus();
+        }
+      }, 0);
     }
   }, [isEditing]);
 
@@ -117,6 +122,12 @@ function FileContentViewer({ filePath, onSelectPreviousFile, onSelectNextFile, o
       if (onEditModeEntered) {
         onEditModeEntered();
       }
+      // 편집 모드 진입 후 포커스 확실히 주기
+      setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.focus();
+        }
+      }, 10);
     }
   }, [autoEdit, filePath, loading, error, isEditing, onEditModeEntered]);
 
