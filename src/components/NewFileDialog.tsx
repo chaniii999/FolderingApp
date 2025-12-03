@@ -97,6 +97,10 @@ function NewFileDialog({ currentPath, onClose, onCreated }: NewFileDialogProps) 
           onClose();
         }
       }}
+      onKeyDown={(e) => {
+        // 다이얼로그 외부의 키 이벤트 차단
+        e.stopPropagation();
+      }}
     >
       <div
         className="bg-white rounded-lg p-6 max-w-md w-full mx-4"

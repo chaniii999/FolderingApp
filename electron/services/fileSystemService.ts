@@ -155,3 +155,59 @@ export function createDirectory(dirPath: string): void {
   }
 }
 
+export function renameFile(oldPath: string, newName: string): void {
+  try {
+    if (!fs.existsSync(oldPath)) {
+      throw new Error('파일 또는 폴더가 존재하지 않습니다.');
+    }
+
+    const dir = path.dirname(oldPath);
+    const newPath = path.join(dir, newName);
+
+    if (fs.existsSync(newPath)) {
+      throw new Error('같은 이름의 파일 또는 폴더가 이미 존재합니다.');
+    }
+
+    fs.renameSync(oldPath, newPath);
+  } catch (error) {
+    console.error('Error renaming file:', error);
+    throw error;
+  }
+}
+
+export function deleteFile(filePath: string): void {
+  try {
+    if (!fs.existsSync(filePath)) {
+      throw new Error('파일이 존재하지 않습니다.');
+    }
+
+    const stats = fs.statSync(filePath);
+    if (stats.isDirectory()) {
+      throw new Error('디렉토리는 deleteDirectory를 사용하세요.');
+    }
+
+    fs.unlinkSync(filePath);
+  } catch (error) {
+    console.error('Error deleting file:', error);
+    throw error;
+  }
+}
+
+export function deleteDirectory(dirPath: string): void {
+  try {
+    if (!fs.existsSync(dirPath)) {
+      throw new Error('디렉토리가 존재하지 않습니다.');
+    }
+
+    const stats = fs.statSync(dirPath);
+    if (!stats.isDirectory()) {
+      throw new Error('파일은 deleteFile을 사용하세요.');
+    }
+
+    fs.rmSync(dirPath, { recursive: true, force: true });
+  } catch (error) {
+    console.error('Error deleting directory:', error);
+    throw error;
+  }
+}
+

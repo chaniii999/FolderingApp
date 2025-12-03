@@ -13,9 +13,11 @@ interface FileContentViewerProps {
   textEditorConfig?: TextEditorConfig;
   autoEdit?: boolean;
   onEditModeEntered?: () => void;
+  onRenameRequest?: (filePath: string) => void;
+  onEditModeChange?: (isEditing: boolean) => void;
 }
 
-function FileContentViewer({ filePath, onSelectPreviousFile, onSelectNextFile, onDeselectFile, textEditorConfig, autoEdit = false, onEditModeEntered }: FileContentViewerProps) {
+function FileContentViewer({ filePath, onSelectPreviousFile, onSelectNextFile, onDeselectFile, textEditorConfig, autoEdit = false, onEditModeEntered, onRenameRequest, onEditModeChange }: FileContentViewerProps) {
   const config = textEditorConfig || { horizontalPadding: 80, fontSize: 14 };
   const [content, setContent] = useState<string>('');
   const [originalContent, setOriginalContent] = useState<string>('');
@@ -102,18 +104,16 @@ function FileContentViewer({ filePath, onSelectPreviousFile, onSelectNextFile, o
     }
   }, [autoEdit, filePath, loading, error, isEditing, onEditModeEntered]);
 
+  // 편집 모드 변경 시 콜백 호출
   useEffect(() => {
-    // 파일이 선택되었을 때 FileContentViewer에 포커스를 주어서 키 이벤트를 받을 수 있게 함
-    if (filePath && !loading && !error && containerRef.current && !isEditing) {
-      // 약간의 지연을 두어 FileExplorer의 포커스가 해제된 후 포커스를 받음
-      const timer = setTimeout(() => {
-        if (containerRef.current) {
-          containerRef.current.focus();
-        }
-      }, 100);
-      return () => clearTimeout(timer);
+    if (onEditModeChange) {
+      onEditModeChange(isEditing);
     }
-  }, [filePath, loading, error, isEditing]);
+  }, [isEditing, onEditModeChange]);
+
+  // 파일이 선택되었을 때는 편집 모드일 때만 포커스를 받음
+  // 편집 모드가 아니면 FileExplorer에 포커스가 유지되어야 함
+  // useEffect는 제거 - 편집 모드일 때만 textarea에 포커스가 가도록 함
 
   const stopScrolling = useCallback(() => {
     if (scrollIntervalRef.current) {
@@ -402,7 +402,7 @@ function FileContentViewer({ filePath, onSelectPreviousFile, onSelectNextFile, o
       className="flex flex-col h-full relative"
       onKeyDown={handleKeyDown}
       onKeyUp={handleKeyUp}
-      tabIndex={0}
+      tabIndex={isEditing ? 0 : -1}
     >
       <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
         <div className="flex items-center justify-between gap-2">
@@ -506,14 +506,18 @@ function FileContentViewer({ filePath, onSelectPreviousFile, onSelectNextFile, o
         )}
       </div>
       
-      {showSaveDialog && (
-        <div 
-          className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50"
-          onClick={(e) => {
-            // 배경 클릭 시 다이얼로그 닫기 방지
-            e.stopPropagation();
-          }}
-        >
+          {showSaveDialog && (
+            <div 
+              className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50"
+              onClick={(e) => {
+                // 배경 클릭 시 다이얼로그 닫기 방지
+                e.stopPropagation();
+              }}
+              onKeyDown={(e) => {
+                // 다이얼로그 외부의 키 이벤트 차단
+                e.stopPropagation();
+              }}
+            >
           <div 
             className="bg-white rounded-lg p-6 max-w-md w-full mx-4"
             onClick={(e) => e.stopPropagation()}

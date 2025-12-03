@@ -83,5 +83,32 @@ export function fileSystemHandlers(ipcMain: IpcMain): void {
       throw error;
     }
   });
+
+  ipcMain.handle('filesystem:renameFile', async (_event, oldPath: string, newName: string) => {
+    try {
+      fileSystemService.renameFile(oldPath, newName);
+    } catch (error) {
+      console.error('Error renaming file:', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('filesystem:deleteFile', async (_event, filePath: string) => {
+    try {
+      fileSystemService.deleteFile(filePath);
+    } catch (error) {
+      console.error('Error deleting file:', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('filesystem:deleteDirectory', async (_event, dirPath: string) => {
+    try {
+      fileSystemService.deleteDirectory(dirPath);
+    } catch (error) {
+      console.error('Error deleting directory:', error);
+      throw error;
+    }
+  });
 }
 

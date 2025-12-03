@@ -7,6 +7,7 @@ import { BackIcon } from './components/icons/BackIcon';
 import { ForwardIcon } from './components/icons/ForwardIcon';
 import { getHotkeys } from './config/hotkeys';
 import { loadTextEditorConfig, saveTextEditorConfig, type TextEditorConfig } from './services/textEditorConfigService';
+import { undoService, type UndoAction } from './services/undoService';
 
 function App() {
   const [error, setError] = useState<string | null>(null);
@@ -42,14 +43,23 @@ function App() {
   };
 
   useEffect(() => {
-    initializeCurrentPath();
+    initializeCurrentPath().then(() => {
+      if (currentPath) {
+        undoService.setCurrentPath(currentPath);
+      }
+    });
     loadTextEditorConfig().then(setTextEditorConfig);
   }, []);
 
-  // Ctrl+N 핫키 처리
+  // n 핫키 처리 (새로 만들기)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.ctrlKey && e.key === 'n') {
+      // 다이얼로그가 열려있으면 핫키 무시
+      if (showNewFileDialog) {
+        return;
+      }
+      
+      if ((e.key === 'n' || e.key === 'N') && !e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey) {
         e.preventDefault();
         if (currentPath) {
           setShowNewFileDialog(true);
@@ -61,11 +71,16 @@ function App() {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [currentPath]);
+  }, [currentPath, showNewFileDialog]);
 
   // Ctrl+B 핫키 처리 (디렉토리 탭 토글)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // 다이얼로그가 열려있으면 핫키 무시
+      if (showNewFileDialog) {
+        return;
+      }
+      
       if (e.ctrlKey && (e.key === 'b' || e.key === 'B')) {
         e.preventDefault();
         setIsExplorerVisible((prev) => !prev);
@@ -76,7 +91,7 @@ function App() {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, []);
+  }, [showNewFileDialog]);
 
   const handleConfigChange = async (updates: Partial<TextEditorConfig>) => {
     const newConfig = { ...textEditorConfig, ...updates };
@@ -85,23 +100,95 @@ function App() {
   };
 
   const handlePathChange = (newPath: string) => {
+    undoService.setCurrentPath(newPath);
     setCurrentPath(newPath);
     setSelectedFilePath(null);
   };
+
+  const handleUndo = async () => {
+    const action = undoService.popLastAction();
+    if (!action) return;
+
+    try {
+      if (!window.api?.filesystem) {
+        throw new Error('API가 로드되지 않았습니다.');
+      }
+
+      switch (action.type) {
+        case 'create':
+          // 생성 작업을 되돌리려면 삭제
+          if (action.isDirectory) {
+            await window.api.filesystem.deleteDirectory(action.path);
+          } else {
+            await window.api.filesystem.deleteFile(action.path);
+          }
+          break;
+        case 'delete':
+          // 삭제 작업을 되돌리려면 다시 생성
+          if (action.isDirectory) {
+            await window.api.filesystem.createDirectory(action.path);
+          } else {
+            await window.api.filesystem.createFile(action.path, action.content || '');
+          }
+          break;
+        case 'rename':
+          // 이름 변경을 되돌리려면 원래 이름으로 다시 변경
+          if (action.oldPath) {
+            const oldName = action.oldPath.split(/[/\\]/).pop() || '';
+            await window.api.filesystem.renameFile(action.path, oldName);
+          }
+          break;
+      }
+
+      // 디렉토리 새로고침
+      if (fileExplorerRef.current) {
+        fileExplorerRef.current.refresh();
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : '되돌리기 중 오류가 발생했습니다.';
+      alert(errorMessage);
+      console.error('Error undoing action:', err);
+    }
+  };
+
+  // Ctrl+Z 핫키 처리
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // 다이얼로그가 열려있으면 핫키 무시
+      if (showNewFileDialog) {
+        return;
+      }
+      
+      if (e.ctrlKey && (e.key === 'z' || e.key === 'Z')) {
+        e.preventDefault();
+        handleUndo();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [showNewFileDialog]);
 
   const handleNewFileCreated = (filePath?: string) => {
     // 파일/폴더 생성 후 디렉토리 새로고침
     if (fileExplorerRef.current) {
       fileExplorerRef.current.refresh();
       
-      // 파일이 생성된 경우 해당 파일 선택 및 편집 모드 진입
+      // 작업 히스토리에 추가
       if (filePath) {
+        undoService.addAction({
+          type: 'create',
+          path: filePath,
+          isDirectory: false,
+        });
         setTimeout(() => {
           setSelectedFilePath(filePath);
           setNewlyCreatedFilePath(filePath);
         }, 200); // 디렉토리 새로고침 후 파일 선택
       } else {
-        // 폴더 생성 시에는 FileExplorer에 포커스
+        // 폴더 생성은 FileExplorer에서 처리하므로 여기서는 포커스만
         setTimeout(() => {
           fileExplorerRef.current?.focus();
         }, 100);
@@ -111,6 +198,10 @@ function App() {
 
   const handleFileSelect = (filePath: string) => {
     setSelectedFilePath(filePath);
+    // 파일 선택 후에도 FileExplorer에 포커스 유지 (편집 모드가 아니므로)
+    setTimeout(() => {
+      fileExplorerRef.current?.focus();
+    }, 50);
   };
 
   const getFileList = async (): Promise<string[]> => {
@@ -206,7 +297,7 @@ function App() {
             <button
               onClick={() => setShowNewFileDialog(true)}
               className="px-3 py-1.5 text-sm bg-green-500 text-white rounded hover:bg-green-600"
-              title="새 파일/폴더 만들기 (Ctrl+N)"
+              title="새 파일/폴더 만들기 (n)"
             >
               새로 만들기
             </button>
@@ -285,6 +376,22 @@ function App() {
             textEditorConfig={textEditorConfig}
             autoEdit={newlyCreatedFilePath === selectedFilePath}
             onEditModeEntered={() => setNewlyCreatedFilePath(null)}
+            onEditModeChange={(isEditing) => {
+              // 편집 모드가 끝나면 FileExplorer에 포커스 복귀
+              if (!isEditing && fileExplorerRef.current) {
+                setTimeout(() => {
+                  fileExplorerRef.current?.focus();
+                }, 100);
+              }
+            }}
+            onRenameRequest={(filePath) => {
+              if (fileExplorerRef.current) {
+                fileExplorerRef.current.startRenameForPath(filePath);
+                setTimeout(() => {
+                  fileExplorerRef.current?.focus();
+                }, 100);
+              }
+            }}
           />
         </div>
       </main>
