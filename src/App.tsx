@@ -7,6 +7,7 @@ import { BackIcon } from './components/icons/BackIcon';
 import { ForwardIcon } from './components/icons/ForwardIcon';
 import { getHotkeys } from './config/hotkeys';
 import { loadTextEditorConfig, saveTextEditorConfig, type TextEditorConfig } from './services/textEditorConfigService';
+import { loadAppConfig, saveAppConfig, type AppConfig } from './services/appConfigService';
 import { undoService, type UndoAction } from './services/undoService';
 
 function App() {
@@ -15,6 +16,7 @@ function App() {
   const [selectedFilePath, setSelectedFilePath] = useState<string | null>(null);
   const [explorerWidth, setExplorerWidth] = useState<number>(240);
   const [textEditorConfig, setTextEditorConfig] = useState<TextEditorConfig>({ horizontalPadding: 80, fontSize: 14 });
+  const [appConfig, setAppConfig] = useState<AppConfig>({ hideNonTextFiles: false });
   const [showNewFileDialog, setShowNewFileDialog] = useState(false);
   const [newlyCreatedFilePath, setNewlyCreatedFilePath] = useState<string | null>(null);
   const [isExplorerVisible, setIsExplorerVisible] = useState<boolean>(true);
@@ -50,6 +52,7 @@ function App() {
       }
     });
     loadTextEditorConfig().then(setTextEditorConfig);
+    loadAppConfig().then(setAppConfig);
   }, []);
 
   // n 핫키 처리 (새로 만들기)
@@ -98,6 +101,16 @@ function App() {
     const newConfig = { ...textEditorConfig, ...updates };
     setTextEditorConfig(newConfig);
     await saveTextEditorConfig(newConfig);
+  };
+
+  const handleAppConfigChange = async (updates: Partial<AppConfig>) => {
+    const newConfig = { ...appConfig, ...updates };
+    setAppConfig(newConfig);
+    await saveAppConfig(newConfig);
+    // 설정 변경 시 FileExplorer 새로고침
+    if (fileExplorerRef.current) {
+      fileExplorerRef.current.refresh();
+    }
   };
 
   const handlePathChange = (newPath: string) => {
@@ -378,6 +391,15 @@ function App() {
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
+                checked={appConfig.hideNonTextFiles}
+                onChange={(e) => handleAppConfigChange({ hideNonTextFiles: e.target.checked })}
+                className="w-4 h-4"
+              />
+              <span className="text-sm text-gray-700">텍스트 파일만 표시</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
                 checked={showHelp}
                 onChange={(e) => setShowHelp(e.target.checked)}
                 className="w-4 h-4"
@@ -407,6 +429,7 @@ function App() {
                   onFileSelect={handleFileSelect}
                   selectedFilePath={selectedFilePath}
                   isDialogOpen={showNewFileDialog}
+                  hideNonTextFiles={appConfig.hideNonTextFiles}
                 />
               </div>
             </div>

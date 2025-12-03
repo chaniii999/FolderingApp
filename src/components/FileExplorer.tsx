@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useImperativeHandle, forwardRef } from 're
 import type { FileSystemItem } from '../types/electron';
 import { isHotkey } from '../config/hotkeys';
 import { undoService } from '../services/undoService';
+import { isTextFile } from '../utils/fileUtils';
 
 interface FileExplorerProps {
   currentPath: string;
@@ -10,6 +11,7 @@ interface FileExplorerProps {
   selectedFilePath?: string | null;
   onFileCreated?: (filePath: string, isDirectory: boolean) => void;
   isDialogOpen?: boolean;
+  hideNonTextFiles?: boolean;
 }
 
 export interface FileExplorerRef {
@@ -19,7 +21,7 @@ export interface FileExplorerRef {
 }
 
 const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
-  ({ currentPath, onPathChange, onFileSelect, selectedFilePath, onFileCreated, isDialogOpen = false }, ref) => {
+  ({ currentPath, onPathChange, onFileSelect, selectedFilePath, onFileCreated, isDialogOpen = false, hideNonTextFiles = false }, ref) => {
   const [items, setItems] = useState<FileSystemItem[]>([]);
   const [cursorIndex, setCursorIndex] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -47,7 +49,13 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
       setHasParentDirectory(hasParent);
       
       const directoryItems = await window.api.filesystem.listDirectory(path);
-      setItems(directoryItems);
+      
+      // 텍스트 파일이 아닌 파일 필터링 (옵션이 켜져있을 때)
+      const filteredItems = hideNonTextFiles
+        ? directoryItems.filter(item => item.isDirectory || isTextFile(item.path))
+        : directoryItems;
+      
+      setItems(filteredItems);
       // ".." 항목이 있으면 -1로 초기화, 없으면 0으로 초기화
       setCursorIndex(hasParent ? -1 : 0);
     } catch (error) {

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { getHotkeys, isHotkey } from '../config/hotkeys';
+import { isTextFile } from '../utils/fileUtils';
 
 import type { TextEditorConfig } from '../services/textEditorConfigService';
 
@@ -41,30 +42,6 @@ function FileContentViewer({ filePath, onSelectPreviousFile, onSelectNextFile, o
     return extension === 'md' || extension === 'markdown';
   };
 
-  const isTextFile = (path: string | null): boolean => {
-    if (!path) return false;
-    const extension = path.toLowerCase().split('.').pop();
-    if (!extension) return true; // 확장자가 없으면 텍스트로 간주
-    
-    // 텍스트 파일이 아닌 확장자 목록
-    const nonTextExtensions = [
-      // 이미지
-      'jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg', 'ico', 'tiff', 'tif',
-      // 비디오
-      'mp4', 'avi', 'mov', 'wmv', 'flv', 'webm', 'mkv', 'm4v',
-      // 오디오
-      'mp3', 'wav', 'flac', 'aac', 'ogg', 'wma', 'm4a',
-      // 압축
-      'zip', 'rar', '7z', 'tar', 'gz', 'bz2',
-      // 실행 파일
-      'exe', 'dll', 'so', 'dylib',
-      // 기타 바이너리
-      'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx',
-      'db', 'sqlite', 'sqlite3',
-    ];
-    
-    return !nonTextExtensions.includes(extension);
-  };
 
   useEffect(() => {
     const loadFile = async () => {
