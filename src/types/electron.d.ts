@@ -40,6 +40,7 @@ export interface ElectronAPI {
     changeDirectory: (currentPath: string, targetName: string) => Promise<string | null>;
     getParentDirectory: (dirPath: string) => Promise<string | null>;
     getHomeDirectory: () => Promise<string>;
+    readFile: (filePath: string) => Promise<string | null>;
   };
 }
 

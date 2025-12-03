@@ -81,3 +81,28 @@ export function getParentDirectory(dirPath: string): string | null {
   }
 }
 
+export function readFile(filePath: string): string | null {
+  try {
+    if (!fs.existsSync(filePath)) {
+      return null;
+    }
+
+    const stats = fs.statSync(filePath);
+    if (stats.isDirectory()) {
+      return null;
+    }
+
+    // 파일 크기가 10MB를 초과하면 읽지 않음
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (stats.size > maxSize) {
+      throw new Error('파일이 너무 큽니다 (최대 10MB)');
+    }
+
+    const content = fs.readFileSync(filePath, 'utf-8');
+    return content;
+  } catch (error) {
+    console.error('Error reading file:', error);
+    throw error;
+  }
+}
+

@@ -4,9 +4,10 @@ import type { FileSystemItem } from '../types/electron';
 interface FileExplorerProps {
   currentPath: string;
   onPathChange: (path: string) => void;
+  onFileSelect?: (filePath: string) => void;
 }
 
-function FileExplorer({ currentPath, onPathChange }: FileExplorerProps) {
+function FileExplorer({ currentPath, onPathChange, onFileSelect }: FileExplorerProps) {
   const [items, setItems] = useState<FileSystemItem[]>([]);
   const [cursorIndex, setCursorIndex] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -16,6 +17,12 @@ function FileExplorer({ currentPath, onPathChange }: FileExplorerProps) {
   const loadDirectory = async (path: string) => {
     try {
       setLoading(true);
+      
+      if (!window.api?.filesystem) {
+        console.error('API가 로드되지 않았습니다.');
+        return;
+      }
+      
       const directoryItems = await window.api.filesystem.listDirectory(path);
       setItems(directoryItems);
       setCursorIndex(0);
@@ -39,6 +46,18 @@ function FileExplorer({ currentPath, onPathChange }: FileExplorerProps) {
     }
   }, [cursorIndex]);
 
+  const handleBack = async () => {
+    if (!window.api?.filesystem) {
+      console.error('API가 로드되지 않았습니다.');
+      return;
+    }
+    
+    const parentPath = await window.api.filesystem.getParentDirectory(currentPath);
+    if (parentPath) {
+      onPathChange(parentPath);
+    }
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (loading) return;
 
@@ -51,11 +70,19 @@ function FileExplorer({ currentPath, onPathChange }: FileExplorerProps) {
     } else if (e.key === 'z' || e.key === 'Z') {
       e.preventDefault();
       handleEnter();
+    } else if (e.key === 'x' || e.key === 'X') {
+      e.preventDefault();
+      handleBack();
     }
   };
 
   const handleEnter = async () => {
     if (items.length === 0 || cursorIndex >= items.length) return;
+    
+    if (!window.api?.filesystem) {
+      console.error('API가 로드되지 않았습니다.');
+      return;
+    }
 
     const selectedItem = items[cursorIndex];
     
@@ -64,16 +91,26 @@ function FileExplorer({ currentPath, onPathChange }: FileExplorerProps) {
       if (newPath) {
         onPathChange(newPath);
       }
+    } else if (onFileSelect) {
+      onFileSelect(selectedItem.path);
     }
   };
 
   const handleItemClick = async (item: FileSystemItem, index: number) => {
     setCursorIndex(index);
+    
+    if (!window.api?.filesystem) {
+      console.error('API가 로드되지 않았습니다.');
+      return;
+    }
+    
     if (item.isDirectory) {
       const newPath = await window.api.filesystem.changeDirectory(currentPath, item.name);
       if (newPath) {
         onPathChange(newPath);
       }
+    } else if (onFileSelect) {
+      onFileSelect(item.path);
     }
   };
 

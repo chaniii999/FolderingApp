@@ -47,5 +47,14 @@ export function fileSystemHandlers(ipcMain: IpcMain): void {
       throw error;
     }
   });
+
+  ipcMain.handle('filesystem:readFile', async (_event, filePath: string) => {
+    try {
+      return fileSystemService.readFile(filePath);
+    } catch (error) {
+      console.error('Error reading file:', error);
+      throw error;
+    }
+  });
 }
 
