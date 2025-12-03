@@ -66,6 +66,20 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
   }, [loading]);
 
   useEffect(() => {
+    // ".." 항목은 별도 처리 (ref가 없음)
+    if (cursorIndex === -1) {
+      // ".." 항목으로 스크롤 (첫 번째 요소)
+      const firstElement = listRef.current?.querySelector('[data-parent-item]');
+      if (firstElement) {
+        firstElement.scrollIntoView({
+          behavior: 'smooth',
+          block: 'nearest',
+        });
+      }
+      return;
+    }
+    
+    // 일반 항목 스크롤
     if (itemRefs.current[cursorIndex]) {
       itemRefs.current[cursorIndex]?.scrollIntoView({
         behavior: 'smooth',
@@ -79,11 +93,11 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
     if (selectedFilePath && items.length > 0) {
       const fileIndex = items.findIndex(item => item.path === selectedFilePath);
       if (fileIndex !== -1) {
-        // ".." 항목이 있으면 인덱스에 1을 더함
-        setCursorIndex(hasParentDirectory ? fileIndex + 1 : fileIndex);
+        // cursorIndex는 items 배열의 실제 인덱스 사용 (0부터 시작)
+        setCursorIndex(fileIndex);
       }
     }
-  }, [selectedFilePath, items, hasParentDirectory]);
+  }, [selectedFilePath, items]);
 
   const handleBack = async () => {
     if (!window.api?.filesystem) {
@@ -102,12 +116,21 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
 
     if (isHotkey(e.key, 'moveUp')) {
       e.preventDefault();
-      // ".." 항목이 있으면 인덱스 0에서 멈춤, 없으면 -1까지 가능
-      const minIndex = hasParentDirectory ? 0 : 0;
+      // ".." 항목이 있으면 -1부터, 없으면 0부터 시작
+      const minIndex = hasParentDirectory ? -1 : 0;
       setCursorIndex((prev) => (prev > minIndex ? prev - 1 : prev));
     } else if (isHotkey(e.key, 'moveDown')) {
       e.preventDefault();
-      setCursorIndex((prev) => (prev < items.length - 1 ? prev + 1 : items.length - 1));
+      // 최대 인덱스: items.length - 1 (hasParentDirectory와 관계없이)
+      const maxIndex = items.length - 1;
+      setCursorIndex((prev) => {
+        // ".." 항목이 있고 현재가 -1이면 0으로 이동
+        if (hasParentDirectory && prev === -1) {
+          return 0;
+        }
+        // 그 외에는 다음 인덱스로 이동
+        return prev < maxIndex ? prev + 1 : prev;
+      });
     } else if (isHotkey(e.key, 'enter')) {
       e.preventDefault();
       handleEnter();
@@ -118,12 +141,13 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
   };
 
   const handleEnter = async () => {
-    // ".." 항목 클릭 처리 (cursorIndex가 -1이면 ".." 항목)
+    // ".." 항목 처리 (cursorIndex가 -1이면 ".." 항목)
     if (hasParentDirectory && cursorIndex === -1) {
       handleBack();
       return;
     }
     
+    // 다른 항목 처리
     if (items.length === 0 || cursorIndex < 0 || cursorIndex >= items.length) return;
     
     if (!window.api?.filesystem) {
@@ -197,7 +221,7 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
       <div className="flex flex-col gap-1 overflow-y-auto flex-1">
         {hasParentDirectory && (
           <div
-            ref={handleItemRef(-1)}
+            data-parent-item
             className={`flex items-center gap-2 px-2 py-1 cursor-pointer ${
               cursorIndex === -1
                 ? 'bg-blue-500 text-white'
@@ -220,21 +244,20 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
           </div>
         ) : (
           items.map((item, index) => {
-            // ".." 항목이 있으면 실제 인덱스는 index + 1
-            const displayIndex = hasParentDirectory ? index + 1 : index;
+            // cursorIndex는 실제 items 배열의 인덱스를 사용 (0부터 시작)
             return (
               <div
                 key={item.path}
                 ref={handleItemRef(index)}
                 className={`flex items-center gap-2 px-2 py-1 cursor-pointer ${
-                  cursorIndex === displayIndex
+                  cursorIndex === index
                     ? 'bg-blue-500 text-white'
                     : 'hover:bg-gray-100'
                 }`}
                 onClick={handleItemClickWrapper(item, index)}
               >
                 <div className="w-4 flex items-center justify-center">
-                  {cursorIndex === displayIndex && <span className="text-sm">▶</span>}
+                  {cursorIndex === index && <span className="text-sm">▶</span>}
                 </div>
                 <div className="flex-1 flex items-center gap-2">
                   <span>{item.isDirectory ? '📁' : '📄'}</span>

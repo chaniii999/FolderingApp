@@ -11,9 +11,12 @@
     "build:vite": "vite build",
     "build:electron": "tsc -p electron",
     "build:app": "npm run build && electron-builder",
+    "build:app:win": "npm run build && electron-builder --win",
+    "build:app:dir": "npm run build && electron-builder --dir",
     "postinstall": "electron-builder install-app-deps || true",
     "rebuild": "@electron/rebuild -f -w better-sqlite3",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "clean": "rimraf dist dist-electron release"
   },
   "keywords": [
     "electron",
@@ -46,7 +49,8 @@
     "@tailwindcss/typography": "^0.5.10",
     "typescript": "^5.3.3",
     "vite": "^5.0.8",
-    "wait-on": "^7.2.0"
+    "wait-on": "^7.2.0",
+    "rimraf": "^5.0.5"
   },
   "build": {
     "appId": "com.foldering.app",
@@ -57,16 +61,30 @@
     "files": [
       "dist/**/*",
       "dist-electron/**/*",
-      "node_modules/**/*"
+      "package.json"
     ],
+    "extraFiles": [],
+    "extraResources": [],
+    "asar": true,
+    "asarUnpack": [
+      "node_modules/better-sqlite3/**/*"
+    ],
+    "compression": "maximum",
     "win": {
-      "target": "nsis",
-      "icon": "build/icon.ico"
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ]
     },
     "nsis": {
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true
-    }
+      "allowToChangeInstallationDirectory": true,
+      "compressor": "zlib"
+    },
+    "nodeGypRebuild": false,
+    "buildDependenciesFromSource": false
   }
 }
 

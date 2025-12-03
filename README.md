@@ -128,6 +128,25 @@ await window.api.note.delete(noteId);
 - UUID 기반 PK로 클라우드 동기화 시 충돌 방지 구조
 - IPC 핸들러는 서비스 레이어를 호출하므로, 서비스 레이어만 수정하면 동기화 기능 추가 가능
 
+## 빌드 및 배포
+
+자세한 빌드 및 배포 가이드는 [BUILD.md](./BUILD.md)를 참조하세요.
+
+### 빠른 빌드
+
+```bash
+# 전체 빌드 및 설치 파일 생성
+npm run build:app
+
+# Windows용만 빌드
+npm run build:app:win
+
+# 디렉토리 형태로 빌드 (설치 파일 없이)
+npm run build:app:dir
+```
+
+빌드된 파일은 `release` 폴더에 생성됩니다.
+
 ## 라이선스
 
 MIT
