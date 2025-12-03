@@ -98,6 +98,7 @@ function App() {
     };
   }, [showNewFileDialog]);
 
+
   const handleConfigChange = async (updates: Partial<TextEditorConfig>) => {
     const newConfig = { ...textEditorConfig, ...updates };
     setTextEditorConfig(newConfig);
@@ -335,6 +336,26 @@ function App() {
     }
   };
 
+  // p 핫키 처리 (경로 선택)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // 다이얼로그가 열려있으면 핫키 무시
+      if (showNewFileDialog) {
+        return;
+      }
+      
+      if ((e.key === 'p' || e.key === 'P') && !e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey) {
+        e.preventDefault();
+        handleSelectStartPath();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [showNewFileDialog]);
+
   return (
     <div className="flex flex-col h-screen w-screen">
       <header className="flex flex-col gap-2 px-6 py-4 border-b border-gray-200 bg-gray-50">
@@ -534,6 +555,10 @@ function App() {
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-gray-700">새로 만들기</span>
                         <kbd className="px-1.5 py-0.5 bg-gray-200 rounded text-xs font-mono">n</kbd>
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-gray-700">경로 선택</span>
+                        <kbd className="px-1.5 py-0.5 bg-gray-200 rounded text-xs font-mono">{getHotkeys().selectPath}</kbd>
                       </div>
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-gray-700">이름 변경</span>
