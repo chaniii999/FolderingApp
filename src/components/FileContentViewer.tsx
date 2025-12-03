@@ -198,8 +198,8 @@ function FileContentViewer({ filePath, onSelectPreviousFile, onSelectNextFile, o
           return;
         }
         
-        // i 키로 편집 모드 진입
-        if ((e.key === 'i' || e.key === 'I')) {
+        // i 키로 편집 모드 진입 (modifier 키 없을 때만)
+        if ((e.key === 'i' || e.key === 'I') && !e.ctrlKey && !e.altKey && !e.metaKey) {
           e.preventDefault();
           setIsEditing(true);
           return;
