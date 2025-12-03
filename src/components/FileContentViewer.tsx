@@ -197,13 +197,13 @@ function FileContentViewer({ filePath, onSelectPreviousFile, onSelectNextFile, o
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    // 알림창이 떴을 때는 z, x만 처리
+    // 알림창이 떴을 때는 z/x 또는 Enter/Esc 처리
     if (showSaveDialog) {
       e.preventDefault();
       e.stopPropagation();
       
-      // z 키로 저장 옵션 선택 또는 저장 실행
-      if (isHotkey(e.key, 'enter')) {
+      // z 또는 Enter로 저장 옵션 선택 또는 저장 실행
+      if (isHotkey(e.key, 'enter') || (e.key === 'Enter' && !e.shiftKey)) {
         if (dialogSelectedOption === 'save') {
           handleSaveDialogConfirm();
         } else {
@@ -212,8 +212,8 @@ function FileContentViewer({ filePath, onSelectPreviousFile, onSelectNextFile, o
         return;
       }
       
-      // x 키로 취소 옵션 선택 또는 취소 실행
-      if (isHotkey(e.key, 'goBack')) {
+      // x 또는 Esc로 취소 옵션 선택 또는 취소 실행
+      if (isHotkey(e.key, 'goBack') || e.key === 'Escape' || e.key === 'Esc') {
         if (dialogSelectedOption === 'cancel') {
           handleSaveDialogCancel();
         } else {
@@ -521,7 +521,7 @@ function FileContentViewer({ filePath, onSelectPreviousFile, onSelectNextFile, o
               >
                 <span>취소</span>
                 <span className="text-xs bg-gray-600 text-white px-1.5 py-0.5 rounded">
-                  {getHotkeys().goBack}
+                  {getHotkeys().goBack}/Esc
                 </span>
               </button>
               <button
@@ -534,7 +534,7 @@ function FileContentViewer({ filePath, onSelectPreviousFile, onSelectNextFile, o
               >
                 <span>저장</span>
                 <span className="text-xs bg-blue-700 text-white px-1.5 py-0.5 rounded">
-                  {getHotkeys().enter}
+                  {getHotkeys().enter}/Enter
                 </span>
               </button>
             </div>

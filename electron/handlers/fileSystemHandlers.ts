@@ -65,5 +65,23 @@ export function fileSystemHandlers(ipcMain: IpcMain): void {
       throw error;
     }
   });
+
+  ipcMain.handle('filesystem:createFile', async (_event, filePath: string, content: string = '') => {
+    try {
+      fileSystemService.createFile(filePath, content);
+    } catch (error) {
+      console.error('Error creating file:', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('filesystem:createDirectory', async (_event, dirPath: string) => {
+    try {
+      fileSystemService.createDirectory(dirPath);
+    } catch (error) {
+      console.error('Error creating directory:', error);
+      throw error;
+    }
+  });
 }
 

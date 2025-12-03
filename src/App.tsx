@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import FileExplorer, { type FileExplorerRef } from './components/FileExplorer';
 import FileContentViewer from './components/FileContentViewer';
 import Resizer from './components/Resizer';
+import NewFileDialog from './components/NewFileDialog';
 import { BackIcon } from './components/icons/BackIcon';
 import { getHotkeys } from './config/hotkeys';
 import { loadTextEditorConfig, saveTextEditorConfig, type TextEditorConfig } from './services/textEditorConfigService';
@@ -12,6 +13,7 @@ function App() {
   const [selectedFilePath, setSelectedFilePath] = useState<string | null>(null);
   const [explorerWidth, setExplorerWidth] = useState<number>(240);
   const [textEditorConfig, setTextEditorConfig] = useState<TextEditorConfig>({ horizontalPadding: 80, fontSize: 14 });
+  const [showNewFileDialog, setShowNewFileDialog] = useState(false);
   const fileExplorerRef = useRef<FileExplorerRef>(null);
 
   const initializeCurrentPath = async () => {
@@ -41,6 +43,23 @@ function App() {
     loadTextEditorConfig().then(setTextEditorConfig);
   }, []);
 
+  // Ctrl+N 핫키 처리
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.key === 'n') {
+        e.preventDefault();
+        if (currentPath) {
+          setShowNewFileDialog(true);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [currentPath]);
+
   const handleConfigChange = async (updates: Partial<TextEditorConfig>) => {
     const newConfig = { ...textEditorConfig, ...updates };
     setTextEditorConfig(newConfig);
@@ -50,6 +69,16 @@ function App() {
   const handlePathChange = (newPath: string) => {
     setCurrentPath(newPath);
     setSelectedFilePath(null);
+  };
+
+  const handleNewFileCreated = () => {
+    // 파일/폴더 생성 후 디렉토리 새로고침
+    if (fileExplorerRef.current) {
+      fileExplorerRef.current.refresh();
+      setTimeout(() => {
+        fileExplorerRef.current?.focus();
+      }, 100);
+    }
   };
 
   const handleFileSelect = (filePath: string) => {
@@ -150,6 +179,13 @@ function App() {
             )}
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowNewFileDialog(true)}
+              className="px-3 py-1.5 text-sm bg-green-500 text-white rounded hover:bg-green-600"
+              title="새 파일/폴더 만들기 (Ctrl+N)"
+            >
+              새로 만들기
+            </button>
             <div className="flex items-center gap-2">
               <label className="text-sm text-gray-600">가로 여백:</label>
               <select
@@ -221,6 +257,13 @@ function App() {
           />
         </div>
       </main>
+      {showNewFileDialog && (
+        <NewFileDialog
+          currentPath={currentPath}
+          onClose={() => setShowNewFileDialog(false)}
+          onCreated={handleNewFileCreated}
+        />
+      )}
     </div>
   );
 }

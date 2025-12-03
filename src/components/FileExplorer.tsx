@@ -11,6 +11,7 @@ interface FileExplorerProps {
 
 export interface FileExplorerRef {
   focus: () => void;
+  refresh: () => void;
 }
 
 const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
@@ -56,6 +57,9 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
       if (listRef.current) {
         listRef.current.focus();
       }
+    },
+    refresh: () => {
+      loadDirectory(currentPath);
     },
   }));
 

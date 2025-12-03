@@ -42,6 +42,8 @@ export interface ElectronAPI {
     getHomeDirectory: () => Promise<string>;
     readFile: (filePath: string) => Promise<string | null>;
     writeFile: (filePath: string, content: string) => Promise<void>;
+    createFile: (filePath: string, content?: string) => Promise<void>;
+    createDirectory: (dirPath: string) => Promise<void>;
   };
 }
 

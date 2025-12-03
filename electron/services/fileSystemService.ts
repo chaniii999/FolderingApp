@@ -124,3 +124,34 @@ export function writeFile(filePath: string, content: string): void {
   }
 }
 
+export function createFile(filePath: string, content: string = ''): void {
+  try {
+    if (fs.existsSync(filePath)) {
+      throw new Error('파일이 이미 존재합니다.');
+    }
+
+    const dir = path.dirname(filePath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+
+    fs.writeFileSync(filePath, content, 'utf-8');
+  } catch (error) {
+    console.error('Error creating file:', error);
+    throw error;
+  }
+}
+
+export function createDirectory(dirPath: string): void {
+  try {
+    if (fs.existsSync(dirPath)) {
+      throw new Error('디렉토리가 이미 존재합니다.');
+    }
+
+    fs.mkdirSync(dirPath, { recursive: true });
+  } catch (error) {
+    console.error('Error creating directory:', error);
+    throw error;
+  }
+}
+
