@@ -17,6 +17,8 @@ export default defineConfig({
     outDir: 'dist',
     minify: 'esbuild', // esbuild는 기본 포함되어 있고 빠름
     sourcemap: false, // 소스맵 비활성화로 용량 절감
+    cssCodeSplit: true, // CSS 코드 분할로 용량 절감
+    emptyOutDir: true,
     rollupOptions: {
       output: {
         manualChunks: {
@@ -30,6 +32,7 @@ export default defineConfig({
     },
     chunkSizeWarningLimit: 1000, // 청크 크기 경고 임계값
     reportCompressedSize: false, // 압축 크기 보고 비활성화로 빌드 속도 향상
+    target: 'esnext', // 최신 ES 문법 사용으로 트리 쉐이킹 최적화
   },
 });
 
