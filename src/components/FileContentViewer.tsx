@@ -15,7 +15,9 @@ function FileContentViewer({ filePath }: FileContentViewerProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [dialogSelectedOption, setDialogSelectedOption] = useState<'save' | 'cancel'>('save');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const isMarkdownFile = (path: string | null): boolean => {
     if (!path) return false;
@@ -77,6 +79,40 @@ function FileContentViewer({ filePath }: FileContentViewerProps) {
   }, [isEditing]);
 
   useEffect(() => {
+    // 파일이 선택되었을 때 FileContentViewer에 포커스를 주어서 키 이벤트를 받을 수 있게 함
+    if (filePath && !loading && !error && containerRef.current && !isEditing) {
+      // 약간의 지연을 두어 FileExplorer의 포커스가 해제된 후 포커스를 받음
+      const timer = setTimeout(() => {
+        if (containerRef.current) {
+          containerRef.current.focus();
+        }
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [filePath, loading, error, isEditing]);
+
+  // 전역 키 이벤트 리스너 추가 (파일이 선택되었을 때 "i" 키로 편집 모드 진입)
+  useEffect(() => {
+    if (!filePath || loading || error || isEditing || showSaveDialog) {
+      return;
+    }
+
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // "i" 키로 편집 모드 진입 (파일이 선택되어 있을 때만)
+      if ((e.key === 'i' || e.key === 'I') && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsEditing(true);
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalKeyDown, true);
+    return () => {
+      window.removeEventListener('keydown', handleGlobalKeyDown, true);
+    };
+  }, [filePath, loading, error, isEditing, showSaveDialog]);
+
+  useEffect(() => {
     if (content !== originalContent) {
       setHasChanges(true);
     } else {
@@ -85,9 +121,36 @@ function FileContentViewer({ filePath }: FileContentViewerProps) {
   }, [content, originalContent]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (isEditing) {
-      const hotkeys = getHotkeys();
+    // 알림창이 떴을 때는 z, x만 처리
+    if (showSaveDialog) {
+      e.preventDefault();
+      e.stopPropagation();
       
+      // z 키로 저장 옵션 선택 또는 저장 실행
+      if (isHotkey(e.key, 'enter')) {
+        if (dialogSelectedOption === 'save') {
+          handleSaveDialogConfirm();
+        } else {
+          setDialogSelectedOption('save');
+        }
+        return;
+      }
+      
+      // x 키로 취소 옵션 선택 또는 취소 실행
+      if (isHotkey(e.key, 'goBack')) {
+        if (dialogSelectedOption === 'cancel') {
+          handleSaveDialogCancel();
+        } else {
+          setDialogSelectedOption('cancel');
+        }
+        return;
+      }
+      
+      // 다른 키는 무시
+      return;
+    }
+
+    if (isEditing) {
       // Ctrl+F5 저장
       if (e.ctrlKey && (e.key === 'F5' || e.key === 'f5')) {
         e.preventDefault();
@@ -147,6 +210,7 @@ function FileContentViewer({ filePath }: FileContentViewerProps) {
   const handleCancel = () => {
     if (hasChanges) {
       setShowSaveDialog(true);
+      setDialogSelectedOption('save');
     } else {
       setIsEditing(false);
       setContent(originalContent);
@@ -180,6 +244,7 @@ function FileContentViewer({ filePath }: FileContentViewerProps) {
 
   return (
     <div 
+      ref={containerRef}
       className="flex flex-col h-full relative"
       onKeyDown={handleKeyDown}
       tabIndex={0}
@@ -259,8 +324,17 @@ function FileContentViewer({ filePath }: FileContentViewerProps) {
       </div>
       
       {showSaveDialog && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+        <div 
+          className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50"
+          onClick={(e) => {
+            // 배경 클릭 시 다이얼로그 닫기 방지
+            e.stopPropagation();
+          }}
+        >
+          <div 
+            className="bg-white rounded-lg p-6 max-w-md w-full mx-4"
+            onClick={(e) => e.stopPropagation()}
+          >
             <h3 className="text-lg font-semibold mb-4">저장하시겠습니까?</h3>
             <p className="text-gray-600 mb-6">
               변경사항이 저장되지 않았습니다. 저장하시겠습니까?
@@ -268,15 +342,29 @@ function FileContentViewer({ filePath }: FileContentViewerProps) {
             <div className="flex gap-2 justify-end">
               <button
                 onClick={handleSaveDialogCancel}
-                className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+                className={`px-4 py-2 rounded flex items-center gap-2 ${
+                  dialogSelectedOption === 'cancel'
+                    ? 'bg-gray-400 text-white'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
               >
-                취소
+                <span>취소</span>
+                <span className="text-xs bg-gray-600 text-white px-1.5 py-0.5 rounded">
+                  {getHotkeys().goBack}
+                </span>
               </button>
               <button
                 onClick={handleSaveDialogConfirm}
-                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                className={`px-4 py-2 rounded flex items-center gap-2 ${
+                  dialogSelectedOption === 'save'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-blue-500 text-white hover:bg-blue-600'
+                }`}
               >
-                저장
+                <span>저장</span>
+                <span className="text-xs bg-blue-700 text-white px-1.5 py-0.5 rounded">
+                  {getHotkeys().enter}
+                </span>
               </button>
             </div>
           </div>

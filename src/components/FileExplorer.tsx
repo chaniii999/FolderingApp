@@ -153,6 +153,7 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
 
   return (
     <div
+      data-file-explorer
       className="flex flex-col h-full w-full"
       tabIndex={0}
       onKeyDown={handleKeyDown}
