@@ -173,7 +173,18 @@ function FileContentViewer({ filePath, onSelectPreviousFile, onSelectNextFile, o
       if (filePath && !loading && !error) {
         // 위/아래 화살표: 텍스트 스크롤
         if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
-          // 기본 스크롤 동작 허용 (preventDefault 하지 않음)
+          e.preventDefault();
+          if (scrollContainerRef.current) {
+            const scrollAmount = 50; // 스크롤 양 (픽셀)
+            const currentScroll = scrollContainerRef.current.scrollTop;
+            const newScroll = e.key === 'ArrowUp' 
+              ? currentScroll - scrollAmount 
+              : currentScroll + scrollAmount;
+            scrollContainerRef.current.scrollTo({
+              top: newScroll,
+              behavior: 'smooth'
+            });
+          }
           return;
         }
         
