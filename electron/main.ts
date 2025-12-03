@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, Menu } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu, nativeTheme } from 'electron';
 import path from 'path';
 import { folderHandlers } from './handlers/folderHandlers';
 import { noteHandlers } from './handlers/noteHandlers';
@@ -159,6 +159,7 @@ function createWindow() {
   const mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
+    backgroundColor: '#1f2937', // 다크 테마 기본 배경색 (gray-800)
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
@@ -182,6 +183,21 @@ function createWindow() {
 
   console.log('[Main] menuBar setting:', devConfig.menuBar);
   setupMenuBar(devConfig.menuBar, mainWindow);
+  
+  // 테마 변경 IPC 핸들러
+  ipcMain.on('theme:change', (_event, theme: string) => {
+    if (theme === 'dark') {
+      nativeTheme.themeSource = 'dark';
+      if (mainWindow) {
+        mainWindow.setBackgroundColor('#1f2937'); // gray-800
+      }
+    } else {
+      nativeTheme.themeSource = 'light';
+      if (mainWindow) {
+        mainWindow.setBackgroundColor('#ffffff'); // white
+      }
+    }
+  });
   
   return mainWindow;
 }

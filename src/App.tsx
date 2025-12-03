@@ -58,6 +58,8 @@ function App() {
       setAppConfig(config);
       // 초기 테마 적용
       applyTheme(config.theme);
+      // 초기 윈도우 테마 설정
+      window.dispatchEvent(new CustomEvent('theme:change', { detail: config.theme }));
       // 초기 메뉴바 체크박스 상태 설정
       if (window.api?.menu) {
         try {
@@ -149,6 +151,11 @@ function App() {
     // 테마 적용
     if (updates.theme !== undefined) {
       applyTheme(updates.theme);
+      // 메인 프로세스에 테마 변경 알림
+      if (window.api?.filesystem) {
+        // IPC를 통해 테마 변경 알림 (preload를 통해)
+        window.dispatchEvent(new CustomEvent('theme:change', { detail: updates.theme }));
+      }
     }
     
     // 메뉴바 체크박스 상태 업데이트

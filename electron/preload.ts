@@ -102,6 +102,11 @@ ipcRenderer.on('menu:changeTheme', (_event, theme: string) => {
   }
 });
 
+// 테마 변경 이벤트 리스너
+window.addEventListener('theme:change', ((event: CustomEvent<string>) => {
+  ipcRenderer.send('theme:change', event.detail);
+}) as EventListener);
+
 contextBridge.exposeInMainWorld('api', api);
 
 declare global {
