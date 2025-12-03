@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from 'react';
-import { isHotkey, getHotkeys } from '../config/hotkeys';
 
 export type FileType = 'folder' | 'file' | 'markdown';
 
@@ -29,15 +28,15 @@ function NewFileDialog({ currentPath, onClose, onCreated }: NewFileDialogProps) 
   }, []);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    // z 또는 Enter로 확인 처리
-    if (isHotkey(e.key, 'enter') || (e.key === 'Enter' && !e.shiftKey)) {
+    // Enter로 확인 처리
+    if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleCreate();
       return;
     }
 
-    // x 또는 Esc로 취소 처리
-    if (isHotkey(e.key, 'goBack') || e.key === 'Escape' || e.key === 'Esc') {
+    // Esc로 취소 처리
+    if (e.key === 'Escape' || e.key === 'Esc') {
       e.preventDefault();
       onClose();
       return;
@@ -159,7 +158,7 @@ function NewFileDialog({ currentPath, onClose, onCreated }: NewFileDialogProps) 
           >
             <span>취소</span>
             <span className="text-xs bg-gray-600 text-white px-1.5 py-0.5 rounded">
-              {getHotkeys().goBack}/Esc
+              Esc
             </span>
           </button>
           <button
@@ -168,7 +167,7 @@ function NewFileDialog({ currentPath, onClose, onCreated }: NewFileDialogProps) 
           >
             <span>생성</span>
             <span className="text-xs bg-blue-700 text-white px-1.5 py-0.5 rounded">
-              {getHotkeys().enter}/Enter
+              Enter
             </span>
           </button>
         </div>
