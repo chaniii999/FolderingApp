@@ -49,6 +49,8 @@ const api = {
     renameFile: (oldPath: string, newName: string): Promise<void> => ipcRenderer.invoke('filesystem:renameFile', oldPath, newName),
     deleteFile: (filePath: string): Promise<void> => ipcRenderer.invoke('filesystem:deleteFile', filePath),
     deleteDirectory: (dirPath: string): Promise<void> => ipcRenderer.invoke('filesystem:deleteDirectory', dirPath),
+    selectStartPath: (): Promise<string | null> => ipcRenderer.invoke('filesystem:selectStartPath'),
+    saveStartPath: (startPath: string): Promise<void> => ipcRenderer.invoke('filesystem:saveStartPath', startPath),
   },
 };
 

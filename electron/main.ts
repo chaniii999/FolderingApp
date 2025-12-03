@@ -4,6 +4,7 @@ import { folderHandlers } from './handlers/folderHandlers';
 import { noteHandlers } from './handlers/noteHandlers';
 import { fileSystemHandlers } from './handlers/fileSystemHandlers';
 import { getDevConfig } from './services/devConfigService';
+import { loadStartPath, selectStartPath } from './services/startPathService';
 
 const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
 
@@ -113,10 +114,24 @@ function createWindow() {
   setupMenuBar(devConfig.menuBar);
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   // 개발자 설정 로드 확인
   const devConfig = getDevConfig();
   console.log('[Main] Initial dev config:', devConfig);
+  
+  // 시작 경로 확인 및 선택
+  const startPath = loadStartPath();
+  if (!startPath) {
+    console.log('[Main] No start path found, showing dialog...');
+    const selectedPath = await selectStartPath(true); // 처음 실행이므로 true 전달
+    if (!selectedPath) {
+      console.log('[Main] No path selected, using home directory');
+    } else {
+      console.log('[Main] Start path selected:', selectedPath);
+    }
+  } else {
+    console.log('[Main] Using saved start path:', startPath);
+  }
   
   // IPC 핸들러 등록
   folderHandlers(ipcMain);

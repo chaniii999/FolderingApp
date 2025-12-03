@@ -76,12 +76,13 @@
           "target": "nsis",
           "arch": ["x64"]
         }
-      ]
+      ],
+      "sign": null,
+      "signDlls": false
     },
     "nsis": {
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
-      "compressor": "zlib"
+      "allowToChangeInstallationDirectory": true
     },
     "nodeGypRebuild": false,
     "buildDependenciesFromSource": false

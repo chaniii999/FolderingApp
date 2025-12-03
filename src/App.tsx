@@ -290,6 +290,30 @@ function App() {
     setIsExplorerVisible(!isExplorerVisible);
   };
 
+  const handleSelectStartPath = async () => {
+    try {
+      if (!window.api?.filesystem) {
+        console.error('API가 로드되지 않았습니다.');
+        return;
+      }
+
+      const selectedPath = await window.api.filesystem.selectStartPath();
+      if (selectedPath) {
+        // 선택된 경로를 저장하고 현재 경로 업데이트
+        await window.api.filesystem.saveStartPath(selectedPath);
+        setCurrentPath(selectedPath);
+        setSelectedFilePath(null);
+        undoService.setCurrentPath(selectedPath);
+        // FileExplorer 새로고침
+        if (fileExplorerRef.current) {
+          fileExplorerRef.current.refresh();
+        }
+      }
+    } catch (err) {
+      console.error('Error selecting start path:', err);
+    }
+  };
+
   return (
     <div className="flex flex-col h-screen w-screen">
       <header className="flex flex-col gap-2 px-6 py-4 border-b border-gray-200 bg-gray-50">
@@ -309,15 +333,13 @@ function App() {
             )}
           </div>
           <div className="flex items-center gap-2">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={showHelp}
-                onChange={(e) => setShowHelp(e.target.checked)}
-                className="w-4 h-4"
-              />
-              <span className="text-sm text-gray-700">도움말</span>
-            </label>
+            <button
+              onClick={handleSelectStartPath}
+              className="px-3 py-1.5 text-sm bg-blue-500 text-white rounded hover:bg-blue-600"
+              title="시작 경로 선택"
+            >
+              경로 선택
+            </button>
             <button
               onClick={() => setShowNewFileDialog(true)}
               className="px-3 py-1.5 text-sm bg-green-500 text-white rounded hover:bg-green-600"
@@ -353,6 +375,15 @@ function App() {
                 <option value={20}>20px</option>
               </select>
             </div>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showHelp}
+                onChange={(e) => setShowHelp(e.target.checked)}
+                className="w-4 h-4"
+              />
+              <span className="text-sm text-gray-700">도움말</span>
+            </label>
           </div>
         </div>
       </header>

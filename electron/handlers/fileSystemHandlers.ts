@@ -1,5 +1,6 @@
 import { IpcMain } from 'electron';
 import * as fileSystemService from '../services/fileSystemService';
+import { saveStartPath, selectStartPath } from '../services/startPathService';
 import os from 'os';
 
 export function fileSystemHandlers(ipcMain: IpcMain): void {
@@ -107,6 +108,25 @@ export function fileSystemHandlers(ipcMain: IpcMain): void {
       fileSystemService.deleteDirectory(dirPath);
     } catch (error) {
       console.error('Error deleting directory:', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('filesystem:selectStartPath', async () => {
+    try {
+      const selectedPath = await selectStartPath(false); // 사용자가 버튼으로 호출하는 경우이므로 false
+      return selectedPath;
+    } catch (error) {
+      console.error('Error selecting start path:', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('filesystem:saveStartPath', async (_event, startPath: string) => {
+    try {
+      saveStartPath(startPath);
+    } catch (error) {
+      console.error('Error saving start path:', error);
       throw error;
     }
   });

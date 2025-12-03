@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { app } from 'electron';
+import { getStartPathOrHome } from './startPathService';
 
 export interface FileSystemItem {
   name: string;
@@ -10,7 +11,8 @@ export interface FileSystemItem {
 }
 
 export function getCurrentDirectory(): string {
-  return process.cwd();
+  // 저장된 시작 경로가 있으면 사용, 없으면 홈 디렉토리
+  return getStartPathOrHome();
 }
 
 export function listDirectory(dirPath: string): FileSystemItem[] {
