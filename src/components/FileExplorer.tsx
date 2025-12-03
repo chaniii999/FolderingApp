@@ -194,11 +194,6 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
                 <span>{item.isDirectory ? '📁' : '📄'}</span>
                 <span className="truncate">{item.name}</span>
               </div>
-              {!item.isDirectory && item.size !== undefined && (
-                <span className="text-xs text-gray-500">
-                  {(item.size / 1024).toFixed(1)} KB
-                </span>
-              )}
             </div>
           ))
         )}
