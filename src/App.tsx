@@ -18,6 +18,7 @@ function App() {
   const [showNewFileDialog, setShowNewFileDialog] = useState(false);
   const [newlyCreatedFilePath, setNewlyCreatedFilePath] = useState<string | null>(null);
   const [isExplorerVisible, setIsExplorerVisible] = useState<boolean>(true);
+  const [showHelp, setShowHelp] = useState<boolean>(false);
   const fileExplorerRef = useRef<FileExplorerRef>(null);
 
   const initializeCurrentPath = async () => {
@@ -73,7 +74,7 @@ function App() {
     };
   }, [currentPath, showNewFileDialog]);
 
-  // Ctrl+B 핫키 처리 (디렉토리 탭 토글)
+  // b 핫키 처리 (디렉토리 탭 토글)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // 다이얼로그가 열려있으면 핫키 무시
@@ -81,7 +82,7 @@ function App() {
         return;
       }
       
-      if (e.ctrlKey && (e.key === 'b' || e.key === 'B')) {
+      if ((e.key === 'b' || e.key === 'B') && !e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey) {
         e.preventDefault();
         setIsExplorerVisible((prev) => !prev);
       }
@@ -308,6 +309,15 @@ function App() {
             )}
           </div>
           <div className="flex items-center gap-2">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showHelp}
+                onChange={(e) => setShowHelp(e.target.checked)}
+                className="w-4 h-4"
+              />
+              <span className="text-sm text-gray-700">도움말</span>
+            </label>
             <button
               onClick={() => setShowNewFileDialog(true)}
               className="px-3 py-1.5 text-sm bg-green-500 text-white rounded hover:bg-green-600"
@@ -411,6 +421,97 @@ function App() {
             }}
           />
         </div>
+        {showHelp && (
+          <div className="flex flex-col border-l border-gray-200 bg-gray-50" style={{ width: '240px', minWidth: '240px' }}>
+              <div className="px-2 py-2 border-b border-gray-200">
+                <h3 className="text-sm font-semibold">사용 가능한 핫키</h3>
+              </div>
+              <div className="flex-1 overflow-y-auto px-2 py-2">
+                <div className="space-y-2">
+                  <div>
+                    <h4 className="font-semibold mb-0.5 text-xs">파일 탐색</h4>
+                    <div className="space-y-0.5 text-xs">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-gray-700">위로 이동</span>
+                        <kbd className="px-1.5 py-0.5 bg-gray-200 rounded text-xs font-mono">↑</kbd>
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-gray-700">아래로 이동</span>
+                        <kbd className="px-1.5 py-0.5 bg-gray-200 rounded text-xs font-mono">↓</kbd>
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-gray-700">선택/확인</span>
+                        <kbd className="px-1.5 py-0.5 bg-gray-200 rounded text-xs font-mono">{getHotkeys().enter} / Enter</kbd>
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-gray-700">뒤로가기</span>
+                        <kbd className="px-1.5 py-0.5 bg-gray-200 rounded text-xs font-mono">{getHotkeys().goBack} / Esc</kbd>
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold mb-0.5 text-xs">파일 편집</h4>
+                    <div className="space-y-0.5 text-xs">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-gray-700">편집 모드</span>
+                        <kbd className="px-1.5 py-0.5 bg-gray-200 rounded text-xs font-mono">{getHotkeys().edit}</kbd>
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-gray-700">저장</span>
+                        <kbd className="px-1.5 py-0.5 bg-gray-200 rounded text-xs font-mono">{getHotkeys().save}</kbd>
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-gray-700">취소</span>
+                        <kbd className="px-1.5 py-0.5 bg-gray-200 rounded text-xs font-mono">{getHotkeys().cancel}</kbd>
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold mb-0.5 text-xs">파일 관리</h4>
+                    <div className="space-y-0.5 text-xs">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-gray-700">새로 만들기</span>
+                        <kbd className="px-1.5 py-0.5 bg-gray-200 rounded text-xs font-mono">n</kbd>
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-gray-700">이름 변경</span>
+                        <kbd className="px-1.5 py-0.5 bg-gray-200 rounded text-xs font-mono">e</kbd>
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-gray-700">삭제</span>
+                        <kbd className="px-1.5 py-0.5 bg-gray-200 rounded text-xs font-mono">Delete</kbd>
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-gray-700">되돌리기</span>
+                        <kbd className="px-1.5 py-0.5 bg-gray-200 rounded text-xs font-mono">Ctrl+Z</kbd>
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold mb-0.5 text-xs">레이아웃</h4>
+                    <div className="space-y-0.5 text-xs">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-gray-700">디렉토리 탭 토글</span>
+                        <kbd className="px-1.5 py-0.5 bg-gray-200 rounded text-xs font-mono">b</kbd>
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-gray-700">이전 파일</span>
+                        <kbd className="px-1.5 py-0.5 bg-gray-200 rounded text-xs font-mono">←</kbd>
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-gray-700">다음 파일</span>
+                        <kbd className="px-1.5 py-0.5 bg-gray-200 rounded text-xs font-mono">→</kbd>
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-gray-700">텍스트 스크롤</span>
+                        <kbd className="px-1.5 py-0.5 bg-gray-200 rounded text-xs font-mono">↑ / ↓</kbd>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+        )}
       </main>
       {showNewFileDialog && (
         <NewFileDialog

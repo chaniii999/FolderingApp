@@ -17,7 +17,7 @@ export const defaultHotkeys: HotkeyConfig = {
   edit: 'i',
   save: 'Control+F5',
   cancel: 'Escape',
-  toggleExplorer: 'Control+B',
+  toggleExplorer: 'b',
 };
 
 let currentHotkeys: HotkeyConfig = { ...defaultHotkeys };
