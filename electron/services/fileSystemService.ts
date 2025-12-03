@@ -23,24 +23,47 @@ export function listDirectory(dirPath: string): FileSystemItem[] {
 
     const items = fs.readdirSync(dirPath, { withFileTypes: true });
     
-    return items
-      .map((item) => {
+    const validItems: FileSystemItem[] = [];
+    
+    for (const item of items) {
+      try {
         const fullPath = path.join(dirPath, item.name);
-        const stats = fs.statSync(fullPath);
+        let stats;
         
-        return {
+        // statSync에서 권한 오류가 발생할 수 있으므로 try-catch로 처리
+        try {
+          stats = fs.statSync(fullPath);
+        } catch (statError: any) {
+          // 권한 오류나 기타 오류가 발생하면 건너뛰기
+          if (statError.code === 'EPERM' || statError.code === 'EACCES') {
+            console.warn(`Permission denied for ${fullPath}, skipping...`);
+            continue;
+          }
+          throw statError; // 다른 오류는 다시 throw
+        }
+        
+        validItems.push({
           name: item.name,
           path: fullPath,
           isDirectory: item.isDirectory(),
           size: item.isFile() ? stats.size : undefined,
-        };
-      })
-      .sort((a, b) => {
-        // 디렉토리를 먼저, 그 다음 이름순 정렬
-        if (a.isDirectory && !b.isDirectory) return -1;
-        if (!a.isDirectory && b.isDirectory) return 1;
-        return a.name.localeCompare(b.name);
-      });
+        });
+      } catch (error: any) {
+        // 개별 항목 처리 중 오류 발생 시 건너뛰기
+        console.warn(`Error processing item ${item.name}:`, error.message);
+        continue;
+      }
+    }
+    
+    // 정렬
+    validItems.sort((a, b) => {
+      // 디렉토리를 먼저, 그 다음 이름순 정렬
+      if (a.isDirectory && !b.isDirectory) return -1;
+      if (!a.isDirectory && b.isDirectory) return 1;
+      return a.name.localeCompare(b.name);
+    });
+    
+    return validItems;
   } catch (error) {
     console.error('Error listing directory:', error);
     throw error;
