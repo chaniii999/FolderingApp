@@ -53,6 +53,9 @@ const api = {
     saveStartPath: (startPath: string): Promise<void> => ipcRenderer.invoke('filesystem:saveStartPath', startPath),
     openFolder: (folderPath: string): Promise<void> => ipcRenderer.invoke('filesystem:openFolder', folderPath),
   },
+  menu: {
+    updateCheckbox: (id: string, checked: boolean): Promise<void> => ipcRenderer.invoke('menu:updateCheckbox', id, checked),
+  },
 };
 
 export interface FileSystemItem {
@@ -61,6 +64,31 @@ export interface FileSystemItem {
   isDirectory: boolean;
   size?: number;
 }
+
+// 메뉴 이벤트 리스너
+ipcRenderer.on('menu:toggleHideNonTextFiles', (_event, checked: boolean) => {
+  // DOM이 로드된 후 이벤트 전달
+  const customEvent = new CustomEvent('menu:toggleHideNonTextFiles', { detail: checked });
+  if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    window.dispatchEvent(customEvent);
+  } else {
+    document.addEventListener('DOMContentLoaded', () => {
+      window.dispatchEvent(customEvent);
+    });
+  }
+});
+
+ipcRenderer.on('menu:toggleShowHelp', (_event, checked: boolean) => {
+  // DOM이 로드된 후 이벤트 전달
+  const customEvent = new CustomEvent('menu:toggleShowHelp', { detail: checked });
+  if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    window.dispatchEvent(customEvent);
+  } else {
+    document.addEventListener('DOMContentLoaded', () => {
+      window.dispatchEvent(customEvent);
+    });
+  }
+});
 
 contextBridge.exposeInMainWorld('api', api);
 

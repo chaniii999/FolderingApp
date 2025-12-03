@@ -51,6 +51,9 @@ export interface ElectronAPI {
     saveStartPath: (startPath: string) => Promise<void>;
     openFolder: (folderPath: string) => Promise<void>;
   };
+  menu: {
+    updateCheckbox: (id: string, checked: boolean) => Promise<void>;
+  };
 }
 
 declare global {

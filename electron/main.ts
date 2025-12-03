@@ -8,8 +8,13 @@ import { loadStartPath, selectStartPath } from './services/startPathService';
 
 const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
 
-function setupMenuBar(showMenuBar: boolean) {
-  if (showMenuBar) {
+let mainWindow: BrowserWindow | null = null;
+
+function setupMenuBar(showMenuBar: boolean, window: BrowserWindow) {
+  mainWindow = window;
+  
+  // 메뉴바는 항상 표시 (Option, Help 메뉴를 위해)
+  if (true) {
     const template: Electron.MenuItemConstructorOptions[] = [
       {
         label: 'File',
@@ -19,6 +24,36 @@ function setupMenuBar(showMenuBar: boolean) {
             accelerator: process.platform === 'darwin' ? 'Cmd+Q' : 'Ctrl+Q',
             click: () => {
               app.quit();
+            },
+          },
+        ],
+      },
+      {
+        label: 'Option',
+        submenu: [
+          {
+            label: '텍스트 파일만 표시',
+            type: 'checkbox',
+            id: 'hideNonTextFiles',
+            click: (menuItem) => {
+              if (mainWindow) {
+                mainWindow.webContents.send('menu:toggleHideNonTextFiles', menuItem.checked);
+              }
+            },
+          },
+        ],
+      },
+      {
+        label: 'Help',
+        submenu: [
+          {
+            label: '도움말',
+            type: 'checkbox',
+            id: 'showHelp',
+            click: (menuItem) => {
+              if (mainWindow) {
+                mainWindow.webContents.send('menu:toggleShowHelp', menuItem.checked);
+              }
             },
           },
         ],
@@ -76,6 +111,14 @@ function setupMenuBar(showMenuBar: boolean) {
 
     const menu = Menu.buildFromTemplate(template);
     Menu.setApplicationMenu(menu);
+    
+    // 메뉴바 업데이트를 위한 IPC 핸들러
+    ipcMain.handle('menu:updateCheckbox', (_event, id: string, checked: boolean) => {
+      const menuItem = menu.getMenuItemById(id);
+      if (menuItem) {
+        menuItem.checked = checked;
+      }
+    });
   } else {
     Menu.setApplicationMenu(null);
   }
@@ -111,7 +154,9 @@ function createWindow() {
   }
 
   console.log('[Main] menuBar setting:', devConfig.menuBar);
-  setupMenuBar(devConfig.menuBar);
+  setupMenuBar(devConfig.menuBar, mainWindow);
+  
+  return mainWindow;
 }
 
 app.whenReady().then(async () => {
@@ -138,11 +183,13 @@ app.whenReady().then(async () => {
   noteHandlers(ipcMain);
   fileSystemHandlers(ipcMain);
 
-  createWindow();
+  const window = createWindow();
+  mainWindow = window;
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
+      const window = createWindow();
+      mainWindow = window;
     }
   });
 });

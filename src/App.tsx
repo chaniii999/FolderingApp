@@ -53,7 +53,34 @@ function App() {
       }
     });
     loadTextEditorConfig().then(setTextEditorConfig);
-    loadAppConfig().then(setAppConfig);
+    loadAppConfig().then(async (config) => {
+      setAppConfig(config);
+      // 초기 메뉴바 체크박스 상태 설정
+      if (window.api?.menu) {
+        try {
+          await window.api.menu.updateCheckbox('hideNonTextFiles', config.hideNonTextFiles);
+        } catch (err) {
+          console.error('Error updating menu checkbox:', err);
+        }
+      }
+    });
+    
+    // 메뉴바 이벤트 리스너
+    const handleMenuToggleHideNonTextFiles = (e: CustomEvent<boolean>) => {
+      handleAppConfigChange({ hideNonTextFiles: e.detail });
+    };
+    
+    const handleMenuToggleShowHelp = (e: CustomEvent<boolean>) => {
+      setShowHelp(e.detail);
+    };
+    
+    window.addEventListener('menu:toggleHideNonTextFiles', handleMenuToggleHideNonTextFiles as EventListener);
+    window.addEventListener('menu:toggleShowHelp', handleMenuToggleShowHelp as EventListener);
+    
+    return () => {
+      window.removeEventListener('menu:toggleHideNonTextFiles', handleMenuToggleHideNonTextFiles as EventListener);
+      window.removeEventListener('menu:toggleShowHelp', handleMenuToggleShowHelp as EventListener);
+    };
   }, []);
 
   // n 핫키 처리 (새로 만들기)
@@ -109,6 +136,15 @@ function App() {
     const newConfig = { ...appConfig, ...updates };
     setAppConfig(newConfig);
     await saveAppConfig(newConfig);
+    
+    // 메뉴바 체크박스 상태 업데이트
+    if (updates.hideNonTextFiles !== undefined && window.api?.menu) {
+      try {
+        await window.api.menu.updateCheckbox('hideNonTextFiles', updates.hideNonTextFiles);
+      } catch (err) {
+        console.error('Error updating menu checkbox:', err);
+      }
+    }
     
     // "텍스트 파일만 표시" 옵션이 켜질 때, 현재 선택된 파일이 텍스트 파일이 아니면 선택 해제
     if (updates.hideNonTextFiles === true && selectedFilePath && !isTextFile(selectedFilePath)) {
@@ -415,14 +451,14 @@ function App() {
               className="px-3 py-1.5 text-sm bg-blue-500 text-white rounded hover:bg-blue-600"
               title="시작 경로 선택"
             >
-              경로 선택
+              SelectPath
             </button>
             <button
               onClick={() => setShowNewFileDialog(true)}
               className="px-3 py-1.5 text-sm bg-green-500 text-white rounded hover:bg-green-600"
               title="새 파일/폴더 만들기 (n)"
             >
-              새로 만들기
+              NewFile
             </button>
             <button
               onClick={handleOpenCurrentFolder}
@@ -430,7 +466,7 @@ function App() {
               title="현재 폴더 열기 (o)"
             >
               <span>📂</span>
-              <span>폴더 열기</span>
+              <span>Open</span>
             </button>
             <div className="flex items-center gap-2">
               <label className="text-sm text-gray-600">가로 여백:</label>
@@ -476,24 +512,6 @@ function App() {
                 <option value={40}>40px</option>
               </select>
             </div>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={appConfig.hideNonTextFiles}
-                onChange={(e) => handleAppConfigChange({ hideNonTextFiles: e.target.checked })}
-                className="w-4 h-4"
-              />
-              <span className="text-sm text-gray-700">텍스트 파일만 표시</span>
-            </label>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={showHelp}
-                onChange={(e) => setShowHelp(e.target.checked)}
-                className="w-4 h-4"
-              />
-              <span className="text-sm text-gray-700">도움말</span>
-            </label>
           </div>
         </div>
       </header>
