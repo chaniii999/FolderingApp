@@ -43,6 +43,7 @@ const api = {
       ipcRenderer.invoke('filesystem:getParentDirectory', dirPath),
     getHomeDirectory: (): Promise<string> => ipcRenderer.invoke('filesystem:getHomeDirectory'),
     readFile: (filePath: string): Promise<string | null> => ipcRenderer.invoke('filesystem:readFile', filePath),
+    writeFile: (filePath: string, content: string): Promise<void> => ipcRenderer.invoke('filesystem:writeFile', filePath, content),
   },
 };
 

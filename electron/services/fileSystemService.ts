@@ -106,3 +106,21 @@ export function readFile(filePath: string): string | null {
   }
 }
 
+export function writeFile(filePath: string, content: string): void {
+  try {
+    if (!fs.existsSync(filePath)) {
+      throw new Error('파일이 존재하지 않습니다.');
+    }
+
+    const stats = fs.statSync(filePath);
+    if (stats.isDirectory()) {
+      throw new Error('디렉토리는 저장할 수 없습니다.');
+    }
+
+    fs.writeFileSync(filePath, content, 'utf-8');
+  } catch (error) {
+    console.error('Error writing file:', error);
+    throw error;
+  }
+}
+

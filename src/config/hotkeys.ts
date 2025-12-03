@@ -3,6 +3,9 @@ export interface HotkeyConfig {
   moveDown: string;
   enter: string;
   goBack: string;
+  edit: string;
+  save: string;
+  cancel: string;
 }
 
 export const defaultHotkeys: HotkeyConfig = {
@@ -10,6 +13,9 @@ export const defaultHotkeys: HotkeyConfig = {
   moveDown: 'ArrowDown',
   enter: 'z',
   goBack: 'x',
+  edit: 'i',
+  save: 'Control+F5',
+  cancel: 'Escape',
 };
 
 let currentHotkeys: HotkeyConfig = { ...defaultHotkeys };
@@ -26,8 +32,28 @@ export function resetHotkeys(): void {
   currentHotkeys = { ...defaultHotkeys };
 }
 
-export function isHotkey(key: string, action: keyof HotkeyConfig): boolean {
+export function isHotkey(key: string, action: keyof HotkeyConfig, event?: KeyboardEvent): boolean {
   const hotkey = currentHotkeys[action];
+  
+  // 조합 키 처리 (예: Control+F5)
+  if (hotkey.includes('+')) {
+    const parts = hotkey.split('+').map(p => p.trim());
+    const keyPart = parts[parts.length - 1].toLowerCase();
+    const modifiers = parts.slice(0, -1);
+    
+    if (event) {
+      const keyMatches = key.toLowerCase() === keyPart || key === keyPart;
+      const ctrlMatches = modifiers.includes('Control') ? event.ctrlKey : !event.ctrlKey;
+      const altMatches = modifiers.includes('Alt') ? event.altKey : !event.altKey;
+      const shiftMatches = modifiers.includes('Shift') ? event.shiftKey : !event.shiftKey;
+      const metaMatches = modifiers.includes('Meta') ? event.metaKey : !event.metaKey;
+      
+      return keyMatches && ctrlMatches && altMatches && shiftMatches && metaMatches;
+    }
+    
+    return false;
+  }
+  
   return key.toLowerCase() === hotkey.toLowerCase() || key === hotkey;
 }
 

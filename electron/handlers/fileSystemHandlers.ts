@@ -56,5 +56,14 @@ export function fileSystemHandlers(ipcMain: IpcMain): void {
       throw error;
     }
   });
+
+  ipcMain.handle('filesystem:writeFile', async (_event, filePath: string, content: string) => {
+    try {
+      fileSystemService.writeFile(filePath, content);
+    } catch (error) {
+      console.error('Error writing file:', error);
+      throw error;
+    }
+  });
 }
 
