@@ -18,6 +18,7 @@ export default defineConfig({
     minify: 'esbuild', // esbuild는 기본 포함되어 있고 빠름
     sourcemap: false, // 소스맵 비활성화로 용량 절감
     cssCodeSplit: true, // CSS 코드 분할로 용량 절감
+    cssMinify: true, // CSS 압축
     emptyOutDir: true,
     rollupOptions: {
       output: {

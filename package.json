@@ -11,7 +11,7 @@
     "build:vite": "vite build",
     "build:electron": "tsc -p electron",
     "build:app": "npm run build && electron-builder",
-    "build:app:win": "npm run build && electron-builder --win",
+    "build:app:win": "npm run build && electron-builder --win --publish never",
     "build:app:dir": "npm run build && electron-builder --dir",
     "postinstall": "electron-builder install-app-deps || true",
     "rebuild": "@electron/rebuild -f -w better-sqlite3",
@@ -63,22 +63,30 @@
       "dist/**/*",
       "dist-electron/**/*",
       "package.json",
-      "!**/*.{md,ts,tsx,map}",
-      "!**/node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}",
-      "!**/node_modules/*/{test,__tests__,tests,powered-test,example,examples}",
+      "!**/*.{md,ts,tsx,map,js.map,css.map}",
+      "!**/node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme,LICENSE,LICENSE.txt,license.txt}",
+      "!**/node_modules/*/{test,__tests__,tests,powered-test,example,examples,docs,doc,*.test.js,*.spec.js}",
       "!**/node_modules/*.d.ts",
       "!**/node_modules/.bin",
-      "!**/*.{iml,o,hprof,orig,pyc,pyo,rbc,swp,csproj,sln,xproj}",
+      "!**/node_modules/**/*.{iml,o,hprof,orig,pyc,pyo,rbc,swp,csproj,sln,xproj}",
+      "!**/node_modules/**/package-lock.json",
+      "!**/node_modules/**/yarn.lock",
+      "!**/node_modules/**/.npmignore",
+      "!**/node_modules/**/.gitignore",
+      "!**/node_modules/**/.gitattributes",
       "!.editorconfig",
       "!**/._*",
       "!**/{.DS_Store,.git,.hg,.svn,CVS,RCS,SCCS,.gitignore,.gitattributes}",
       "!**/{__pycache__,thumbs.db,.flowconfig,.idea,.vs,.nyc_output}",
       "!**/{appveyor.yml,.travis.yml,circle.yml}",
-      "!**/{npm-debug.log,yarn.lock,.yarn-integrity,.yarn-metadata.json}"
+      "!**/{npm-debug.log,yarn.lock,.yarn-integrity,.yarn-metadata.json}",
+      "!**/config/dev.json",
+      "!**/build/README.md"
     ],
     "extraFiles": [],
     "extraResources": [],
     "asar": true,
+    "electronLanguages": ["ko", "en"],
     "asarUnpack": [
       "node_modules/better-sqlite3/**/*"
     ],
@@ -99,7 +107,8 @@
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "differentialPackage": false
+      "differentialPackage": false,
+      "warningsAsErrors": false
     },
     "nodeGypRebuild": false,
     "buildDependenciesFromSource": false
