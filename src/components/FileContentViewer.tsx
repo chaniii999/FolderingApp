@@ -64,9 +64,13 @@ function FileContentViewer({ filePath, onSelectPreviousFile, onSelectNextFile, o
           throw new Error('API가 로드되지 않았습니다.');
         }
 
-        // 텍스트 파일이 아닌 경우 에러 표시
+        // 텍스트 파일이 아닌 경우 에러 표시하고 데이터 로드하지 않음
         if (!isTextFile(filePath)) {
-          throw new Error('표시할 수 없는 파일입니다!');
+          setError('표시할 수 없는 파일입니다!');
+          setContent('');
+          setOriginalContent('');
+          setLoading(false);
+          return;
         }
 
         if (typeof window.api.filesystem.readFile !== 'function') {
@@ -147,9 +151,9 @@ function FileContentViewer({ filePath, onSelectPreviousFile, onSelectNextFile, o
     });
   }, []);
 
-  // 전역 키 이벤트 리스너 추가 (파일이 선택되었을 때 "i" 키로 편집 모드 진입, 스크롤 중지)
+  // 전역 키 이벤트 리스너 추가 (파일이 선택되었을 때 화살표 키 처리)
   useEffect(() => {
-    if (!filePath || loading || error || isEditing || showSaveDialog) {
+    if (!filePath || loading || isEditing || showSaveDialog) {
       return;
     }
 
@@ -159,6 +163,74 @@ function FileContentViewer({ filePath, onSelectPreviousFile, onSelectNextFile, o
         e.preventDefault();
         e.stopPropagation();
         setIsEditing(true);
+        return;
+      }
+
+      // 위/아래 화살표: 텍스트 스크롤 (가속도 적용) - 에러가 없을 때만 작동
+      if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && !error) {
+        e.preventDefault();
+        e.stopPropagation();
+        const direction = e.key === 'ArrowUp' ? 'up' : 'down';
+        
+        // 이미 스크롤 중이면 방향만 업데이트
+        if (scrollIntervalRef.current && scrollDirectionRef.current === direction) {
+          return;
+        }
+        
+        // 기존 스크롤 중지
+        if (scrollIntervalRef.current) {
+          clearInterval(scrollIntervalRef.current);
+        }
+        
+        scrollDirectionRef.current = direction;
+        scrollStartTimeRef.current = Date.now();
+        scrollSpeedRef.current = 1;
+        
+        // 첫 스크롤 즉시 실행
+        performScroll(direction, 1);
+        
+        // 연속 스크롤 시작
+        scrollIntervalRef.current = setInterval(() => {
+          const elapsed = Date.now() - scrollStartTimeRef.current;
+          // 시간에 따라 속도 증가 (크롬 브라우저 스타일)
+          // 0-500ms: 속도 1, 500-1000ms: 속도 2, 1000-2000ms: 속도 3, 이후: 속도 4 (최대)
+          if (elapsed < 500) {
+            scrollSpeedRef.current = 1;
+          } else if (elapsed < 1000) {
+            scrollSpeedRef.current = 2;
+          } else if (elapsed < 2000) {
+            scrollSpeedRef.current = 3;
+          } else {
+            scrollSpeedRef.current = 4;
+          }
+          performScroll(direction, scrollSpeedRef.current);
+        }, 50); // 50ms마다 스크롤 (크롬과 유사)
+        
+        return;
+      }
+
+      // 왼쪽 화살표: 이전 파일 선택
+      if (e.key === 'ArrowLeft' && onSelectPreviousFile) {
+        e.preventDefault();
+        e.stopPropagation();
+        onSelectPreviousFile();
+        return;
+      }
+
+      // 오른쪽 화살표: 다음 파일 선택
+      if (e.key === 'ArrowRight' && onSelectNextFile) {
+        e.preventDefault();
+        e.stopPropagation();
+        onSelectNextFile();
+        return;
+      }
+
+      // x 키로 파일 선택 해제 (뒤로가기)
+      if (isHotkey(e.key, 'goBack') && onDeselectFile) {
+        e.preventDefault();
+        e.stopPropagation();
+        onDeselectFile();
+        return;
       }
     };
 
@@ -175,7 +247,7 @@ function FileContentViewer({ filePath, onSelectPreviousFile, onSelectNextFile, o
       window.removeEventListener('keydown', handleGlobalKeyDown, true);
       window.removeEventListener('keyup', handleGlobalKeyUp, true);
     };
-  }, [filePath, loading, error, isEditing, showSaveDialog, stopScrolling]);
+  }, [filePath, loading, error, isEditing, showSaveDialog, stopScrolling, performScroll, onSelectPreviousFile, onSelectNextFile, onDeselectFile, isHotkey]);
 
   useEffect(() => {
     if (content !== originalContent) {
@@ -409,7 +481,7 @@ function FileContentViewer({ filePath, onSelectPreviousFile, onSelectNextFile, o
       className="flex flex-col h-full relative"
       onKeyDown={handleKeyDown}
       onKeyUp={handleKeyUp}
-      tabIndex={isEditing ? 0 : -1}
+      tabIndex={isEditing || (filePath && !loading && !error) ? 0 : -1}
     >
       <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
         <div className="flex items-center justify-between gap-2">

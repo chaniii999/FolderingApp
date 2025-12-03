@@ -89,11 +89,12 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
   }));
 
   useEffect(() => {
-    // 다이얼로그가 열려있지 않을 때만 자동 포커스
-    if (!loading && listRef.current && !isDialogOpen) {
+    // 다이얼로그가 열려있지 않고 파일이 선택되어 있지 않을 때만 자동 포커스
+    // 파일이 선택되어 있으면 포커스를 이동시키지 않음 (뒤로가기 버튼을 누를 때만 포커스 이동)
+    if (!loading && listRef.current && !isDialogOpen && !selectedFilePath) {
       listRef.current.focus();
     }
-  }, [loading, isDialogOpen]);
+  }, [loading, isDialogOpen, selectedFilePath]);
 
   useEffect(() => {
     // ".." 항목은 별도 처리 (ref가 없음)
@@ -143,6 +144,11 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (loading) return;
+    
+    // 파일이 선택되어 있으면 화살표 키는 FileContentViewer에서 처리하도록 함
+    if (selectedFilePath && (isHotkey(e.key, 'moveUp') || isHotkey(e.key, 'moveDown') || e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+      return;
+    }
     
     // 삭제 다이얼로그가 열려있으면 키 이벤트 무시
     if (showDeleteDialog) {

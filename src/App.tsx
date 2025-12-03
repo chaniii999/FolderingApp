@@ -260,12 +260,7 @@ function App() {
 
   const handleFileSelect = (filePath: string) => {
     setSelectedFilePath(filePath);
-    // 파일 선택 후에도 FileExplorer에 포커스 유지 (편집 모드가 아니고 다이얼로그가 열려있지 않을 때)
-    if (!showNewFileDialog) {
-      setTimeout(() => {
-        fileExplorerRef.current?.focus();
-      }, 50);
-    }
+    // 파일 선택 후에는 포커스를 이동시키지 않음 (뒤로가기 버튼을 누를 때만 포커스 이동)
   };
 
   const getFileList = async (): Promise<string[]> => {
@@ -554,22 +549,13 @@ function App() {
             onDeselectFile={() => {
               setSelectedFilePath(null);
               setNewlyCreatedFilePath(null);
-              if (!showNewFileDialog) {
-                setTimeout(() => {
-                  fileExplorerRef.current?.focus();
-                }, 100);
-              }
+              // 파일 선택 해제 후에는 포커스를 이동시키지 않음 (뒤로가기 버튼을 누를 때만 포커스 이동)
             }}
             textEditorConfig={textEditorConfig}
             autoEdit={newlyCreatedFilePath === selectedFilePath}
             onEditModeEntered={() => setNewlyCreatedFilePath(null)}
             onEditModeChange={(isEditing) => {
-              // 편집 모드가 끝나면 FileExplorer에 포커스 복귀 (다이얼로그가 열려있지 않을 때만)
-              if (!isEditing && fileExplorerRef.current && !showNewFileDialog) {
-                setTimeout(() => {
-                  fileExplorerRef.current?.focus();
-                }, 100);
-              }
+              // 편집 모드가 끝나도 포커스를 이동시키지 않음 (뒤로가기 버튼을 누를 때만 포커스 이동)
             }}
             onRenameRequest={(filePath) => {
               if (fileExplorerRef.current && !showNewFileDialog) {
