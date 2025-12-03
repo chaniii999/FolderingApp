@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 
 interface ResizerProps {
   onResize: (width: number) => void;
@@ -8,11 +8,11 @@ interface ResizerProps {
 
 function Resizer({ onResize, minWidth = 200, maxWidth = 800 }: ResizerProps) {
   const resizerRef = useRef<HTMLDivElement>(null);
-  const isResizingRef = useRef(false);
+  const [isResizing, setIsResizing] = useState(false);
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
-      if (!isResizingRef.current) return;
+      if (!isResizing) return;
 
       const newWidth = e.clientX;
       const clampedWidth = Math.max(minWidth, Math.min(maxWidth, newWidth));
@@ -20,12 +20,12 @@ function Resizer({ onResize, minWidth = 200, maxWidth = 800 }: ResizerProps) {
     };
 
     const handleMouseUp = () => {
-      isResizingRef.current = false;
+      setIsResizing(false);
       document.body.style.cursor = '';
       document.body.style.userSelect = '';
     };
 
-    if (isResizingRef.current) {
+    if (isResizing) {
       document.addEventListener('mousemove', handleMouseMove);
       document.addEventListener('mouseup', handleMouseUp);
     }
@@ -34,10 +34,10 @@ function Resizer({ onResize, minWidth = 200, maxWidth = 800 }: ResizerProps) {
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [onResize, minWidth, maxWidth]);
+  }, [isResizing, onResize, minWidth, maxWidth]);
 
   const handleMouseDown = () => {
-    isResizingRef.current = true;
+    setIsResizing(true);
     document.body.style.cursor = 'col-resize';
     document.body.style.userSelect = 'none';
   };
