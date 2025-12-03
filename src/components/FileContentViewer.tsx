@@ -465,10 +465,10 @@ function FileContentViewer({ filePath, onSelectPreviousFile, onSelectNextFile, o
   if (!filePath) {
     return (
       <div className="flex flex-col h-full">
-        <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
-          <h2 className="text-lg font-semibold">파일 내용</h2>
+        <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
+          <h2 className="text-lg font-semibold dark:text-gray-200">파일 내용</h2>
         </div>
-        <div className="flex-1 flex items-center justify-center text-gray-500">
+        <div className="flex-1 flex items-center justify-center text-gray-500 dark:text-gray-400">
           파일을 선택하세요
         </div>
       </div>
@@ -483,13 +483,13 @@ function FileContentViewer({ filePath, onSelectPreviousFile, onSelectNextFile, o
       onKeyUp={handleKeyUp}
       tabIndex={isEditing || (filePath && !loading && !error) ? 0 : -1}
     >
-      <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
+      <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
         <div className="flex items-center justify-between gap-2">
           <div className="flex-1 min-w-0">
-            <h2 className="text-lg font-semibold truncate" title={filePath}>
+            <h2 className="text-lg font-semibold truncate dark:text-gray-200" title={filePath}>
               {filePath.split(/[/\\]/).pop() || filePath}
             </h2>
-            <div className="text-xs text-gray-500 mt-1 font-mono truncate" title={filePath}>
+            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 font-mono truncate" title={filePath}>
               {filePath}
             </div>
           </div>
@@ -505,7 +505,7 @@ function FileContentViewer({ filePath, onSelectPreviousFile, onSelectNextFile, o
           {isEditing && (
             <div className="flex items-center gap-2">
               {hasChanges && (
-                <span className="text-xs text-orange-600">변경됨</span>
+                <span className="text-xs text-orange-600 dark:text-orange-400">변경됨</span>
               )}
               <button
                 onClick={handleSave}
@@ -527,15 +527,15 @@ function FileContentViewer({ filePath, onSelectPreviousFile, onSelectNextFile, o
       </div>
       <div 
         ref={scrollContainerRef}
-        className={`flex-1 bg-white relative ${isEditing ? 'overflow-hidden' : 'overflow-auto'}`}
+        className={`flex-1 bg-white dark:bg-gray-800 relative ${isEditing ? 'overflow-hidden' : 'overflow-auto'}`}
       >
         {loading ? (
           <div className="flex items-center justify-center h-full">
-            <div className="text-gray-500">로딩 중...</div>
+            <div className="text-gray-500 dark:text-gray-400">로딩 중...</div>
           </div>
         ) : error ? (
           <div className="flex items-center justify-center h-full">
-            <div className="px-4 py-2 bg-red-100 text-red-700 rounded">
+            <div className="px-4 py-2 bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 rounded">
               {error}
             </div>
           </div>
@@ -544,7 +544,7 @@ function FileContentViewer({ filePath, onSelectPreviousFile, onSelectNextFile, o
             ref={textareaRef}
             value={content}
             onChange={handleContentChange}
-            className="w-full h-full font-mono resize-none border-none outline-none overflow-auto"
+            className="w-full h-full font-mono resize-none border-none outline-none overflow-auto bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
             style={{
               paddingLeft: `${config.horizontalPadding}px`,
               paddingRight: `${config.horizontalPadding}px`,
@@ -556,7 +556,7 @@ function FileContentViewer({ filePath, onSelectPreviousFile, onSelectNextFile, o
           />
         ) : isMarkdownFile(filePath) ? (
           <div 
-            className="prose prose-sm max-w-none"
+            className="prose prose-sm dark:prose-invert max-w-none"
             style={{
               paddingLeft: `${config.horizontalPadding}px`,
               paddingRight: `${config.horizontalPadding}px`,
@@ -571,7 +571,7 @@ function FileContentViewer({ filePath, onSelectPreviousFile, onSelectNextFile, o
           </div>
         ) : (
           <pre 
-            className="font-mono whitespace-pre-wrap break-words"
+            className="font-mono whitespace-pre-wrap break-words text-gray-900 dark:text-gray-100"
             style={{
               paddingLeft: `${config.horizontalPadding}px`,
               paddingRight: `${config.horizontalPadding}px`,
@@ -601,8 +601,8 @@ function FileContentViewer({ filePath, onSelectPreviousFile, onSelectNextFile, o
             className="bg-white rounded-lg p-6 max-w-md w-full mx-4"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-lg font-semibold mb-4">저장하시겠습니까?</h3>
-            <p className="text-gray-600 mb-6">
+            <h3 className="text-lg font-semibold mb-4 dark:text-gray-200">저장하시겠습니까?</h3>
+            <p className="text-gray-600 dark:text-gray-300 mb-6">
               변경사항이 저장되지 않았습니다. 저장하시겠습니까?
             </p>
             <div className="flex gap-2 justify-end">
@@ -610,12 +610,12 @@ function FileContentViewer({ filePath, onSelectPreviousFile, onSelectNextFile, o
                 onClick={handleSaveDialogCancel}
                 className={`px-4 py-2 rounded flex items-center gap-2 ${
                   dialogSelectedOption === 'cancel'
-                    ? 'bg-gray-400 text-white'
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    ? 'bg-gray-400 dark:bg-gray-600 text-white'
+                    : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600'
                 }`}
               >
                 <span>취소</span>
-                <span className="text-xs bg-gray-600 text-white px-1.5 py-0.5 rounded">
+                <span className="text-xs bg-gray-600 dark:bg-gray-500 text-white px-1.5 py-0.5 rounded">
                   {getHotkeys().goBack}/Esc
                 </span>
               </button>

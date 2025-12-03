@@ -10,6 +10,7 @@ import { loadTextEditorConfig, saveTextEditorConfig, type TextEditorConfig } fro
 import { loadAppConfig, saveAppConfig, type AppConfig } from './services/appConfigService';
 import { undoService, type UndoAction } from './services/undoService';
 import { isTextFile } from './utils/fileUtils';
+import { applyTheme, type Theme } from './services/themeService';
 
 function App() {
   const [error, setError] = useState<string | null>(null);
@@ -17,7 +18,7 @@ function App() {
   const [selectedFilePath, setSelectedFilePath] = useState<string | null>(null);
   const [explorerWidth, setExplorerWidth] = useState<number>(240);
   const [textEditorConfig, setTextEditorConfig] = useState<TextEditorConfig>({ horizontalPadding: 80, fontSize: 14 });
-  const [appConfig, setAppConfig] = useState<AppConfig>({ hideNonTextFiles: false });
+  const [appConfig, setAppConfig] = useState<AppConfig>({ hideNonTextFiles: false, theme: 'light' });
   const [showNewFileDialog, setShowNewFileDialog] = useState(false);
   const [newlyCreatedFilePath, setNewlyCreatedFilePath] = useState<string | null>(null);
   const [isExplorerVisible, setIsExplorerVisible] = useState<boolean>(true);
@@ -55,10 +56,15 @@ function App() {
     loadTextEditorConfig().then(setTextEditorConfig);
     loadAppConfig().then(async (config) => {
       setAppConfig(config);
+      // 초기 테마 적용
+      applyTheme(config.theme);
       // 초기 메뉴바 체크박스 상태 설정
       if (window.api?.menu) {
         try {
           await window.api.menu.updateCheckbox('hideNonTextFiles', config.hideNonTextFiles);
+          if (window.api.menu.updateThemeRadio) {
+            await window.api.menu.updateThemeRadio('theme', config.theme);
+          }
         } catch (err) {
           console.error('Error updating menu checkbox:', err);
         }
@@ -74,12 +80,18 @@ function App() {
       setShowHelp(e.detail);
     };
     
+    const handleMenuChangeTheme = (e: CustomEvent<Theme>) => {
+      handleAppConfigChange({ theme: e.detail });
+    };
+    
     window.addEventListener('menu:toggleHideNonTextFiles', handleMenuToggleHideNonTextFiles as EventListener);
     window.addEventListener('menu:toggleShowHelp', handleMenuToggleShowHelp as EventListener);
+    window.addEventListener('menu:changeTheme', handleMenuChangeTheme as EventListener);
     
     return () => {
       window.removeEventListener('menu:toggleHideNonTextFiles', handleMenuToggleHideNonTextFiles as EventListener);
       window.removeEventListener('menu:toggleShowHelp', handleMenuToggleShowHelp as EventListener);
+      window.removeEventListener('menu:changeTheme', handleMenuChangeTheme as EventListener);
     };
   }, []);
 
@@ -137,12 +149,26 @@ function App() {
     setAppConfig(newConfig);
     await saveAppConfig(newConfig);
     
+    // 테마 적용
+    if (updates.theme !== undefined) {
+      applyTheme(updates.theme);
+    }
+    
     // 메뉴바 체크박스 상태 업데이트
     if (updates.hideNonTextFiles !== undefined && window.api?.menu) {
       try {
         await window.api.menu.updateCheckbox('hideNonTextFiles', updates.hideNonTextFiles);
       } catch (err) {
         console.error('Error updating menu checkbox:', err);
+      }
+    }
+    
+    // 메뉴바 테마 라디오 버튼 상태 업데이트
+    if (updates.theme !== undefined && window.api?.menu?.updateThemeRadio) {
+      try {
+        await window.api.menu.updateThemeRadio('theme', updates.theme);
+      } catch (err) {
+        console.error('Error updating menu theme radio:', err);
       }
     }
     
@@ -424,18 +450,18 @@ function App() {
 
   return (
     <div className="flex flex-col h-screen w-screen">
-      <header className="flex flex-col gap-2 px-6 py-4 border-b border-gray-200 bg-gray-50">
+      <header className="flex flex-col gap-2 px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
         <div className="flex items-center gap-4">
           <button
             onClick={handleToggleExplorer}
-            className="flex items-center justify-center w-8 h-8 rounded bg-gray-200 hover:bg-gray-300 cursor-pointer"
+            className="flex items-center justify-center w-8 h-8 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 cursor-pointer"
             title={`${isExplorerVisible ? '디렉토리 탭 닫기' : '디렉토리 탭 열기'} (${getHotkeys().toggleExplorer})`}
           >
             {isExplorerVisible ? <BackIcon /> : <ForwardIcon />}
           </button>
           <div className="flex items-center gap-2 flex-1">
             {currentPath && (
-              <span className="text-sm text-gray-500 font-mono">
+              <span className="text-sm text-gray-500 dark:text-gray-400 font-mono">
                 {currentPath}
               </span>
             )}
@@ -464,11 +490,11 @@ function App() {
               <span>Open</span>
             </button>
             <div className="flex items-center gap-2">
-              <label className="text-sm text-gray-600">가로 여백:</label>
+              <label className="text-sm text-gray-600 dark:text-gray-300">가로 여백:</label>
               <select
                 value={textEditorConfig.horizontalPadding}
                 onChange={(e) => handleConfigChange({ horizontalPadding: Number(e.target.value) })}
-                className="px-2 py-1 text-sm border border-gray-300 rounded bg-white"
+                className="px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 dark:text-gray-200"
               >
                 <option value={40}>40px</option>
                 <option value={60}>60px</option>
@@ -485,11 +511,11 @@ function App() {
               </select>
             </div>
             <div className="flex items-center gap-2">
-              <label className="text-sm text-gray-600">폰트 크기:</label>
+              <label className="text-sm text-gray-600 dark:text-gray-300">폰트 크기:</label>
               <select
                 value={textEditorConfig.fontSize}
                 onChange={(e) => handleConfigChange({ fontSize: Number(e.target.value) })}
-                className="px-2 py-1 text-sm border border-gray-300 rounded bg-white"
+                className="px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 dark:text-gray-200"
               >
                 <option value={10}>10px</option>
                 <option value={12}>12px</option>
@@ -514,11 +540,11 @@ function App() {
         {isExplorerVisible && (
           <>
             <div
-              className="flex flex-col p-4 overflow-hidden border-r border-gray-200"
+              className="flex flex-col p-4 overflow-hidden border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800"
               style={{ width: `${explorerWidth}px`, minWidth: `${explorerWidth}px` }}
             >
               {error && (
-                <div className="mb-4 px-4 py-2 bg-red-100 text-red-700 rounded">
+                <div className="mb-4 px-4 py-2 bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 rounded">
                   {error}
                 </div>
               )}
@@ -568,97 +594,97 @@ function App() {
           />
         </div>
         {showHelp && (
-          <div className="flex flex-col border-l border-gray-200 bg-gray-50" style={{ width: '240px', minWidth: '240px' }}>
-              <div className="px-2 py-2 border-b border-gray-200">
-                <h3 className="text-sm font-semibold">사용 가능한 핫키</h3>
+          <div className="flex flex-col border-l border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900" style={{ width: '240px', minWidth: '240px' }}>
+              <div className="px-2 py-2 border-b border-gray-200 dark:border-gray-700">
+                <h3 className="text-sm font-semibold dark:text-gray-200">사용 가능한 핫키</h3>
               </div>
-              <div className="flex-1 overflow-y-auto px-2 py-2">
+              <div className="flex-1 overflow-y-auto px-2 py-2 bg-white dark:bg-gray-800">
                 <div className="space-y-2">
                   <div>
-                    <h4 className="font-semibold mb-0.5 text-xs">파일 탐색</h4>
+                    <h4 className="font-semibold mb-0.5 text-xs dark:text-gray-200">파일 탐색</h4>
                     <div className="space-y-0.5 text-xs">
                       <div className="flex items-center justify-between gap-2">
-                        <span className="text-gray-700">위로 이동</span>
-                        <kbd className="px-1.5 py-0.5 bg-gray-200 rounded text-xs font-mono">↑</kbd>
+                        <span className="text-gray-700 dark:text-gray-300">위로 이동</span>
+                        <kbd className="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs font-mono dark:text-gray-200">↑</kbd>
                       </div>
                       <div className="flex items-center justify-between gap-2">
-                        <span className="text-gray-700">아래로 이동</span>
-                        <kbd className="px-1.5 py-0.5 bg-gray-200 rounded text-xs font-mono">↓</kbd>
+                        <span className="text-gray-700 dark:text-gray-300">아래로 이동</span>
+                        <kbd className="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs font-mono dark:text-gray-200">↓</kbd>
                       </div>
                       <div className="flex items-center justify-between gap-2">
-                        <span className="text-gray-700">선택/확인</span>
-                        <kbd className="px-1.5 py-0.5 bg-gray-200 rounded text-xs font-mono">{getHotkeys().enter} / Enter</kbd>
+                        <span className="text-gray-700 dark:text-gray-300">선택/확인</span>
+                        <kbd className="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs font-mono dark:text-gray-200">{getHotkeys().enter} / Enter</kbd>
                       </div>
                       <div className="flex items-center justify-between gap-2">
-                        <span className="text-gray-700">뒤로가기</span>
-                        <kbd className="px-1.5 py-0.5 bg-gray-200 rounded text-xs font-mono">{getHotkeys().goBack} / Esc</kbd>
+                        <span className="text-gray-700 dark:text-gray-300">뒤로가기</span>
+                        <kbd className="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs font-mono dark:text-gray-200">{getHotkeys().goBack} / Esc</kbd>
                       </div>
                     </div>
                   </div>
                   <div>
-                    <h4 className="font-semibold mb-0.5 text-xs">파일 편집</h4>
+                    <h4 className="font-semibold mb-0.5 text-xs dark:text-gray-200">파일 편집</h4>
                     <div className="space-y-0.5 text-xs">
                       <div className="flex items-center justify-between gap-2">
-                        <span className="text-gray-700">편집 모드</span>
-                        <kbd className="px-1.5 py-0.5 bg-gray-200 rounded text-xs font-mono">{getHotkeys().edit}</kbd>
+                        <span className="text-gray-700 dark:text-gray-300">편집 모드</span>
+                        <kbd className="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs font-mono dark:text-gray-200">{getHotkeys().edit}</kbd>
                       </div>
                       <div className="flex items-center justify-between gap-2">
-                        <span className="text-gray-700">저장</span>
-                        <kbd className="px-1.5 py-0.5 bg-gray-200 rounded text-xs font-mono">{getHotkeys().save}</kbd>
+                        <span className="text-gray-700 dark:text-gray-300">저장</span>
+                        <kbd className="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs font-mono dark:text-gray-200">{getHotkeys().save}</kbd>
                       </div>
                       <div className="flex items-center justify-between gap-2">
-                        <span className="text-gray-700">취소</span>
-                        <kbd className="px-1.5 py-0.5 bg-gray-200 rounded text-xs font-mono">{getHotkeys().cancel}</kbd>
+                        <span className="text-gray-700 dark:text-gray-300">취소</span>
+                        <kbd className="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs font-mono dark:text-gray-200">{getHotkeys().cancel}</kbd>
                       </div>
                     </div>
                   </div>
                   <div>
-                    <h4 className="font-semibold mb-0.5 text-xs">파일 관리</h4>
+                    <h4 className="font-semibold mb-0.5 text-xs dark:text-gray-200">파일 관리</h4>
                     <div className="space-y-0.5 text-xs">
                       <div className="flex items-center justify-between gap-2">
-                        <span className="text-gray-700">새로 만들기</span>
-                        <kbd className="px-1.5 py-0.5 bg-gray-200 rounded text-xs font-mono">n</kbd>
+                        <span className="text-gray-700 dark:text-gray-300">새로 만들기</span>
+                        <kbd className="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs font-mono dark:text-gray-200">n</kbd>
                       </div>
                       <div className="flex items-center justify-between gap-2">
-                        <span className="text-gray-700">경로 선택</span>
-                        <kbd className="px-1.5 py-0.5 bg-gray-200 rounded text-xs font-mono">{getHotkeys().selectPath}</kbd>
+                        <span className="text-gray-700 dark:text-gray-300">경로 선택</span>
+                        <kbd className="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs font-mono dark:text-gray-200">{getHotkeys().selectPath}</kbd>
                       </div>
                       <div className="flex items-center justify-between gap-2">
-                        <span className="text-gray-700">폴더 열기</span>
-                        <kbd className="px-1.5 py-0.5 bg-gray-200 rounded text-xs font-mono">o</kbd>
+                        <span className="text-gray-700 dark:text-gray-300">폴더 열기</span>
+                        <kbd className="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs font-mono dark:text-gray-200">o</kbd>
                       </div>
                       <div className="flex items-center justify-between gap-2">
-                        <span className="text-gray-700">이름 변경</span>
-                        <kbd className="px-1.5 py-0.5 bg-gray-200 rounded text-xs font-mono">e</kbd>
+                        <span className="text-gray-700 dark:text-gray-300">이름 변경</span>
+                        <kbd className="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs font-mono dark:text-gray-200">e</kbd>
                       </div>
                       <div className="flex items-center justify-between gap-2">
-                        <span className="text-gray-700">삭제</span>
-                        <kbd className="px-1.5 py-0.5 bg-gray-200 rounded text-xs font-mono">Delete</kbd>
+                        <span className="text-gray-700 dark:text-gray-300">삭제</span>
+                        <kbd className="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs font-mono dark:text-gray-200">Delete</kbd>
                       </div>
                       <div className="flex items-center justify-between gap-2">
-                        <span className="text-gray-700">되돌리기</span>
-                        <kbd className="px-1.5 py-0.5 bg-gray-200 rounded text-xs font-mono">Ctrl+Z</kbd>
+                        <span className="text-gray-700 dark:text-gray-300">되돌리기</span>
+                        <kbd className="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs font-mono dark:text-gray-200">Ctrl+Z</kbd>
                       </div>
                     </div>
                   </div>
                   <div>
-                    <h4 className="font-semibold mb-0.5 text-xs">레이아웃</h4>
+                    <h4 className="font-semibold mb-0.5 text-xs dark:text-gray-200">레이아웃</h4>
                     <div className="space-y-0.5 text-xs">
                       <div className="flex items-center justify-between gap-2">
-                        <span className="text-gray-700">디렉토리 탭 토글</span>
-                        <kbd className="px-1.5 py-0.5 bg-gray-200 rounded text-xs font-mono">b</kbd>
+                        <span className="text-gray-700 dark:text-gray-300">디렉토리 탭 토글</span>
+                        <kbd className="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs font-mono dark:text-gray-200">b</kbd>
                       </div>
                       <div className="flex items-center justify-between gap-2">
-                        <span className="text-gray-700">이전 파일</span>
-                        <kbd className="px-1.5 py-0.5 bg-gray-200 rounded text-xs font-mono">←</kbd>
+                        <span className="text-gray-700 dark:text-gray-300">이전 파일</span>
+                        <kbd className="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs font-mono dark:text-gray-200">←</kbd>
                       </div>
                       <div className="flex items-center justify-between gap-2">
-                        <span className="text-gray-700">다음 파일</span>
-                        <kbd className="px-1.5 py-0.5 bg-gray-200 rounded text-xs font-mono">→</kbd>
+                        <span className="text-gray-700 dark:text-gray-300">다음 파일</span>
+                        <kbd className="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs font-mono dark:text-gray-200">→</kbd>
                       </div>
                       <div className="flex items-center justify-between gap-2">
-                        <span className="text-gray-700">텍스트 스크롤</span>
-                        <kbd className="px-1.5 py-0.5 bg-gray-200 rounded text-xs font-mono">↑ / ↓</kbd>
+                        <span className="text-gray-700 dark:text-gray-300">텍스트 스크롤</span>
+                        <kbd className="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs font-mono dark:text-gray-200">↑ / ↓</kbd>
                       </div>
                     </div>
                   </div>

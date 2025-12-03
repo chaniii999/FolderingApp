@@ -410,7 +410,7 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
             className={`flex items-center gap-2 px-2 py-1 cursor-pointer ${
               cursorIndex === -1
                 ? 'bg-blue-500 text-white'
-                : 'hover:bg-gray-100'
+                : 'hover:bg-gray-100 dark:hover:bg-gray-700'
             }`}
             onClick={handleParentClick}
           >
@@ -424,7 +424,7 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
           </div>
         )}
         {items.length === 0 ? (
-          <div className="flex items-center justify-center h-full text-gray-500">
+          <div className="flex items-center justify-center h-full text-gray-500 dark:text-gray-400">
             폴더가 비어있습니다
           </div>
         ) : (
@@ -437,7 +437,7 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
                 className={`flex items-center gap-2 px-2 py-1 cursor-pointer ${
                   cursorIndex === index
                     ? 'bg-blue-500 text-white'
-                    : 'hover:bg-gray-100'
+                    : 'hover:bg-gray-100 dark:hover:bg-gray-700'
                 }`}
                 onClick={handleItemClickWrapper(item, index)}
               >
@@ -463,7 +463,7 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
                         e.stopPropagation();
                       }}
                       onBlur={handleRenameConfirm}
-                      className="flex-1 px-1 border border-blue-500 rounded bg-white text-gray-900"
+                      className="flex-1 px-1 border border-blue-500 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
                       onClick={(e) => e.stopPropagation()}
                     />
                   ) : (
@@ -477,7 +477,7 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
       </div>
       {showDeleteDialog && (
         <div 
-          className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50"
+            className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 dark:bg-opacity-70 z-50"
           onClick={(e) => {
             // 다이얼로그 외부 클릭 시 이벤트 차단
             e.stopPropagation();
@@ -485,7 +485,7 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
         >
           <div 
             ref={deleteDialogRef}
-            className="bg-white rounded-lg p-6 max-w-md w-full mx-4"
+            className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4"
             onKeyDown={(e) => {
               // 다이얼로그 외부의 키 이벤트 차단
               e.stopPropagation();
@@ -500,14 +500,14 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
             }}
             tabIndex={0}
           >
-            <h3 className="text-lg font-semibold mb-4">삭제 확인</h3>
-            <p className="text-gray-600 mb-6">
+            <h3 className="text-lg font-semibold mb-4 dark:text-gray-200">삭제 확인</h3>
+            <p className="text-gray-600 dark:text-gray-300 mb-6">
               {showDeleteDialog.item.name}을(를) 삭제하시겠습니까?
             </p>
             <div className="flex gap-2 justify-end">
               <button
                 onClick={() => setShowDeleteDialog(null)}
-                className="px-4 py-2 rounded bg-gray-200 text-gray-700 hover:bg-gray-300"
+                className="px-4 py-2 rounded bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600"
               >
                 취소 (Esc)
               </button>

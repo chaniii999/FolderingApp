@@ -103,7 +103,7 @@ function NewFileDialog({ currentPath, onClose, onCreated }: NewFileDialogProps) 
 
   return (
     <div
-      className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50"
+      className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 dark:bg-opacity-70 z-50"
       onClick={(e) => {
         if (e.target === e.currentTarget) {
           onClose();
@@ -115,7 +115,7 @@ function NewFileDialog({ currentPath, onClose, onCreated }: NewFileDialogProps) 
       }}
     >
       <div
-        className="bg-white rounded-lg p-6 max-w-md w-full mx-4"
+        className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4"
         onClick={(e) => {
           e.stopPropagation();
           handleDialogClick(e);
@@ -123,10 +123,10 @@ function NewFileDialog({ currentPath, onClose, onCreated }: NewFileDialogProps) 
         onKeyDown={handleKeyDown}
         tabIndex={0}
       >
-        <h3 className="text-lg font-semibold mb-4">새로 만들기</h3>
+        <h3 className="text-lg font-semibold mb-4 dark:text-gray-200">새로 만들기</h3>
         
         <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             이름
           </label>
           <input
@@ -137,13 +137,13 @@ function NewFileDialog({ currentPath, onClose, onCreated }: NewFileDialogProps) 
               setFileName(e.target.value);
               setError(null);
             }}
-            className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
             placeholder="이름을 입력하세요"
           />
         </div>
 
         <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             타입 (위/아래 화살표로 선택)
           </label>
           <div className="space-y-1">
@@ -153,7 +153,7 @@ function NewFileDialog({ currentPath, onClose, onCreated }: NewFileDialogProps) 
                 className={`px-3 py-2 rounded cursor-pointer ${
                   selectedTypeIndex === index
                     ? 'bg-blue-500 text-white'
-                    : 'bg-gray-100 hover:bg-gray-200'
+                    : 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-900 dark:text-gray-200'
                 }`}
                 onClick={() => setSelectedTypeIndex(index)}
               >
@@ -165,7 +165,7 @@ function NewFileDialog({ currentPath, onClose, onCreated }: NewFileDialogProps) 
         </div>
 
         {error && (
-          <div className="mb-4 px-3 py-2 bg-red-100 text-red-700 rounded text-sm">
+          <div className="mb-4 px-3 py-2 bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 rounded text-sm">
             {error}
           </div>
         )}
@@ -173,10 +173,10 @@ function NewFileDialog({ currentPath, onClose, onCreated }: NewFileDialogProps) 
         <div className="flex gap-2 justify-end">
           <button
             onClick={onClose}
-            className="px-4 py-2 rounded flex items-center gap-2 bg-gray-200 text-gray-700 hover:bg-gray-300"
+            className="px-4 py-2 rounded flex items-center gap-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600"
           >
             <span>취소</span>
-            <span className="text-xs bg-gray-600 text-white px-1.5 py-0.5 rounded">
+            <span className="text-xs bg-gray-600 dark:bg-gray-500 text-white px-1.5 py-0.5 rounded">
               Esc
             </span>
           </button>

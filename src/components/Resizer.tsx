@@ -46,7 +46,7 @@ function Resizer({ onResize, minWidth = 200, maxWidth = 800 }: ResizerProps) {
     <div
       ref={resizerRef}
       onMouseDown={handleMouseDown}
-      className="w-1 bg-gray-300 hover:bg-blue-500 cursor-col-resize transition-colors"
+      className="w-1 bg-gray-300 dark:bg-gray-600 hover:bg-blue-500 dark:hover:bg-blue-600 cursor-col-resize transition-colors"
     />
   );
 }

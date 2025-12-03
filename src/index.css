@@ -8,14 +8,45 @@
   }
 
   body {
-    @apply font-sans antialiased;
+    @apply font-sans antialiased bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
       'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
       sans-serif;
   }
 
   #root {
-    @apply w-full h-screen;
+    @apply w-full h-screen bg-white dark:bg-gray-900;
+  }
+}
+
+/* 스크롤바 스타일 */
+@layer utilities {
+  /* Webkit 브라우저 (Chrome, Edge, Safari) */
+  *::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+  }
+
+  *::-webkit-scrollbar-track {
+    @apply bg-gray-100 dark:bg-gray-800;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    @apply bg-gray-300 dark:bg-gray-600 rounded-full;
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    @apply bg-gray-400 dark:bg-gray-500;
+  }
+
+  /* Firefox */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(209 213 219) rgb(243 244 246);
+  }
+
+  .dark * {
+    scrollbar-color: rgb(75 85 99) rgb(31 41 55);
   }
 }
 

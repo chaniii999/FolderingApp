@@ -1,9 +1,13 @@
+import { type Theme, defaultTheme } from './themeService';
+
 export interface AppConfig {
   hideNonTextFiles: boolean;
+  theme: Theme;
 }
 
 const defaultConfig: AppConfig = {
   hideNonTextFiles: false,
+  theme: defaultTheme,
 };
 
 let cachedConfig: AppConfig | null = null;
@@ -37,6 +41,7 @@ export async function loadAppConfig(): Promise<AppConfig> {
         const config = JSON.parse(configContent) as Partial<AppConfig>;
         cachedConfig = {
           hideNonTextFiles: config.hideNonTextFiles ?? defaultConfig.hideNonTextFiles,
+          theme: config.theme ?? defaultConfig.theme,
         };
         return cachedConfig;
       }

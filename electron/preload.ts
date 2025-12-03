@@ -55,6 +55,7 @@ const api = {
   },
   menu: {
     updateCheckbox: (id: string, checked: boolean): Promise<void> => ipcRenderer.invoke('menu:updateCheckbox', id, checked),
+    updateThemeRadio: (groupId: string, theme: string): Promise<void> => ipcRenderer.invoke('menu:updateThemeRadio', groupId, theme),
   },
 };
 
@@ -81,6 +82,18 @@ ipcRenderer.on('menu:toggleHideNonTextFiles', (_event, checked: boolean) => {
 ipcRenderer.on('menu:toggleShowHelp', (_event, checked: boolean) => {
   // DOM이 로드된 후 이벤트 전달
   const customEvent = new CustomEvent('menu:toggleShowHelp', { detail: checked });
+  if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    window.dispatchEvent(customEvent);
+  } else {
+    document.addEventListener('DOMContentLoaded', () => {
+      window.dispatchEvent(customEvent);
+    });
+  }
+});
+
+ipcRenderer.on('menu:changeTheme', (_event, theme: string) => {
+  // DOM이 로드된 후 이벤트 전달
+  const customEvent = new CustomEvent('menu:changeTheme', { detail: theme });
   if (document.readyState === 'complete' || document.readyState === 'interactive') {
     window.dispatchEvent(customEvent);
   } else {
