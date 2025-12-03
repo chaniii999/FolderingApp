@@ -9,6 +9,7 @@ import { getHotkeys } from './config/hotkeys';
 import { loadTextEditorConfig, saveTextEditorConfig, type TextEditorConfig } from './services/textEditorConfigService';
 import { loadAppConfig, saveAppConfig, type AppConfig } from './services/appConfigService';
 import { undoService, type UndoAction } from './services/undoService';
+import { isTextFile } from './utils/fileUtils';
 
 function App() {
   const [error, setError] = useState<string | null>(null);
@@ -107,6 +108,13 @@ function App() {
     const newConfig = { ...appConfig, ...updates };
     setAppConfig(newConfig);
     await saveAppConfig(newConfig);
+    
+    // "텍스트 파일만 표시" 옵션이 켜질 때, 현재 선택된 파일이 텍스트 파일이 아니면 선택 해제
+    if (updates.hideNonTextFiles === true && selectedFilePath && !isTextFile(selectedFilePath)) {
+      setSelectedFilePath(null);
+      setNewlyCreatedFilePath(null);
+    }
+    
     // 설정 변경 시 FileExplorer 새로고침
     if (fileExplorerRef.current) {
       fileExplorerRef.current.refresh();
