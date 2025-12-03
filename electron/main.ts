@@ -47,7 +47,7 @@ function setupMenuBar(showMenuBar: boolean, window: BrowserWindow) {
         label: 'Theme',
         submenu: [
           {
-            label: '라이트 테마',
+            label: 'Light',
             type: 'radio',
             id: 'theme-light',
             checked: true,
@@ -58,7 +58,7 @@ function setupMenuBar(showMenuBar: boolean, window: BrowserWindow) {
             },
           },
           {
-            label: '다크 테마',
+            label: 'Dark',
             type: 'radio',
             id: 'theme-dark',
             checked: false,
@@ -144,15 +144,6 @@ function setupMenuBar(showMenuBar: boolean, window: BrowserWindow) {
       const menuItem = menu.getMenuItemById(id);
       if (menuItem) {
         menuItem.checked = checked;
-      }
-    });
-    
-    ipcMain.handle('menu:updateThemeRadio', (_event, groupId: string, theme: string) => {
-      const lightItem = menu.getMenuItemById('theme-light');
-      const darkItem = menu.getMenuItemById('theme-dark');
-      if (lightItem && darkItem) {
-        lightItem.checked = theme === 'light';
-        darkItem.checked = theme === 'dark';
       }
     });
   } else {

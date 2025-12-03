@@ -62,9 +62,6 @@ function App() {
       if (window.api?.menu) {
         try {
           await window.api.menu.updateCheckbox('hideNonTextFiles', config.hideNonTextFiles);
-          if (window.api.menu.updateThemeRadio) {
-            await window.api.menu.updateThemeRadio('theme', config.theme);
-          }
         } catch (err) {
           console.error('Error updating menu checkbox:', err);
         }
@@ -160,15 +157,6 @@ function App() {
         await window.api.menu.updateCheckbox('hideNonTextFiles', updates.hideNonTextFiles);
       } catch (err) {
         console.error('Error updating menu checkbox:', err);
-      }
-    }
-    
-    // 메뉴바 테마 라디오 버튼 상태 업데이트
-    if (updates.theme !== undefined && window.api?.menu?.updateThemeRadio) {
-      try {
-        await window.api.menu.updateThemeRadio('theme', updates.theme);
-      } catch (err) {
-        console.error('Error updating menu theme radio:', err);
       }
     }
     

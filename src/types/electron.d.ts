@@ -53,7 +53,6 @@ export interface ElectronAPI {
   };
   menu: {
     updateCheckbox: (id: string, checked: boolean) => Promise<void>;
-    updateThemeRadio: (groupId: string, theme: string) => Promise<void>;
   };
 }
 

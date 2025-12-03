@@ -55,7 +55,6 @@ const api = {
   },
   menu: {
     updateCheckbox: (id: string, checked: boolean): Promise<void> => ipcRenderer.invoke('menu:updateCheckbox', id, checked),
-    updateThemeRadio: (groupId: string, theme: string): Promise<void> => ipcRenderer.invoke('menu:updateThemeRadio', groupId, theme),
   },
 };
 
