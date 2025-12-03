@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import type { FileSystemItem } from '../types/electron';
+import { isHotkey } from '../config/hotkeys';
 
 interface FileExplorerProps {
   currentPath: string;
@@ -61,16 +62,16 @@ function FileExplorer({ currentPath, onPathChange, onFileSelect }: FileExplorerP
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (loading) return;
 
-    if (e.key === 'ArrowUp') {
+    if (isHotkey(e.key, 'moveUp')) {
       e.preventDefault();
       setCursorIndex((prev) => (prev > 0 ? prev - 1 : prev));
-    } else if (e.key === 'ArrowDown') {
+    } else if (isHotkey(e.key, 'moveDown')) {
       e.preventDefault();
       setCursorIndex((prev) => (prev < items.length - 1 ? prev + 1 : items.length - 1));
-    } else if (e.key === 'z' || e.key === 'Z') {
+    } else if (isHotkey(e.key, 'enter')) {
       e.preventDefault();
       handleEnter();
-    } else if (e.key === 'x' || e.key === 'X') {
+    } else if (isHotkey(e.key, 'goBack')) {
       e.preventDefault();
       handleBack();
     }

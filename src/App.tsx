@@ -3,6 +3,7 @@ import FileExplorer from './components/FileExplorer';
 import FileContentViewer from './components/FileContentViewer';
 import Resizer from './components/Resizer';
 import { BackIcon } from './components/icons/BackIcon';
+import { getHotkeys } from './config/hotkeys';
 
 function App() {
   const [error, setError] = useState<string | null>(null);
@@ -77,17 +78,19 @@ function App() {
                 ? 'bg-gray-200 hover:bg-gray-300 cursor-pointer'
                 : 'bg-gray-100 cursor-not-allowed opacity-50'
             }`}
-            title="뒤로가기 (x)"
+            title={`뒤로가기 (${getHotkeys().goBack})`}
           >
             <BackIcon />
           </button>
-          <h1 className="text-2xl font-bold">폴더링 앱</h1>
-        </div>
-        {currentPath && (
-          <div className="text-sm text-gray-600 font-mono">
-            {currentPath}
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold">폴더링 앱</h1>
+            {currentPath && (
+              <span className="text-sm text-gray-500 font-mono">
+                {currentPath}
+              </span>
+            )}
           </div>
-        )}
+        </div>
       </header>
       <main className="flex-1 flex overflow-hidden">
         <div
