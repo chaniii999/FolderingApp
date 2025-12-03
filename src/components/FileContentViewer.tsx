@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { getHotkeys, isHotkey } from '../config/hotkeys';
@@ -26,6 +26,10 @@ function FileContentViewer({ filePath, onSelectPreviousFile, onSelectNextFile, o
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const scrollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const scrollDirectionRef = useRef<'up' | 'down' | null>(null);
+  const scrollSpeedRef = useRef<number>(1);
+  const scrollStartTimeRef = useRef<number>(0);
 
   const isMarkdownFile = (path: string | null): boolean => {
     if (!path) return false;
@@ -99,7 +103,32 @@ function FileContentViewer({ filePath, onSelectPreviousFile, onSelectNextFile, o
     }
   }, [filePath, loading, error, isEditing]);
 
-  // 전역 키 이벤트 리스너 추가 (파일이 선택되었을 때 "i" 키로 편집 모드 진입)
+  const stopScrolling = useCallback(() => {
+    if (scrollIntervalRef.current) {
+      clearInterval(scrollIntervalRef.current);
+      scrollIntervalRef.current = null;
+    }
+    scrollDirectionRef.current = null;
+    scrollSpeedRef.current = 1;
+  }, []);
+
+  const performScroll = useCallback((direction: 'up' | 'down', speed: number) => {
+    if (!scrollContainerRef.current) return;
+    
+    const baseScrollAmount = 30; // 기본 스크롤 양
+    const scrollAmount = baseScrollAmount * speed;
+    const currentScroll = scrollContainerRef.current.scrollTop;
+    const newScroll = direction === 'up' 
+      ? currentScroll - scrollAmount 
+      : currentScroll + scrollAmount;
+    
+    scrollContainerRef.current.scrollTo({
+      top: newScroll,
+      behavior: 'auto' // 가속도를 위해 smooth 대신 auto 사용
+    });
+  }, []);
+
+  // 전역 키 이벤트 리스너 추가 (파일이 선택되었을 때 "i" 키로 편집 모드 진입, 스크롤 중지)
   useEffect(() => {
     if (!filePath || loading || error || isEditing || showSaveDialog) {
       return;
@@ -114,11 +143,20 @@ function FileContentViewer({ filePath, onSelectPreviousFile, onSelectNextFile, o
       }
     };
 
+    const handleGlobalKeyUp = (e: KeyboardEvent) => {
+      // 위/아래 화살표 키를 떼면 스크롤 중지
+      if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+        stopScrolling();
+      }
+    };
+
     window.addEventListener('keydown', handleGlobalKeyDown, true);
+    window.addEventListener('keyup', handleGlobalKeyUp, true);
     return () => {
       window.removeEventListener('keydown', handleGlobalKeyDown, true);
+      window.removeEventListener('keyup', handleGlobalKeyUp, true);
     };
-  }, [filePath, loading, error, isEditing, showSaveDialog]);
+  }, [filePath, loading, error, isEditing, showSaveDialog, stopScrolling]);
 
   useEffect(() => {
     if (content !== originalContent) {
@@ -127,6 +165,36 @@ function FileContentViewer({ filePath, onSelectPreviousFile, onSelectNextFile, o
       setHasChanges(false);
     }
   }, [content, originalContent]);
+
+  useEffect(() => {
+    // 컴포넌트 언마운트 시 스크롤 중지
+    return () => {
+      stopScrolling();
+    };
+  }, [stopScrolling]);
+
+  // 포커스가 벗어나면 스크롤 중지
+  useEffect(() => {
+    const handleBlur = () => {
+      stopScrolling();
+    };
+    
+    if (containerRef.current) {
+      containerRef.current.addEventListener('blur', handleBlur);
+      return () => {
+        if (containerRef.current) {
+          containerRef.current.removeEventListener('blur', handleBlur);
+        }
+      };
+    }
+  }, [stopScrolling]);
+
+  const handleKeyUp = (e: React.KeyboardEvent) => {
+    // 위/아래 화살표 키를 떼면 스크롤 중지
+    if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+      stopScrolling();
+    }
+  };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     // 알림창이 떴을 때는 z, x만 처리
@@ -175,20 +243,45 @@ function FileContentViewer({ filePath, onSelectPreviousFile, onSelectNextFile, o
     } else {
       // 파일이 선택되어 있고 편집 모드가 아닐 때
       if (filePath && !loading && !error) {
-        // 위/아래 화살표: 텍스트 스크롤
+        // 위/아래 화살표: 텍스트 스크롤 (가속도 적용)
         if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
           e.preventDefault();
-          if (scrollContainerRef.current) {
-            const scrollAmount = 50; // 스크롤 양 (픽셀)
-            const currentScroll = scrollContainerRef.current.scrollTop;
-            const newScroll = e.key === 'ArrowUp' 
-              ? currentScroll - scrollAmount 
-              : currentScroll + scrollAmount;
-            scrollContainerRef.current.scrollTo({
-              top: newScroll,
-              behavior: 'smooth'
-            });
+          const direction = e.key === 'ArrowUp' ? 'up' : 'down';
+          
+          // 이미 스크롤 중이면 방향만 업데이트
+          if (scrollIntervalRef.current && scrollDirectionRef.current === direction) {
+            return;
           }
+          
+          // 기존 스크롤 중지
+          if (scrollIntervalRef.current) {
+            clearInterval(scrollIntervalRef.current);
+          }
+          
+          scrollDirectionRef.current = direction;
+          scrollStartTimeRef.current = Date.now();
+          scrollSpeedRef.current = 1;
+          
+          // 첫 스크롤 즉시 실행
+          performScroll(direction, 1);
+          
+          // 연속 스크롤 시작
+          scrollIntervalRef.current = setInterval(() => {
+            const elapsed = Date.now() - scrollStartTimeRef.current;
+            // 시간에 따라 속도 증가 (크롬 브라우저 스타일)
+            // 0-500ms: 속도 1, 500-1000ms: 속도 2, 1000-2000ms: 속도 3, 이후: 속도 4 (최대)
+            if (elapsed < 500) {
+              scrollSpeedRef.current = 1;
+            } else if (elapsed < 1000) {
+              scrollSpeedRef.current = 2;
+            } else if (elapsed < 2000) {
+              scrollSpeedRef.current = 3;
+            } else {
+              scrollSpeedRef.current = 4;
+            }
+            performScroll(direction, scrollSpeedRef.current);
+          }, 50); // 50ms마다 스크롤 (크롬과 유사)
+          
           return;
         }
         
@@ -296,6 +389,7 @@ function FileContentViewer({ filePath, onSelectPreviousFile, onSelectNextFile, o
       ref={containerRef}
       className="flex flex-col h-full relative"
       onKeyDown={handleKeyDown}
+      onKeyUp={handleKeyUp}
       tabIndex={0}
     >
       <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
