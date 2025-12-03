@@ -3,14 +3,18 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { getHotkeys, isHotkey } from '../config/hotkeys';
 
+import type { TextEditorConfig } from '../services/textEditorConfigService';
+
 interface FileContentViewerProps {
   filePath: string | null;
   onSelectPreviousFile?: () => void;
   onSelectNextFile?: () => void;
   onDeselectFile?: () => void;
+  textEditorConfig?: TextEditorConfig;
 }
 
-function FileContentViewer({ filePath, onSelectPreviousFile, onSelectNextFile, onDeselectFile }: FileContentViewerProps) {
+function FileContentViewer({ filePath, onSelectPreviousFile, onSelectNextFile, onDeselectFile, textEditorConfig }: FileContentViewerProps) {
+  const config = textEditorConfig || { horizontalPadding: 80, fontSize: 14 };
   const [content, setContent] = useState<string>('');
   const [originalContent, setOriginalContent] = useState<string>('');
   const [loading, setLoading] = useState(false);
@@ -355,17 +359,42 @@ function FileContentViewer({ filePath, onSelectPreviousFile, onSelectNextFile, o
             ref={textareaRef}
             value={content}
             onChange={handleContentChange}
-            className="w-full h-full p-4 text-sm font-mono resize-none border-none outline-none"
+            className="w-full h-full font-mono resize-none border-none outline-none"
+            style={{
+              paddingLeft: `${config.horizontalPadding}px`,
+              paddingRight: `${config.horizontalPadding}px`,
+              paddingTop: '1rem',
+              paddingBottom: '1rem',
+              fontSize: `${config.fontSize}px`,
+            }}
             spellCheck={false}
           />
         ) : isMarkdownFile(filePath) ? (
-          <div className="p-6 prose prose-sm max-w-none">
+          <div 
+            className="prose prose-sm max-w-none"
+            style={{
+              paddingLeft: `${config.horizontalPadding}px`,
+              paddingRight: `${config.horizontalPadding}px`,
+              paddingTop: '1.5rem',
+              paddingBottom: '1.5rem',
+              fontSize: `${config.fontSize}px`,
+            }}
+          >
             <ReactMarkdown remarkPlugins={[remarkGfm]}>
               {content}
             </ReactMarkdown>
           </div>
         ) : (
-          <pre className="p-4 text-sm font-mono whitespace-pre-wrap break-words">
+          <pre 
+            className="font-mono whitespace-pre-wrap break-words"
+            style={{
+              paddingLeft: `${config.horizontalPadding}px`,
+              paddingRight: `${config.horizontalPadding}px`,
+              paddingTop: '1rem',
+              paddingBottom: '1rem',
+              fontSize: `${config.fontSize}px`,
+            }}
+          >
             {content}
           </pre>
         )}

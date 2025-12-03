@@ -4,12 +4,14 @@ import FileContentViewer from './components/FileContentViewer';
 import Resizer from './components/Resizer';
 import { BackIcon } from './components/icons/BackIcon';
 import { getHotkeys } from './config/hotkeys';
+import { loadTextEditorConfig, saveTextEditorConfig, type TextEditorConfig } from './services/textEditorConfigService';
 
 function App() {
   const [error, setError] = useState<string | null>(null);
   const [currentPath, setCurrentPath] = useState<string>('');
   const [selectedFilePath, setSelectedFilePath] = useState<string | null>(null);
   const [explorerWidth, setExplorerWidth] = useState<number>(240);
+  const [textEditorConfig, setTextEditorConfig] = useState<TextEditorConfig>({ horizontalPadding: 80, fontSize: 14 });
   const fileExplorerRef = useRef<FileExplorerRef>(null);
 
   const initializeCurrentPath = async () => {
@@ -36,7 +38,14 @@ function App() {
 
   useEffect(() => {
     initializeCurrentPath();
+    loadTextEditorConfig().then(setTextEditorConfig);
   }, []);
+
+  const handleConfigChange = async (updates: Partial<TextEditorConfig>) => {
+    const newConfig = { ...textEditorConfig, ...updates };
+    setTextEditorConfig(newConfig);
+    await saveTextEditorConfig(newConfig);
+  };
 
   const handlePathChange = (newPath: string) => {
     setCurrentPath(newPath);
@@ -132,13 +141,43 @@ function App() {
           >
             <BackIcon />
           </button>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-1">
             <h1 className="text-2xl font-bold">폴더링 앱</h1>
             {currentPath && (
               <span className="text-sm text-gray-500 font-mono">
                 {currentPath}
               </span>
             )}
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-gray-600">가로 여백:</label>
+              <select
+                value={textEditorConfig.horizontalPadding}
+                onChange={(e) => handleConfigChange({ horizontalPadding: Number(e.target.value) })}
+                className="px-2 py-1 text-sm border border-gray-300 rounded bg-white"
+              >
+                <option value={40}>40px</option>
+                <option value={60}>60px</option>
+                <option value={80}>80px</option>
+                <option value={100}>100px</option>
+                <option value={120}>120px</option>
+              </select>
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-gray-600">폰트 크기:</label>
+              <select
+                value={textEditorConfig.fontSize}
+                onChange={(e) => handleConfigChange({ fontSize: Number(e.target.value) })}
+                className="px-2 py-1 text-sm border border-gray-300 rounded bg-white"
+              >
+                <option value={12}>12px</option>
+                <option value={14}>14px</option>
+                <option value={16}>16px</option>
+                <option value={18}>18px</option>
+                <option value={20}>20px</option>
+              </select>
+            </div>
           </div>
         </div>
       </header>
@@ -178,6 +217,7 @@ function App() {
                 fileExplorerRef.current?.focus();
               }, 100);
             }}
+            textEditorConfig={textEditorConfig}
           />
         </div>
       </main>
