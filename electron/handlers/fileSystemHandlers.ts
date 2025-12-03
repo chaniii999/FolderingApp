@@ -1,4 +1,4 @@
-import { IpcMain } from 'electron';
+import { IpcMain, shell } from 'electron';
 import * as fileSystemService from '../services/fileSystemService';
 import { saveStartPath, selectStartPath } from '../services/startPathService';
 import os from 'os';
@@ -127,6 +127,15 @@ export function fileSystemHandlers(ipcMain: IpcMain): void {
       saveStartPath(startPath);
     } catch (error) {
       console.error('Error saving start path:', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('filesystem:openFolder', async (_event, folderPath: string) => {
+    try {
+      await shell.openPath(folderPath);
+    } catch (error) {
+      console.error('Error opening folder:', error);
       throw error;
     }
   });

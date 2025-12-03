@@ -336,6 +336,21 @@ function App() {
     }
   };
 
+  const handleOpenCurrentFolder = async () => {
+    try {
+      if (!currentPath) return;
+      
+      if (!window.api?.filesystem) {
+        console.error('API가 로드되지 않았습니다.');
+        return;
+      }
+
+      await window.api.filesystem.openFolder(currentPath);
+    } catch (err) {
+      console.error('Error opening folder:', err);
+    }
+  };
+
   // p 핫키 처리 (경로 선택)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -355,6 +370,26 @@ function App() {
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [showNewFileDialog]);
+
+  // o 핫키 처리 (현재 폴더 열기)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // 다이얼로그가 열려있으면 핫키 무시
+      if (showNewFileDialog) {
+        return;
+      }
+      
+      if ((e.key === 'o' || e.key === 'O') && !e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey) {
+        e.preventDefault();
+        handleOpenCurrentFolder();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [showNewFileDialog, currentPath]);
 
   return (
     <div className="flex flex-col h-screen w-screen">
@@ -389,6 +424,14 @@ function App() {
             >
               새로 만들기
             </button>
+            <button
+              onClick={handleOpenCurrentFolder}
+              className="px-3 py-1.5 text-sm bg-purple-500 text-white rounded hover:bg-purple-600 flex items-center gap-1"
+              title="현재 폴더 열기 (o)"
+            >
+              <span>📂</span>
+              <span>폴더 열기</span>
+            </button>
             <div className="flex items-center gap-2">
               <label className="text-sm text-gray-600">가로 여백:</label>
               <select
@@ -401,6 +444,13 @@ function App() {
                 <option value={80}>80px</option>
                 <option value={100}>100px</option>
                 <option value={120}>120px</option>
+                <option value={140}>140px</option>
+                <option value={160}>160px</option>
+                <option value={180}>180px</option>
+                <option value={200}>200px</option>
+                <option value={240}>240px</option>
+                <option value={280}>280px</option>
+                <option value={320}>320px</option>
               </select>
             </div>
             <div className="flex items-center gap-2">
@@ -410,11 +460,20 @@ function App() {
                 onChange={(e) => handleConfigChange({ fontSize: Number(e.target.value) })}
                 className="px-2 py-1 text-sm border border-gray-300 rounded bg-white"
               >
+                <option value={10}>10px</option>
                 <option value={12}>12px</option>
                 <option value={14}>14px</option>
                 <option value={16}>16px</option>
                 <option value={18}>18px</option>
                 <option value={20}>20px</option>
+                <option value={22}>22px</option>
+                <option value={24}>24px</option>
+                <option value={26}>26px</option>
+                <option value={28}>28px</option>
+                <option value={30}>30px</option>
+                <option value={32}>32px</option>
+                <option value={36}>36px</option>
+                <option value={40}>40px</option>
               </select>
             </div>
             <label className="flex items-center gap-2 cursor-pointer">
@@ -559,6 +618,10 @@ function App() {
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-gray-700">경로 선택</span>
                         <kbd className="px-1.5 py-0.5 bg-gray-200 rounded text-xs font-mono">{getHotkeys().selectPath}</kbd>
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-gray-700">폴더 열기</span>
+                        <kbd className="px-1.5 py-0.5 bg-gray-200 rounded text-xs font-mono">o</kbd>
                       </div>
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-gray-700">이름 변경</span>

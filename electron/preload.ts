@@ -51,6 +51,7 @@ const api = {
     deleteDirectory: (dirPath: string): Promise<void> => ipcRenderer.invoke('filesystem:deleteDirectory', dirPath),
     selectStartPath: (): Promise<string | null> => ipcRenderer.invoke('filesystem:selectStartPath'),
     saveStartPath: (startPath: string): Promise<void> => ipcRenderer.invoke('filesystem:saveStartPath', startPath),
+    openFolder: (folderPath: string): Promise<void> => ipcRenderer.invoke('filesystem:openFolder', folderPath),
   },
 };
 

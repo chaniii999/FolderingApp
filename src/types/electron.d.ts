@@ -49,6 +49,7 @@ export interface ElectronAPI {
     deleteDirectory: (dirPath: string) => Promise<void>;
     selectStartPath: () => Promise<string | null>;
     saveStartPath: (startPath: string) => Promise<void>;
+    openFolder: (folderPath: string) => Promise<void>;
   };
 }
 
