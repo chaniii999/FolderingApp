@@ -32,6 +32,7 @@ function FileContentViewer({ filePath, onSelectPreviousFile, onSelectNextFile, o
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [dialogSelectedOption, setDialogSelectedOption] = useState<'save' | 'cancel'>('save');
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState(false);
   const deleteDialogRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -137,6 +138,14 @@ function FileContentViewer({ filePath, onSelectPreviousFile, onSelectNextFile, o
       onEditModeChange(isEditing);
     }
   }, [isEditing, onEditModeChange]);
+
+  // 편집 모드가 종료되고 삭제 대기 중이면 삭제 다이얼로그 표시
+  useEffect(() => {
+    if (pendingDelete && !isEditing) {
+      setPendingDelete(false);
+      setShowDeleteDialog(true);
+    }
+  }, [pendingDelete, isEditing]);
 
   // 파일이 선택되었을 때는 편집 모드일 때만 포커스를 받음
   // 편집 모드가 아니면 FileExplorer에 포커스가 유지되어야 함
@@ -253,6 +262,14 @@ function FileContentViewer({ filePath, onSelectPreviousFile, onSelectNextFile, o
         onDeselectFile();
         return;
       }
+
+      // Delete 키로 파일 삭제
+      if (e.key === 'Delete' || e.key === 'Del') {
+        e.preventDefault();
+        e.stopPropagation();
+        handleDeleteClick();
+        return;
+      }
     };
 
     const handleGlobalKeyUp = (e: KeyboardEvent) => {
@@ -268,7 +285,7 @@ function FileContentViewer({ filePath, onSelectPreviousFile, onSelectNextFile, o
       window.removeEventListener('keydown', handleGlobalKeyDown, true);
       window.removeEventListener('keyup', handleGlobalKeyUp, true);
     };
-  }, [filePath, loading, error, isEditing, showSaveDialog, isDialogOpen, stopScrolling, performScroll, onSelectPreviousFile, onSelectNextFile, onDeselectFile, isHotkey]);
+  }, [filePath, loading, error, isEditing, showSaveDialog, isDialogOpen, stopScrolling, performScroll, onSelectPreviousFile, onSelectNextFile, onDeselectFile, isHotkey, originalContent, onEditModeChange]);
 
   useEffect(() => {
     if (content !== originalContent) {
@@ -353,6 +370,14 @@ function FileContentViewer({ filePath, onSelectPreviousFile, onSelectNextFile, o
         return;
       }
     } else {
+      // 편집 모드가 아닐 때 Delete 키로 파일 삭제
+      if ((e.key === 'Delete' || e.key === 'Del') && filePath && !loading && !error) {
+        e.preventDefault();
+        e.stopPropagation();
+        handleDeleteClick();
+        return;
+      }
+
       // 파일이 선택되어 있고 편집 모드가 아닐 때
       if (filePath && !loading && !error) {
         // 위/아래 화살표: 텍스트 스크롤 (가속도 적용)
@@ -483,11 +508,25 @@ function FileContentViewer({ filePath, onSelectPreviousFile, onSelectNextFile, o
     setShowSaveDialog(false);
   };
 
-  const handleDeleteClick = () => {
+  const handleDeleteClick = useCallback(() => {
     if (filePath) {
-      setShowDeleteDialog(true);
+      // 편집 모드이면 먼저 편집 모드 종료
+      if (isEditing) {
+        // 변경사항을 버리고 편집 모드 종료
+        setContent(originalContent);
+        setHasChanges(false);
+        setIsEditing(false);
+        if (onEditModeChange) {
+          onEditModeChange(false);
+        }
+        // 편집 모드 종료 후 삭제 다이얼로그 표시를 위해 플래그 설정
+        setPendingDelete(true);
+      } else {
+        // 편집 모드가 아니면 바로 삭제 다이얼로그 표시
+        setShowDeleteDialog(true);
+      }
     }
-  };
+  }, [filePath, isEditing, originalContent, onEditModeChange]);
 
   const handleDeleteConfirm = async () => {
     if (!filePath) return;
@@ -611,6 +650,13 @@ function FileContentViewer({ filePath, onSelectPreviousFile, onSelectNextFile, o
                 title={`취소 (${getHotkeys().cancel})`}
               >
                 취소
+              </button>
+              <button
+                onClick={handleDeleteClick}
+                className="px-3 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600 flex items-center justify-center"
+                title="삭제"
+              >
+                🗑️
               </button>
             </div>
           )}
