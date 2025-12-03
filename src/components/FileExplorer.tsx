@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useImperativeHandle, forwardRef } from 'react';
 import type { FileSystemItem } from '../types/electron';
 import { isHotkey } from '../config/hotkeys';
 
@@ -8,7 +8,12 @@ interface FileExplorerProps {
   onFileSelect?: (filePath: string) => void;
 }
 
-function FileExplorer({ currentPath, onPathChange, onFileSelect }: FileExplorerProps) {
+export interface FileExplorerRef {
+  focus: () => void;
+}
+
+const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
+  ({ currentPath, onPathChange, onFileSelect }, ref) => {
   const [items, setItems] = useState<FileSystemItem[]>([]);
   const [cursorIndex, setCursorIndex] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -18,6 +23,7 @@ function FileExplorer({ currentPath, onPathChange, onFileSelect }: FileExplorerP
   const loadDirectory = async (path: string) => {
     try {
       setLoading(true);
+      setCursorIndex(0);
       
       if (!window.api?.filesystem) {
         console.error('API가 로드되지 않았습니다.');
@@ -37,6 +43,20 @@ function FileExplorer({ currentPath, onPathChange, onFileSelect }: FileExplorerP
   useEffect(() => {
     loadDirectory(currentPath);
   }, [currentPath]);
+
+  useImperativeHandle(ref, () => ({
+    focus: () => {
+      if (listRef.current) {
+        listRef.current.focus();
+      }
+    },
+  }));
+
+  useEffect(() => {
+    if (!loading && listRef.current) {
+      listRef.current.focus();
+    }
+  }, [loading]);
 
   useEffect(() => {
     if (itemRefs.current[cursorIndex]) {
@@ -173,7 +193,9 @@ function FileExplorer({ currentPath, onPathChange, onFileSelect }: FileExplorerP
       </div>
     </div>
   );
-}
+});
+
+FileExplorer.displayName = 'FileExplorer';
 
 export default FileExplorer;
 

@@ -32,4 +32,5 @@ release
 # Project specific
 docs/
 rule/
+config/dev.json
 

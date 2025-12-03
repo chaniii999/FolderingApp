@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface FileContentViewerProps {
   filePath: string | null;
@@ -8,6 +10,12 @@ function FileContentViewer({ filePath }: FileContentViewerProps) {
   const [content, setContent] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const isMarkdownFile = (path: string | null): boolean => {
+    if (!path) return false;
+    const extension = path.toLowerCase().split('.').pop();
+    return extension === 'md' || extension === 'markdown';
+  };
 
   useEffect(() => {
     const loadFile = async () => {
@@ -82,6 +90,12 @@ function FileContentViewer({ filePath }: FileContentViewerProps) {
             <div className="px-4 py-2 bg-red-100 text-red-700 rounded">
               {error}
             </div>
+          </div>
+        ) : isMarkdownFile(filePath) ? (
+          <div className="p-6 prose prose-sm max-w-none">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              {content}
+            </ReactMarkdown>
           </div>
         ) : (
           <pre className="p-4 text-sm font-mono whitespace-pre-wrap break-words">

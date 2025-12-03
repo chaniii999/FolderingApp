@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import FileExplorer from './components/FileExplorer';
+import { useState, useEffect, useRef } from 'react';
+import FileExplorer, { type FileExplorerRef } from './components/FileExplorer';
 import FileContentViewer from './components/FileContentViewer';
 import Resizer from './components/Resizer';
 import { BackIcon } from './components/icons/BackIcon';
@@ -10,6 +10,7 @@ function App() {
   const [currentPath, setCurrentPath] = useState<string>('');
   const [selectedFilePath, setSelectedFilePath] = useState<string | null>(null);
   const [explorerWidth, setExplorerWidth] = useState<number>(240);
+  const fileExplorerRef = useRef<FileExplorerRef>(null);
 
   const initializeCurrentPath = async () => {
     try {
@@ -58,6 +59,9 @@ function App() {
       const parentPath = await window.api.filesystem.getParentDirectory(currentPath);
       if (parentPath) {
         setCurrentPath(parentPath);
+        setTimeout(() => {
+          fileExplorerRef.current?.focus();
+        }, 100);
       }
     } catch (err) {
       console.error('Error going back:', err);
@@ -104,6 +108,7 @@ function App() {
           )}
           <div className="flex-1 overflow-hidden">
             <FileExplorer
+              ref={fileExplorerRef}
               currentPath={currentPath}
               onPathChange={handlePathChange}
               onFileSelect={handleFileSelect}
