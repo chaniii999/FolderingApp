@@ -12,6 +12,7 @@
     "build:electron": "tsc -p electron",
     "build:app": "npm run build && electron-builder",
     "build:app:win": "npm run build && electron-builder --win --publish never",
+    "build:app:mac": "npm run build && npm run rebuild && electron-builder --mac --publish never",
     "build:app:dir": "npm run build && electron-builder --dir",
     "postinstall": "electron-builder install-app-deps || true",
     "rebuild": "@electron/rebuild -f -w better-sqlite3",
@@ -109,6 +110,37 @@
       "allowToChangeInstallationDirectory": true,
       "differentialPackage": false,
       "warningsAsErrors": false
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": ["x64", "arm64"]
+        }
+      ],
+      "category": "public.app-category.productivity",
+      "artifactName": "${productName}-${version}-${arch}.${ext}",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist"
+    },
+    "dmg": {
+      "title": "${productName} ${version}",
+      "icon": "foldering_icon.png",
+      "background": null,
+      "contents": [
+        {
+          "x": 110,
+          "y": 150
+        },
+        {
+          "x": 240,
+          "y": 150,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
     },
     "nodeGypRebuild": false,
     "buildDependenciesFromSource": false
