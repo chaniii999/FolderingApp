@@ -18,11 +18,10 @@ function App() {
   const [selectedFilePath, setSelectedFilePath] = useState<string | null>(null);
   const [explorerWidth, setExplorerWidth] = useState<number>(240);
   const [textEditorConfig, setTextEditorConfig] = useState<TextEditorConfig>({ horizontalPadding: 80, fontSize: 14 });
-  const [systemConfig, setSystemConfig] = useState<SystemConfig>({ hideNonTextFiles: false, theme: 'light' });
+  const [systemConfig, setSystemConfig] = useState<SystemConfig>({ hideNonTextFiles: false, theme: 'light', showHelp: false });
   const [showNewFileDialog, setShowNewFileDialog] = useState(false);
   const [newlyCreatedFilePath, setNewlyCreatedFilePath] = useState<string | null>(null);
   const [isExplorerVisible, setIsExplorerVisible] = useState<boolean>(true);
-  const [showHelp, setShowHelp] = useState<boolean>(false);
   const fileExplorerRef = useRef<FileExplorerRef>(null);
 
   const initializeCurrentPath = async () => {
@@ -64,6 +63,7 @@ function App() {
       if (window.api?.menu) {
         try {
           await window.api.menu.updateCheckbox('hideNonTextFiles', config.hideNonTextFiles);
+          await window.api.menu.updateCheckbox('showHelp', config.showHelp);
         } catch (err) {
           console.error('Error updating menu checkbox:', err);
         }
@@ -76,7 +76,7 @@ function App() {
     };
     
     const handleMenuToggleShowHelp = (e: CustomEvent<boolean>) => {
-      setShowHelp(e.detail);
+      handleSystemConfigChange({ showHelp: e.detail });
     };
     
     const handleMenuChangeTheme = (e: CustomEvent<Theme>) => {
@@ -159,9 +159,14 @@ function App() {
     }
     
     // 메뉴바 체크박스 상태 업데이트
-    if (updates.hideNonTextFiles !== undefined && window.api?.menu) {
+    if (window.api?.menu) {
       try {
-        await window.api.menu.updateCheckbox('hideNonTextFiles', updates.hideNonTextFiles);
+        if (updates.hideNonTextFiles !== undefined) {
+          await window.api.menu.updateCheckbox('hideNonTextFiles', updates.hideNonTextFiles);
+        }
+        if (updates.showHelp !== undefined) {
+          await window.api.menu.updateCheckbox('showHelp', updates.showHelp);
+        }
       } catch (err) {
         console.error('Error updating menu checkbox:', err);
       }
@@ -601,7 +606,7 @@ function App() {
             isDialogOpen={showNewFileDialog}
           />
         </div>
-        {showHelp && (
+        {systemConfig.showHelp && (
           <div className="flex flex-col border-l border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900" style={{ width: '240px', minWidth: '240px' }}>
               <div className="px-2 py-2 border-b border-gray-200 dark:border-gray-700">
                 <h3 className="text-sm font-semibold dark:text-gray-200">사용 가능한 핫키</h3>

@@ -1,4 +1,5 @@
 {
   "hideNonTextFiles": false,
-  "theme": "light"
+  "theme": "dark",
+  "showHelp": true
 }

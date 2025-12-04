@@ -3,11 +3,13 @@ import { type Theme, defaultTheme } from './themeService';
 export interface SystemConfig {
   hideNonTextFiles: boolean;
   theme: Theme;
+  showHelp: boolean;
 }
 
 const defaultConfig: SystemConfig = {
   hideNonTextFiles: false,
   theme: defaultTheme,
+  showHelp: false,
 };
 
 let cachedConfig: SystemConfig | null = null;
@@ -42,6 +44,7 @@ export async function loadSystemConfig(): Promise<SystemConfig> {
         cachedConfig = {
           hideNonTextFiles: config.hideNonTextFiles ?? defaultConfig.hideNonTextFiles,
           theme: config.theme ?? defaultConfig.theme,
+          showHelp: config.showHelp ?? defaultConfig.showHelp,
         };
         return cachedConfig;
       }
@@ -55,6 +58,7 @@ export async function loadSystemConfig(): Promise<SystemConfig> {
           cachedConfig = {
             hideNonTextFiles: oldConfig.hideNonTextFiles ?? defaultConfig.hideNonTextFiles,
             theme: oldConfig.theme ?? defaultConfig.theme,
+            showHelp: oldConfig.showHelp ?? defaultConfig.showHelp,
           };
           // 새 파일로 저장
           await saveSystemConfig(cachedConfig);
