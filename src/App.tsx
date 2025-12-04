@@ -7,7 +7,7 @@ import { BackIcon } from './components/icons/BackIcon';
 import { ForwardIcon } from './components/icons/ForwardIcon';
 import { getHotkeys } from './config/hotkeys';
 import { loadTextEditorConfig, saveTextEditorConfig, type TextEditorConfig } from './services/textEditorConfigService';
-import { loadAppConfig, saveAppConfig, type AppConfig } from './services/appConfigService';
+import { loadSystemConfig, saveSystemConfig, type SystemConfig } from './services/systemConfigService';
 import { undoService, type UndoAction } from './services/undoService';
 import { isTextFile } from './utils/fileUtils';
 import { applyTheme, type Theme } from './services/themeService';
@@ -18,7 +18,7 @@ function App() {
   const [selectedFilePath, setSelectedFilePath] = useState<string | null>(null);
   const [explorerWidth, setExplorerWidth] = useState<number>(240);
   const [textEditorConfig, setTextEditorConfig] = useState<TextEditorConfig>({ horizontalPadding: 80, fontSize: 14 });
-  const [appConfig, setAppConfig] = useState<AppConfig>({ hideNonTextFiles: false, theme: 'light' });
+  const [systemConfig, setSystemConfig] = useState<SystemConfig>({ hideNonTextFiles: false, theme: 'light' });
   const [showNewFileDialog, setShowNewFileDialog] = useState(false);
   const [newlyCreatedFilePath, setNewlyCreatedFilePath] = useState<string | null>(null);
   const [isExplorerVisible, setIsExplorerVisible] = useState<boolean>(true);
@@ -54,8 +54,8 @@ function App() {
       }
     });
     loadTextEditorConfig().then(setTextEditorConfig);
-    loadAppConfig().then(async (config) => {
-      setAppConfig(config);
+    loadSystemConfig().then(async (config) => {
+      setSystemConfig(config);
       // 초기 테마 적용
       applyTheme(config.theme);
       // 초기 윈도우 테마 설정
@@ -72,7 +72,7 @@ function App() {
     
     // 메뉴바 이벤트 리스너
     const handleMenuToggleHideNonTextFiles = (e: CustomEvent<boolean>) => {
-      handleAppConfigChange({ hideNonTextFiles: e.detail });
+      handleSystemConfigChange({ hideNonTextFiles: e.detail });
     };
     
     const handleMenuToggleShowHelp = (e: CustomEvent<boolean>) => {
@@ -80,7 +80,7 @@ function App() {
     };
     
     const handleMenuChangeTheme = (e: CustomEvent<Theme>) => {
-      handleAppConfigChange({ theme: e.detail });
+      handleSystemConfigChange({ theme: e.detail });
     };
     
     window.addEventListener('menu:toggleHideNonTextFiles', handleMenuToggleHideNonTextFiles as EventListener);
@@ -143,10 +143,10 @@ function App() {
     await saveTextEditorConfig(newConfig);
   };
 
-  const handleAppConfigChange = async (updates: Partial<AppConfig>) => {
-    const newConfig = { ...appConfig, ...updates };
-    setAppConfig(newConfig);
-    await saveAppConfig(newConfig);
+  const handleSystemConfigChange = async (updates: Partial<SystemConfig>) => {
+    const newConfig = { ...systemConfig, ...updates };
+    setSystemConfig(newConfig);
+    await saveSystemConfig(newConfig);
     
     // 테마 적용
     if (updates.theme !== undefined) {
@@ -557,7 +557,7 @@ function App() {
                   onFileSelect={handleFileSelect}
                   selectedFilePath={selectedFilePath}
                   isDialogOpen={showNewFileDialog}
-                  hideNonTextFiles={appConfig.hideNonTextFiles}
+                  hideNonTextFiles={systemConfig.hideNonTextFiles}
                 />
               </div>
             </div>
