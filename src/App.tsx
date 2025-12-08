@@ -197,6 +197,52 @@ function App() {
     // saveTextEditorConfig에서 이미 메뉴 업데이트를 호출함
   };
 
+  // 글씨 크기 조절 핫키 처리
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // 다이얼로그가 열려있으면 핫키 무시
+      if (showNewFileDialog) {
+        return;
+      }
+
+      // Ctrl 키가 눌려있을 때만 처리
+      if (!e.ctrlKey || e.altKey || e.metaKey) {
+        return;
+      }
+
+      // 글씨 크기 증가: Ctrl + +
+      if ((e.key === '+' || e.key === '=') && !e.shiftKey) {
+        e.preventDefault();
+        e.stopPropagation();
+        const fontSizeOptions = [10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 36, 40];
+        const currentIndex = fontSizeOptions.indexOf(textEditorConfig.fontSize);
+        if (currentIndex < fontSizeOptions.length - 1) {
+          const newFontSize = fontSizeOptions[currentIndex + 1];
+          handleConfigChange({ fontSize: newFontSize });
+        }
+        return;
+      }
+
+      // 글씨 크기 감소: Ctrl + -
+      if ((e.key === '-' || e.key === '_') && !e.shiftKey) {
+        e.preventDefault();
+        e.stopPropagation();
+        const fontSizeOptions = [10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 36, 40];
+        const currentIndex = fontSizeOptions.indexOf(textEditorConfig.fontSize);
+        if (currentIndex > 0) {
+          const newFontSize = fontSizeOptions[currentIndex - 1];
+          handleConfigChange({ fontSize: newFontSize });
+        }
+        return;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown, true); // capture phase에서 처리하여 다른 핸들러보다 먼저 실행
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown, true);
+    };
+  }, [showNewFileDialog, textEditorConfig, handleConfigChange]);
+
   const handleSystemConfigChange = async (updates: Partial<SystemConfig>) => {
     const newConfig = { ...systemConfig, ...updates };
     setSystemConfig(newConfig);
@@ -714,6 +760,19 @@ function App() {
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-gray-700 dark:text-gray-300">취소</span>
                         <kbd className="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs font-mono dark:text-gray-200">{getHotkeys().cancel}</kbd>
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold mb-0.5 text-xs dark:text-gray-200">텍스트 편집기 설정</h4>
+                    <div className="space-y-0.5 text-xs">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-gray-700 dark:text-gray-300">글씨 크기 증가</span>
+                        <kbd className="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs font-mono dark:text-gray-200">Ctrl + +</kbd>
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-gray-700 dark:text-gray-300">글씨 크기 감소</span>
+                        <kbd className="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs font-mono dark:text-gray-200">Ctrl + -</kbd>
                       </div>
                     </div>
                   </div>

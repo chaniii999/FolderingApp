@@ -46,7 +46,6 @@ function updateFontMenu() {
   if (!applicationMenu || !mainWindow) return;
   
   const config = loadTextEditorConfig();
-  console.log('[Main] Updating font menu with config:', config);
   
   // 가로 여백 옵션 업데이트
   const paddingOptions = [40, 60, 80, 100, 120, 140, 160, 180, 200, 240, 280, 320];
@@ -61,9 +60,6 @@ function updateFontMenu() {
   const paddingMenuItem = applicationMenu?.getMenuItemById(`padding-${config.horizontalPadding}`);
   if (paddingMenuItem) {
     paddingMenuItem.checked = true;
-    console.log(`[Main] Padding set to ${config.horizontalPadding}px`);
-  } else {
-    console.warn(`[Main] Menu item not found: padding-${config.horizontalPadding}`);
   }
   
   // 폰트 크기 옵션 업데이트
@@ -79,9 +75,6 @@ function updateFontMenu() {
   const fontSizeMenuItem = applicationMenu?.getMenuItemById(`fontsize-${config.fontSize}`);
   if (fontSizeMenuItem) {
     fontSizeMenuItem.checked = true;
-    console.log(`[Main] FontSize set to ${config.fontSize}px`);
-  } else {
-    console.warn(`[Main] Menu item not found: fontsize-${config.fontSize}`);
   }
 }
 
@@ -188,7 +181,7 @@ function setupMenuBar(showMenuBar: boolean, window: BrowserWindow) {
           },
           { type: 'separator' },
           {
-            label: '폰트 크기',
+            label: '폰트 크기 (Ctrl+Plus/Minus)',
             submenu: (() => {
               const config = loadTextEditorConfig();
               const fontSizeOptions = [10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 36, 40];
@@ -286,7 +279,6 @@ function setupMenuBar(showMenuBar: boolean, window: BrowserWindow) {
     
     // Font 메뉴 업데이트 IPC 핸들러
     ipcMain.handle('menu:updateFontMenu', () => {
-      console.log('[Main] updateFontMenu called via IPC');
       updateFontMenu();
       return true;
     });
