@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useImperativeHandle, forwardRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { getHotkeys, isHotkey } from '../config/hotkeys';
@@ -6,6 +6,15 @@ import { isTextFile } from '../utils/fileUtils';
 import { undoService } from '../services/undoService';
 
 import type { TextEditorConfig } from '../services/textEditorConfigService';
+
+export interface FileContentViewerRef {
+  isEditing: boolean;
+  hasChanges: boolean;
+  handleEdit: () => void;
+  handleSave: () => Promise<void>;
+  handleCancel: () => void;
+  handleDelete: () => void;
+}
 
 interface FileContentViewerProps {
   filePath: string | null;
@@ -21,7 +30,7 @@ interface FileContentViewerProps {
   isDialogOpen?: boolean;
 }
 
-function FileContentViewer({ filePath, onSelectPreviousFile, onSelectNextFile, onDeselectFile, textEditorConfig, autoEdit = false, onEditModeEntered, onRenameRequest, onEditModeChange, onFileDeleted, isDialogOpen = false }: FileContentViewerProps) {
+const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProps>(({ filePath, onSelectPreviousFile, onSelectNextFile, onDeselectFile, textEditorConfig, autoEdit = false, onEditModeEntered, onRenameRequest, onEditModeChange, onFileDeleted, isDialogOpen = false }, ref) => {
   const config = textEditorConfig || { horizontalPadding: 80, fontSize: 14 };
   const [content, setContent] = useState<string>('');
   const [originalContent, setOriginalContent] = useState<string>('');
@@ -453,17 +462,17 @@ function FileContentViewer({ filePath, onSelectPreviousFile, onSelectNextFile, o
     }
   };
 
-  const handleEditClick = () => {
+  const handleEditClick = useCallback(() => {
     if (filePath && !loading && !error) {
       setIsEditing(true);
     }
-  };
+  }, [filePath, loading, error]);
 
   const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setContent(e.target.value);
   };
 
-  const handleSave = async () => {
+  const handleSave = useCallback(async () => {
     if (!filePath || !hasChanges) return;
 
     try {
@@ -484,17 +493,19 @@ function FileContentViewer({ filePath, onSelectPreviousFile, onSelectNextFile, o
       setError(errorMessage);
       console.error('Error saving file:', err);
     }
-  };
+  }, [filePath, hasChanges, content]);
 
-  const handleCancel = () => {
+  const handleCancel = useCallback(() => {
     if (hasChanges) {
       setShowSaveDialog(true);
       setDialogSelectedOption('save');
     } else {
-      setIsEditing(false);
       setContent(originalContent);
+      setHasChanges(false);
+      setIsEditing(false);
+      setShowSaveDialog(false);
     }
-  };
+  }, [hasChanges, originalContent]);
 
   const handleSaveDialogConfirm = async () => {
     await handleSave();
@@ -527,6 +538,16 @@ function FileContentViewer({ filePath, onSelectPreviousFile, onSelectNextFile, o
       }
     }
   }, [filePath, isEditing, originalContent, onEditModeChange]);
+
+  // ref를 통해 외부에 노출 (모든 핸들러가 선언된 후)
+  useImperativeHandle(ref, () => ({
+    isEditing,
+    hasChanges,
+    handleEdit: handleEditClick,
+    handleSave,
+    handleCancel,
+    handleDelete: handleDeleteClick,
+  }), [isEditing, hasChanges, handleEditClick, handleSave, handleCancel, handleDeleteClick]);
 
   const handleDeleteConfirm = async () => {
     if (!filePath) return;
@@ -586,9 +607,6 @@ function FileContentViewer({ filePath, onSelectPreviousFile, onSelectNextFile, o
   if (!filePath) {
     return (
       <div className="flex flex-col h-full">
-        <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
-          <h2 className="text-lg font-semibold dark:text-gray-200">파일 내용</h2>
-        </div>
         <div className="flex-1 flex items-center justify-center text-gray-500 dark:text-gray-400">
           파일을 선택하세요
         </div>
@@ -604,64 +622,6 @@ function FileContentViewer({ filePath, onSelectPreviousFile, onSelectNextFile, o
       onKeyUp={handleKeyUp}
       tabIndex={isDialogOpen ? -1 : (isEditing || (filePath && !loading && !error) ? 0 : -1)}
     >
-      <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex-1 min-w-0">
-            <h2 className="text-lg font-semibold truncate dark:text-gray-200" title={filePath}>
-              {filePath.split(/[/\\]/).pop() || filePath}
-            </h2>
-            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 font-mono truncate" title={filePath}>
-              {filePath}
-            </div>
-          </div>
-          {!isEditing && (
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleEditClick}
-                className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600"
-                title={`편집 (${getHotkeys().edit})`}
-              >
-                Edit
-              </button>
-              <button
-                onClick={handleDeleteClick}
-                className="px-3 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600 flex items-center justify-center"
-                title="삭제"
-              >
-                X
-              </button>
-            </div>
-          )}
-          {isEditing && (
-            <div className="flex items-center gap-2">
-              {hasChanges && (
-                <span className="text-xs text-orange-600 dark:text-orange-400">변경됨</span>
-              )}
-              <button
-                onClick={handleSave}
-                className="px-3 py-1 text-sm bg-green-500 text-white rounded hover:bg-green-600"
-                title={`저장 (${getHotkeys().save})`}
-              >
-                저장
-              </button>
-              <button
-                onClick={handleCancel}
-                className="px-3 py-1 text-sm bg-gray-500 text-white rounded hover:bg-gray-600"
-                title={`취소 (${getHotkeys().cancel})`}
-              >
-                취소
-              </button>
-              <button
-                onClick={handleDeleteClick}
-                className="px-3 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600 flex items-center justify-center"
-                title="삭제"
-              >
-                🗑️
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
       <div 
         ref={scrollContainerRef}
         className={`flex-1 bg-white dark:bg-gray-800 relative ${isEditing ? 'overflow-hidden' : 'overflow-auto'}`}
@@ -822,6 +782,8 @@ function FileContentViewer({ filePath, onSelectPreviousFile, onSelectNextFile, o
       )}
     </div>
   );
-}
+});
+
+FileContentViewer.displayName = 'FileContentViewer';
 
 export default FileContentViewer;

@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import FileExplorer, { type FileExplorerRef } from './components/FileExplorer';
-import FileContentViewer from './components/FileContentViewer';
+import FileContentViewer, { type FileContentViewerRef } from './components/FileContentViewer';
 import Resizer from './components/Resizer';
 import NewFileDialog from './components/NewFileDialog';
 import { BackIcon } from './components/icons/BackIcon';
@@ -23,6 +23,8 @@ function App() {
   const [newlyCreatedFilePath, setNewlyCreatedFilePath] = useState<string | null>(null);
   const [isExplorerVisible, setIsExplorerVisible] = useState<boolean>(true);
   const fileExplorerRef = useRef<FileExplorerRef>(null);
+  const fileContentViewerRef = useRef<FileContentViewerRef>(null);
+  const [fileViewerState, setFileViewerState] = useState<{ isEditing: boolean; hasChanges: boolean }>({ isEditing: false, hasChanges: false });
 
   const initializeCurrentPath = async () => {
     try {
@@ -45,6 +47,27 @@ function App() {
       }
     }
   };
+
+  // FileContentViewer 상태 추적
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (fileContentViewerRef.current) {
+        const newState = {
+          isEditing: fileContentViewerRef.current.isEditing,
+          hasChanges: fileContentViewerRef.current.hasChanges,
+        };
+        // 상태가 실제로 변경되었을 때만 업데이트
+        setFileViewerState((prevState) => {
+          if (prevState.isEditing !== newState.isEditing || prevState.hasChanges !== newState.hasChanges) {
+            return newState;
+          }
+          return prevState;
+        });
+      }
+    }, 100); // 100ms마다 상태 확인
+
+    return () => clearInterval(interval);
+  }, [selectedFilePath]);
 
   useEffect(() => {
     initializeCurrentPath().then(() => {
@@ -523,6 +546,52 @@ function App() {
             >
               NewFile
             </button>
+            {selectedFilePath && !fileViewerState.isEditing && (
+              <>
+                <button
+                  onClick={() => fileContentViewerRef.current?.handleEdit()}
+                  className="px-3 py-1.5 text-sm bg-blue-500 text-white rounded hover:bg-blue-600"
+                  title={`편집 (${getHotkeys().edit})`}
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={() => fileContentViewerRef.current?.handleDelete()}
+                  className="px-3 py-1.5 text-sm bg-red-500 text-white rounded hover:bg-red-600"
+                  title="삭제"
+                >
+                  X
+                </button>
+              </>
+            )}
+            {selectedFilePath && fileViewerState.isEditing && (
+              <>
+                {fileViewerState.hasChanges && (
+                  <span className="text-xs text-orange-600 dark:text-orange-400">변경됨</span>
+                )}
+                <button
+                  onClick={() => fileContentViewerRef.current?.handleSave()}
+                  className="px-3 py-1.5 text-sm bg-green-500 text-white rounded hover:bg-green-600"
+                  title={`저장 (${getHotkeys().save})`}
+                >
+                  저장
+                </button>
+                <button
+                  onClick={() => fileContentViewerRef.current?.handleCancel()}
+                  className="px-3 py-1.5 text-sm bg-gray-500 text-white rounded hover:bg-gray-600"
+                  title={`취소 (${getHotkeys().cancel})`}
+                >
+                  취소
+                </button>
+                <button
+                  onClick={() => fileContentViewerRef.current?.handleDelete()}
+                  className="px-3 py-1.5 text-sm bg-red-500 text-white rounded hover:bg-red-600"
+                  title="삭제"
+                >
+                  🗑️
+                </button>
+              </>
+            )}
           </div>
         </div>
       </header>
@@ -530,24 +599,33 @@ function App() {
         {isExplorerVisible && (
           <>
             <div
-              className="flex flex-col p-4 overflow-hidden border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800"
+              className="flex flex-col overflow-hidden border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800"
               style={{ width: `${explorerWidth}px`, minWidth: `${explorerWidth}px` }}
             >
-              {error && (
-                <div className="mb-4 px-4 py-2 bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 rounded">
-                  {error}
+              <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
+                {currentPath && (
+                  <span className="text-sm text-gray-500 dark:text-gray-400 font-mono">
+                    {currentPath}
+                  </span>
+                )}
+              </div>
+              <div className="flex flex-col p-4 flex-1 overflow-hidden">
+                {error && (
+                  <div className="mb-4 px-4 py-2 bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 rounded">
+                    {error}
+                  </div>
+                )}
+                <div className="flex-1 overflow-hidden">
+                  <FileExplorer
+                    ref={fileExplorerRef}
+                    currentPath={currentPath}
+                    onPathChange={handlePathChange}
+                    onFileSelect={handleFileSelect}
+                    selectedFilePath={selectedFilePath}
+                    isDialogOpen={showNewFileDialog}
+                    hideNonTextFiles={systemConfig.hideNonTextFiles}
+                  />
                 </div>
-              )}
-              <div className="flex-1 overflow-hidden">
-                <FileExplorer
-                  ref={fileExplorerRef}
-                  currentPath={currentPath}
-                  onPathChange={handlePathChange}
-                  onFileSelect={handleFileSelect}
-                  selectedFilePath={selectedFilePath}
-                  isDialogOpen={showNewFileDialog}
-                  hideNonTextFiles={systemConfig.hideNonTextFiles}
-                />
               </div>
             </div>
             <Resizer
@@ -559,20 +637,21 @@ function App() {
         )}
         <div className="flex-1 overflow-hidden">
           <FileContentViewer 
+            ref={fileContentViewerRef}
             filePath={selectedFilePath}
             onSelectPreviousFile={handleSelectPreviousFile}
             onSelectNextFile={handleSelectNextFile}
             onDeselectFile={() => {
               setSelectedFilePath(null);
               setNewlyCreatedFilePath(null);
-              // 파일 선택 해제 후에는 포커스를 이동시키지 않음 (뒤로가기 버튼을 누를 때만 포커스 이동)
+              setFileViewerState({ isEditing: false, hasChanges: false });
             }}
             textEditorConfig={textEditorConfig}
             autoEdit={newlyCreatedFilePath === selectedFilePath}
             onEditModeEntered={() => setNewlyCreatedFilePath(null)}
-            onEditModeChange={(isEditing) => {
-              // 편집 모드가 끝나도 포커스를 이동시키지 않음 (뒤로가기 버튼을 누를 때만 포커스 이동)
-            }}
+            onEditModeChange={useCallback((_isEditing: boolean) => {
+              // 상태는 interval에서 추적하므로 여기서는 업데이트하지 않음
+            }, [])}
             onRenameRequest={(filePath) => {
               if (fileExplorerRef.current && !showNewFileDialog) {
                 fileExplorerRef.current.startRenameForPath(filePath);
@@ -582,6 +661,7 @@ function App() {
               }
             }}
             onFileDeleted={() => {
+              setFileViewerState({ isEditing: false, hasChanges: false });
               // 파일 삭제 후 디렉토리 새로고침
               if (fileExplorerRef.current) {
                 fileExplorerRef.current.refresh();
