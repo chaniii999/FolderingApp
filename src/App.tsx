@@ -485,9 +485,16 @@ function App() {
     };
   }, [showNewFileDialog, currentPath]);
 
+  // 선택된 파일 이름 추출
+  const getSelectedFileName = (): string | null => {
+    if (!selectedFilePath) return null;
+    const fileName = selectedFilePath.split(/[/\\]/).pop() || null;
+    return fileName;
+  };
+
   return (
     <div className="flex flex-col h-screen w-screen">
-      <header className="flex flex-col gap-2 px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
+      <header className="flex flex-col gap-1 px-6 py-2 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
         <div className="flex items-center gap-4">
           <button
             onClick={handleToggleExplorer}
@@ -502,29 +509,19 @@ function App() {
                 {currentPath}
               </span>
             )}
+            {getSelectedFileName() && (
+              <span className="text-sm text-gray-700 dark:text-gray-300 font-semibold">
+                / {getSelectedFileName()}
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-2">
-            <button
-              onClick={handleSelectStartPath}
-              className="px-3 py-1.5 text-sm bg-blue-500 text-white rounded hover:bg-blue-600"
-              title="시작 경로 선택"
-            >
-              SelectPath
-            </button>
             <button
               onClick={() => setShowNewFileDialog(true)}
               className="px-3 py-1.5 text-sm bg-green-500 text-white rounded hover:bg-green-600"
               title="새 파일/폴더 만들기 (n)"
             >
               NewFile
-            </button>
-            <button
-              onClick={handleOpenCurrentFolder}
-              className="px-3 py-1.5 text-sm bg-purple-500 text-white rounded hover:bg-purple-600 flex items-center gap-1"
-              title="현재 폴더 열기 (o)"
-            >
-              <span>📂</span>
-              <span>Open</span>
             </button>
           </div>
         </div>
