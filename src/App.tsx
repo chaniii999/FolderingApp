@@ -83,14 +83,44 @@ function App() {
       handleSystemConfigChange({ theme: e.detail });
     };
     
+    const handleMenuSelectPath = () => {
+      handleSelectStartPath();
+    };
+    
+    const handleMenuOpenFolder = () => {
+      handleOpenCurrentFolder();
+    };
+    
+    const handleMenuChangeHorizontalPadding = async (e: CustomEvent<number>) => {
+      const newConfig = { ...textEditorConfig, horizontalPadding: e.detail };
+      setTextEditorConfig(newConfig);
+      await saveTextEditorConfig(newConfig);
+      // saveTextEditorConfig에서 메뉴 업데이트를 호출함
+    };
+    
+    const handleMenuChangeFontSize = async (e: CustomEvent<number>) => {
+      const newConfig = { ...textEditorConfig, fontSize: e.detail };
+      setTextEditorConfig(newConfig);
+      await saveTextEditorConfig(newConfig);
+      // saveTextEditorConfig에서 메뉴 업데이트를 호출함
+    };
+    
     window.addEventListener('menu:toggleHideNonTextFiles', handleMenuToggleHideNonTextFiles as EventListener);
     window.addEventListener('menu:toggleShowHelp', handleMenuToggleShowHelp as EventListener);
     window.addEventListener('menu:changeTheme', handleMenuChangeTheme as EventListener);
+    window.addEventListener('menu:selectPath', handleMenuSelectPath as EventListener);
+    window.addEventListener('menu:openFolder', handleMenuOpenFolder as EventListener);
+    window.addEventListener('menu:changeHorizontalPadding', handleMenuChangeHorizontalPadding as EventListener);
+    window.addEventListener('menu:changeFontSize', handleMenuChangeFontSize as EventListener);
     
     return () => {
       window.removeEventListener('menu:toggleHideNonTextFiles', handleMenuToggleHideNonTextFiles as EventListener);
       window.removeEventListener('menu:toggleShowHelp', handleMenuToggleShowHelp as EventListener);
       window.removeEventListener('menu:changeTheme', handleMenuChangeTheme as EventListener);
+      window.removeEventListener('menu:selectPath', handleMenuSelectPath as EventListener);
+      window.removeEventListener('menu:openFolder', handleMenuOpenFolder as EventListener);
+      window.removeEventListener('menu:changeHorizontalPadding', handleMenuChangeHorizontalPadding as EventListener);
+      window.removeEventListener('menu:changeFontSize', handleMenuChangeFontSize as EventListener);
     };
   }, []);
 
@@ -141,6 +171,7 @@ function App() {
     const newConfig = { ...textEditorConfig, ...updates };
     setTextEditorConfig(newConfig);
     await saveTextEditorConfig(newConfig);
+    // saveTextEditorConfig에서 이미 메뉴 업데이트를 호출함
   };
 
   const handleSystemConfigChange = async (updates: Partial<SystemConfig>) => {
@@ -495,50 +526,6 @@ function App() {
               <span>📂</span>
               <span>Open</span>
             </button>
-            <div className="flex items-center gap-2">
-              <label className="text-sm text-gray-600 dark:text-gray-300">가로 여백:</label>
-              <select
-                value={textEditorConfig.horizontalPadding}
-                onChange={(e) => handleConfigChange({ horizontalPadding: Number(e.target.value) })}
-                className="px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 dark:text-gray-200"
-              >
-                <option value={40}>40px</option>
-                <option value={60}>60px</option>
-                <option value={80}>80px</option>
-                <option value={100}>100px</option>
-                <option value={120}>120px</option>
-                <option value={140}>140px</option>
-                <option value={160}>160px</option>
-                <option value={180}>180px</option>
-                <option value={200}>200px</option>
-                <option value={240}>240px</option>
-                <option value={280}>280px</option>
-                <option value={320}>320px</option>
-              </select>
-            </div>
-            <div className="flex items-center gap-2">
-              <label className="text-sm text-gray-600 dark:text-gray-300">폰트 크기:</label>
-              <select
-                value={textEditorConfig.fontSize}
-                onChange={(e) => handleConfigChange({ fontSize: Number(e.target.value) })}
-                className="px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 dark:text-gray-200"
-              >
-                <option value={10}>10px</option>
-                <option value={12}>12px</option>
-                <option value={14}>14px</option>
-                <option value={16}>16px</option>
-                <option value={18}>18px</option>
-                <option value={20}>20px</option>
-                <option value={22}>22px</option>
-                <option value={24}>24px</option>
-                <option value={26}>26px</option>
-                <option value={28}>28px</option>
-                <option value={30}>30px</option>
-                <option value={32}>32px</option>
-                <option value={36}>36px</option>
-                <option value={40}>40px</option>
-              </select>
-            </div>
           </div>
         </div>
       </header>

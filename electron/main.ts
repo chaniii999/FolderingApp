@@ -1,24 +1,118 @@
 import { app, BrowserWindow, ipcMain, Menu, nativeTheme } from 'electron';
 import path from 'path';
+import fs from 'fs';
 import { folderHandlers } from './handlers/folderHandlers';
 import { noteHandlers } from './handlers/noteHandlers';
 import { fileSystemHandlers } from './handlers/fileSystemHandlers';
 import { getDevConfig } from './services/devConfigService';
-import { loadStartPath, selectStartPath } from './services/startPathService';
+import { loadStartPath, selectStartPath, getStartPathOrHome } from './services/startPathService';
 
 const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
 
 let mainWindow: BrowserWindow | null = null;
+let applicationMenu: Menu | null = null;
+
+interface TextEditorConfig {
+  horizontalPadding: number;
+  fontSize: number;
+}
+
+function loadTextEditorConfig(): TextEditorConfig {
+  const defaultConfig: TextEditorConfig = {
+    horizontalPadding: 80,
+    fontSize: 14,
+  };
+
+  try {
+    const currentDir = getStartPathOrHome();
+    const configPath = path.join(currentDir, 'config', 'textEditor.json');
+    
+    if (fs.existsSync(configPath)) {
+      const content = fs.readFileSync(configPath, 'utf-8');
+      const config = JSON.parse(content) as Partial<TextEditorConfig>;
+      return {
+        horizontalPadding: config.horizontalPadding ?? defaultConfig.horizontalPadding,
+        fontSize: config.fontSize ?? defaultConfig.fontSize,
+      };
+    }
+  } catch (error) {
+    console.error('[Main] Error loading text editor config:', error);
+  }
+
+  return defaultConfig;
+}
+
+function updateFontMenu() {
+  if (!applicationMenu || !mainWindow) return;
+  
+  const config = loadTextEditorConfig();
+  console.log('[Main] Updating font menu with config:', config);
+  
+  // 가로 여백 옵션 업데이트
+  const paddingOptions = [40, 60, 80, 100, 120, 140, 160, 180, 200, 240, 280, 320];
+  // 먼저 모든 항목을 false로 설정
+  paddingOptions.forEach((padding) => {
+    const menuItem = applicationMenu?.getMenuItemById(`padding-${padding}`);
+    if (menuItem) {
+      menuItem.checked = false;
+    }
+  });
+  // 그 다음 올바른 항목만 true로 설정
+  const paddingMenuItem = applicationMenu?.getMenuItemById(`padding-${config.horizontalPadding}`);
+  if (paddingMenuItem) {
+    paddingMenuItem.checked = true;
+    console.log(`[Main] Padding set to ${config.horizontalPadding}px`);
+  } else {
+    console.warn(`[Main] Menu item not found: padding-${config.horizontalPadding}`);
+  }
+  
+  // 폰트 크기 옵션 업데이트
+  const fontSizeOptions = [10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 36, 40];
+  // 먼저 모든 항목을 false로 설정
+  fontSizeOptions.forEach((fontSize) => {
+    const menuItem = applicationMenu?.getMenuItemById(`fontsize-${fontSize}`);
+    if (menuItem) {
+      menuItem.checked = false;
+    }
+  });
+  // 그 다음 올바른 항목만 true로 설정
+  const fontSizeMenuItem = applicationMenu?.getMenuItemById(`fontsize-${config.fontSize}`);
+  if (fontSizeMenuItem) {
+    fontSizeMenuItem.checked = true;
+    console.log(`[Main] FontSize set to ${config.fontSize}px`);
+  } else {
+    console.warn(`[Main] Menu item not found: fontsize-${config.fontSize}`);
+  }
+}
 
 function setupMenuBar(showMenuBar: boolean, window: BrowserWindow) {
   mainWindow = window;
   
   // 메뉴바는 항상 표시 (Option, Help 메뉴를 위해)
-  if (true) {
+  if (showMenuBar !== false) {
     const template: Electron.MenuItemConstructorOptions[] = [
       {
         label: 'File',
         submenu: [
+          {
+            label: 'Select Path',
+            accelerator: 'p',
+            click: () => {
+              if (mainWindow) {
+                mainWindow.webContents.send('menu:selectPath');
+              }
+            },
+          },
+          {
+            label: 'Open Folder',
+            accelerator: 'o',
+            click: () => {
+              if (mainWindow) {
+                mainWindow.webContents.send('menu:openFolder');
+              }
+            },
+          },
+          { type: 'separator' },
           {
             label: 'Exit',
             accelerator: process.platform === 'darwin' ? 'Cmd+Q' : 'Ctrl+Q',
@@ -67,6 +161,49 @@ function setupMenuBar(showMenuBar: boolean, window: BrowserWindow) {
                 mainWindow.webContents.send('menu:changeTheme', 'dark');
               }
             },
+          },
+        ],
+      },
+      {
+        label: 'Font',
+        id: 'font-menu',
+        submenu: [
+          {
+            label: '가로 여백',
+            submenu: (() => {
+              const config = loadTextEditorConfig();
+              const paddingOptions = [40, 60, 80, 100, 120, 140, 160, 180, 200, 240, 280, 320];
+              return paddingOptions.map((padding) => ({
+                label: `${padding}px`,
+                type: 'radio' as const,
+                id: `padding-${padding}`,
+                checked: config.horizontalPadding === padding,
+                click: () => {
+                  if (mainWindow) {
+                    mainWindow.webContents.send('menu:changeHorizontalPadding', padding);
+                  }
+                },
+              }));
+            })(),
+          },
+          { type: 'separator' },
+          {
+            label: '폰트 크기',
+            submenu: (() => {
+              const config = loadTextEditorConfig();
+              const fontSizeOptions = [10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 36, 40];
+              return fontSizeOptions.map((fontSize) => ({
+                label: `${fontSize}px`,
+                type: 'radio' as const,
+                id: `fontsize-${fontSize}`,
+                checked: config.fontSize === fontSize,
+                click: () => {
+                  if (mainWindow) {
+                    mainWindow.webContents.send('menu:changeFontSize', fontSize);
+                  }
+                },
+              }));
+            })(),
           },
         ],
       },
@@ -136,15 +273,22 @@ function setupMenuBar(showMenuBar: boolean, window: BrowserWindow) {
       });
     }
 
-    const menu = Menu.buildFromTemplate(template);
-    Menu.setApplicationMenu(menu);
+    applicationMenu = Menu.buildFromTemplate(template);
+    Menu.setApplicationMenu(applicationMenu);
     
     // 메뉴바 업데이트를 위한 IPC 핸들러
     ipcMain.handle('menu:updateCheckbox', (_event, id: string, checked: boolean) => {
-      const menuItem = menu.getMenuItemById(id);
+      const menuItem = applicationMenu?.getMenuItemById(id);
       if (menuItem) {
         menuItem.checked = checked;
       }
+    });
+    
+    // Font 메뉴 업데이트 IPC 핸들러
+    ipcMain.handle('menu:updateFontMenu', () => {
+      console.log('[Main] updateFontMenu called via IPC');
+      updateFontMenu();
+      return true;
     });
   } else {
     Menu.setApplicationMenu(null);
@@ -160,6 +304,7 @@ function createWindow() {
     width: 1200,
     height: 800,
     backgroundColor: '#1f2937', // 다크 테마 기본 배경색 (gray-800)
+    autoHideMenuBar: false, // Windows에서 메뉴바 항상 표시
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,

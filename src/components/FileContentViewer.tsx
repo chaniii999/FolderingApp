@@ -621,14 +621,14 @@ function FileContentViewer({ filePath, onSelectPreviousFile, onSelectNextFile, o
                 className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600"
                 title={`편집 (${getHotkeys().edit})`}
               >
-                편집
+                Edit
               </button>
               <button
                 onClick={handleDeleteClick}
                 className="px-3 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600 flex items-center justify-center"
                 title="삭제"
               >
-                🗑️
+                X
               </button>
             </div>
           )}

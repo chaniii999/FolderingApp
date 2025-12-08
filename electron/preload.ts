@@ -55,6 +55,7 @@ const api = {
   },
   menu: {
     updateCheckbox: (id: string, checked: boolean): Promise<void> => ipcRenderer.invoke('menu:updateCheckbox', id, checked),
+    updateFontMenu: (): Promise<void> => ipcRenderer.invoke('menu:updateFontMenu'),
   },
 };
 
@@ -93,6 +94,50 @@ ipcRenderer.on('menu:toggleShowHelp', (_event, checked: boolean) => {
 ipcRenderer.on('menu:changeTheme', (_event, theme: string) => {
   // DOM이 로드된 후 이벤트 전달
   const customEvent = new CustomEvent('menu:changeTheme', { detail: theme });
+  if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    window.dispatchEvent(customEvent);
+  } else {
+    document.addEventListener('DOMContentLoaded', () => {
+      window.dispatchEvent(customEvent);
+    });
+  }
+});
+
+ipcRenderer.on('menu:selectPath', () => {
+  const customEvent = new CustomEvent('menu:selectPath');
+  if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    window.dispatchEvent(customEvent);
+  } else {
+    document.addEventListener('DOMContentLoaded', () => {
+      window.dispatchEvent(customEvent);
+    });
+  }
+});
+
+ipcRenderer.on('menu:openFolder', () => {
+  const customEvent = new CustomEvent('menu:openFolder');
+  if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    window.dispatchEvent(customEvent);
+  } else {
+    document.addEventListener('DOMContentLoaded', () => {
+      window.dispatchEvent(customEvent);
+    });
+  }
+});
+
+ipcRenderer.on('menu:changeHorizontalPadding', (_event, padding: number) => {
+  const customEvent = new CustomEvent('menu:changeHorizontalPadding', { detail: padding });
+  if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    window.dispatchEvent(customEvent);
+  } else {
+    document.addEventListener('DOMContentLoaded', () => {
+      window.dispatchEvent(customEvent);
+    });
+  }
+});
+
+ipcRenderer.on('menu:changeFontSize', (_event, fontSize: number) => {
+  const customEvent = new CustomEvent('menu:changeFontSize', { detail: fontSize });
   if (document.readyState === 'complete' || document.readyState === 'interactive') {
     window.dispatchEvent(customEvent);
   } else {

@@ -53,6 +53,7 @@ export interface ElectronAPI {
   };
   menu: {
     updateCheckbox: (id: string, checked: boolean) => Promise<void>;
+    updateFontMenu: () => Promise<void>;
   };
 }
 

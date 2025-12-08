@@ -62,6 +62,20 @@ export async function saveTextEditorConfig(config: TextEditorConfig): Promise<vo
         JSON.stringify(config, null, 2)
       );
       cachedConfig = config;
+      console.log('[Renderer] Text editor config saved:', config);
+      
+      // 메인 프로세스에 설정 변경 알림
+      if (window.api?.menu) {
+        try {
+          // 파일 쓰기가 완료된 후 메뉴 업데이트 (약간의 지연)
+          setTimeout(async () => {
+            await window.api.menu.updateFontMenu();
+            console.log('[Renderer] Font menu update requested');
+          }, 200);
+        } catch (err) {
+          console.error('Error updating font menu:', err);
+        }
+      }
     }
   } catch (error) {
     console.error('Error saving text editor config:', error);
