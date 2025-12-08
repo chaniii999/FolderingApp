@@ -515,6 +515,13 @@ function App() {
     return fileName;
   };
 
+  // 현재 폴더 이름만 추출 (예: d:~~~/app -> app)
+  const getCurrentFolderName = (): string => {
+    if (!currentPath) return '';
+    const parts = currentPath.split(/[/\\]/).filter(part => part.length > 0);
+    return parts.length > 0 ? parts[parts.length - 1] : currentPath;
+  };
+
   return (
     <div className="flex flex-col h-screen w-screen">
       <header className="flex flex-col gap-1 px-6 py-2 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
@@ -527,14 +534,9 @@ function App() {
             {isExplorerVisible ? <BackIcon /> : <ForwardIcon />}
           </button>
           <div className="flex items-center gap-2 flex-1">
-            {currentPath && (
-              <span className="text-sm text-gray-500 dark:text-gray-400 font-mono">
-                {currentPath}
-              </span>
-            )}
             {getSelectedFileName() && (
-              <span className="text-sm text-gray-700 dark:text-gray-300 font-semibold">
-                / {getSelectedFileName()}
+              <span className="text-lg text-gray-700 dark:text-gray-300 font-semibold">
+                {getSelectedFileName()}
               </span>
             )}
           </div>
@@ -605,7 +607,7 @@ function App() {
               <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
                 {currentPath && (
                   <span className="text-sm text-gray-500 dark:text-gray-400 font-mono">
-                    {currentPath}
+                    {getCurrentFolderName()}
                   </span>
                 )}
               </div>
