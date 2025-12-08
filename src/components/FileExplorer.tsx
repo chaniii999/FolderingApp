@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useImperativeHandle, forwardRef } from 'react';
+import { useState, useEffect, useRef, useImperativeHandle, forwardRef, useCallback } from 'react';
 import type { FileSystemItem } from '../types/electron';
 import { isHotkey } from '../config/hotkeys';
 import { undoService } from '../services/undoService';
@@ -34,7 +34,7 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
   const renameInputRef = useRef<HTMLInputElement>(null);
   const deleteDialogRef = useRef<HTMLDivElement>(null);
 
-  const loadDirectory = async (path: string) => {
+  const loadDirectory = useCallback(async (path: string) => {
     try {
       setLoading(true);
       
@@ -63,11 +63,11 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
     } finally {
       setLoading(false);
     }
-  };
+  }, [hideNonTextFiles]);
 
   useEffect(() => {
     loadDirectory(currentPath);
-  }, [currentPath]);
+  }, [currentPath, loadDirectory]);
 
   useImperativeHandle(ref, () => ({
     focus: () => {
@@ -86,7 +86,7 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
         setRenamingName(items[index].name);
       }
     },
-  }));
+  }), [loadDirectory, currentPath, items]);
 
   useEffect(() => {
     // 다이얼로그가 열려있지 않고 파일이 선택되어 있지 않을 때만 자동 포커스

@@ -26,11 +26,12 @@ interface FileContentViewerProps {
   onEditModeEntered?: () => void;
   onRenameRequest?: (filePath: string) => void;
   onEditModeChange?: (isEditing: boolean) => void;
+  onEditStateChange?: (state: { isEditing: boolean; hasChanges: boolean }) => void;
   onFileDeleted?: () => void;
   isDialogOpen?: boolean;
 }
 
-const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProps>(({ filePath, onSelectPreviousFile, onSelectNextFile, onDeselectFile, textEditorConfig, autoEdit = false, onEditModeEntered, onRenameRequest, onEditModeChange, onFileDeleted, isDialogOpen = false }, ref) => {
+const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProps>(({ filePath, onSelectPreviousFile, onSelectNextFile, onDeselectFile, textEditorConfig, autoEdit = false, onEditModeEntered, onRenameRequest, onEditModeChange, onEditStateChange, onFileDeleted, isDialogOpen = false }, ref) => {
   const config = textEditorConfig || { horizontalPadding: 80, fontSize: 14 };
   const [content, setContent] = useState<string>('');
   const [originalContent, setOriginalContent] = useState<string>('');
@@ -146,7 +147,10 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
     if (onEditModeChange) {
       onEditModeChange(isEditing);
     }
-  }, [isEditing, onEditModeChange]);
+    if (onEditStateChange) {
+      onEditStateChange({ isEditing, hasChanges });
+    }
+  }, [isEditing, hasChanges, onEditModeChange, onEditStateChange]);
 
   // 편집 모드가 종료되고 삭제 대기 중이면 삭제 다이얼로그 표시
   useEffect(() => {
@@ -184,6 +188,26 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
       behavior: 'auto' // 가속도를 위해 smooth 대신 auto 사용
     });
   }, []);
+
+  const handleDeleteClick = useCallback(() => {
+    if (filePath) {
+      // 편집 모드이면 먼저 편집 모드 종료
+      if (isEditing) {
+        // 변경사항을 버리고 편집 모드 종료
+        setContent(originalContent);
+        setHasChanges(false);
+        setIsEditing(false);
+        if (onEditModeChange) {
+          onEditModeChange(false);
+        }
+        // 편집 모드 종료 후 삭제 다이얼로그 표시를 위해 플래그 설정
+        setPendingDelete(true);
+      } else {
+        // 편집 모드가 아니면 바로 삭제 다이얼로그 표시
+        setShowDeleteDialog(true);
+      }
+    }
+  }, [filePath, isEditing, originalContent, onEditModeChange]);
 
   // 전역 키 이벤트 리스너 추가 (파일이 선택되었을 때 화살표 키 처리)
   useEffect(() => {
@@ -294,7 +318,7 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
       window.removeEventListener('keydown', handleGlobalKeyDown, true);
       window.removeEventListener('keyup', handleGlobalKeyUp, true);
     };
-  }, [filePath, loading, error, isEditing, showSaveDialog, isDialogOpen, stopScrolling, performScroll, onSelectPreviousFile, onSelectNextFile, onDeselectFile, isHotkey, originalContent, onEditModeChange]);
+  }, [filePath, loading, error, isEditing, showSaveDialog, isDialogOpen, stopScrolling, performScroll, onSelectPreviousFile, onSelectNextFile, onDeselectFile, originalContent, onEditModeChange]);
 
   useEffect(() => {
     if (content !== originalContent) {
@@ -518,26 +542,6 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
     setIsEditing(false);
     setShowSaveDialog(false);
   };
-
-  const handleDeleteClick = useCallback(() => {
-    if (filePath) {
-      // 편집 모드이면 먼저 편집 모드 종료
-      if (isEditing) {
-        // 변경사항을 버리고 편집 모드 종료
-        setContent(originalContent);
-        setHasChanges(false);
-        setIsEditing(false);
-        if (onEditModeChange) {
-          onEditModeChange(false);
-        }
-        // 편집 모드 종료 후 삭제 다이얼로그 표시를 위해 플래그 설정
-        setPendingDelete(true);
-      } else {
-        // 편집 모드가 아니면 바로 삭제 다이얼로그 표시
-        setShowDeleteDialog(true);
-      }
-    }
-  }, [filePath, isEditing, originalContent, onEditModeChange]);
 
   // ref를 통해 외부에 노출 (모든 핸들러가 선언된 후)
   useImperativeHandle(ref, () => ({

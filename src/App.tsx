@@ -48,26 +48,19 @@ function App() {
     }
   };
 
-  // FileContentViewer 상태 추적
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (fileContentViewerRef.current) {
-        const newState = {
-          isEditing: fileContentViewerRef.current.isEditing,
-          hasChanges: fileContentViewerRef.current.hasChanges,
-        };
-        // 상태가 실제로 변경되었을 때만 업데이트
-        setFileViewerState((prevState) => {
-          if (prevState.isEditing !== newState.isEditing || prevState.hasChanges !== newState.hasChanges) {
-            return newState;
-          }
-          return prevState;
-        });
-      }
-    }, 100); // 100ms마다 상태 확인
+  // FileContentViewer 상태 변경 핸들러
+  const handleEditStateChange = useCallback((state: { isEditing: boolean; hasChanges: boolean }) => {
+    setFileViewerState(state);
+  }, []);
 
-    return () => clearInterval(interval);
-  }, [selectedFilePath]);
+  // 디렉토리 변경 시 선택된 파일 상태 검증
+  useEffect(() => {
+    if (selectedFilePath && currentPath && !selectedFilePath.startsWith(currentPath)) {
+      // 선택된 파일이 현재 디렉토리에 없으면 선택 해제
+      setSelectedFilePath(null);
+      setFileViewerState({ isEditing: false, hasChanges: false });
+    }
+  }, [currentPath, selectedFilePath]);
 
   useEffect(() => {
     initializeCurrentPath().then(() => {
@@ -190,12 +183,12 @@ function App() {
   }, [showNewFileDialog]);
 
 
-  const handleConfigChange = async (updates: Partial<TextEditorConfig>) => {
+  const handleConfigChange = useCallback(async (updates: Partial<TextEditorConfig>) => {
     const newConfig = { ...textEditorConfig, ...updates };
     setTextEditorConfig(newConfig);
     await saveTextEditorConfig(newConfig);
     // saveTextEditorConfig에서 이미 메뉴 업데이트를 호출함
-  };
+  }, [textEditorConfig]);
 
   // 글씨 크기 조절 핫키 처리
   useEffect(() => {
@@ -698,8 +691,9 @@ function App() {
             autoEdit={newlyCreatedFilePath === selectedFilePath}
             onEditModeEntered={() => setNewlyCreatedFilePath(null)}
             onEditModeChange={useCallback((_isEditing: boolean) => {
-              // 상태는 interval에서 추적하므로 여기서는 업데이트하지 않음
+              // 상태는 onEditStateChange에서 추적
             }, [])}
+            onEditStateChange={handleEditStateChange}
             onRenameRequest={(filePath) => {
               if (fileExplorerRef.current && !showNewFileDialog) {
                 fileExplorerRef.current.startRenameForPath(filePath);
