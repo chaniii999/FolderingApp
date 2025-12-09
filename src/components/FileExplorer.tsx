@@ -33,6 +33,7 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; item: FileSystemItem | null; index: number | null; isBlankSpace?: boolean } | null>(null);
   const [clipboard, setClipboard] = useState<{ path: string; isDirectory: boolean; isCut: boolean } | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
   const renameInputRef = useRef<HTMLInputElement>(null);
   const deleteDialogRef = useRef<HTMLDivElement>(null);
@@ -100,25 +101,42 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
   }, [loading, isDialogOpen, selectedFilePath]);
 
   useEffect(() => {
+    if (!scrollContainerRef.current) return;
+    
     // ".." 항목은 별도 처리 (ref가 없음)
     if (cursorIndex === -1) {
       // ".." 항목으로 스크롤 (첫 번째 요소)
       const firstElement = listRef.current?.querySelector('[data-parent-item]');
       if (firstElement) {
-        firstElement.scrollIntoView({
-          behavior: 'smooth',
-          block: 'nearest',
-        });
+        const container = scrollContainerRef.current;
+        const containerRect = container.getBoundingClientRect();
+        const elementRect = firstElement.getBoundingClientRect();
+        
+        // 요소가 보이지 않으면 즉시 스크롤
+        if (elementRect.top < containerRect.top || elementRect.bottom > containerRect.bottom) {
+          firstElement.scrollIntoView({
+            behavior: 'auto',
+            block: 'nearest',
+          });
+        }
       }
       return;
     }
     
     // 일반 항목 스크롤
-    if (itemRefs.current[cursorIndex]) {
-      itemRefs.current[cursorIndex]?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'nearest',
-      });
+    const targetElement = itemRefs.current[cursorIndex];
+    if (targetElement) {
+      const container = scrollContainerRef.current;
+      const containerRect = container.getBoundingClientRect();
+      const elementRect = targetElement.getBoundingClientRect();
+      
+      // 요소가 보이지 않으면 즉시 스크롤
+      if (elementRect.top < containerRect.top || elementRect.bottom > containerRect.bottom) {
+        targetElement.scrollIntoView({
+          behavior: 'auto',
+          block: 'nearest',
+        });
+      }
     }
   }, [cursorIndex]);
 
@@ -531,6 +549,7 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
       ref={listRef}
     >
       <div 
+        ref={scrollContainerRef}
         className="flex flex-col gap-1 overflow-y-auto flex-1"
         onContextMenu={handleBlankSpaceContextMenu}
       >
