@@ -47,6 +47,8 @@ export interface ElectronAPI {
     renameFile: (oldPath: string, newName: string) => Promise<void>;
     deleteFile: (filePath: string) => Promise<void>;
     deleteDirectory: (dirPath: string) => Promise<void>;
+    copyFile: (sourcePath: string, destPath: string) => Promise<void>;
+    moveFile: (sourcePath: string, destPath: string) => Promise<void>;
     selectStartPath: () => Promise<string | null>;
     saveStartPath: (startPath: string) => Promise<void>;
     openFolder: (folderPath: string) => Promise<void>;

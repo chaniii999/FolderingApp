@@ -1,5 +1,4 @@
 # 설치 가이드
-반갑다 나는 박성찬이다.
 ## Windows에서 better-sqlite3 설치 문제 해결
 
 `better-sqlite3`는 네이티브 모듈이므로 컴파일이 필요합니다. **Visual Studio Build Tools가 반드시 필요합니다.**

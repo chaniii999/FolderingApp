@@ -3,6 +3,7 @@ import type { FileSystemItem } from '../types/electron';
 import { isHotkey } from '../config/hotkeys';
 import { undoService } from '../services/undoService';
 import { isTextFile } from '../utils/fileUtils';
+import ContextMenu from './ContextMenu';
 
 interface FileExplorerProps {
   currentPath: string;
@@ -29,6 +30,8 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
   const [renamingIndex, setRenamingIndex] = useState<number | null>(null);
   const [renamingName, setRenamingName] = useState<string>('');
   const [showDeleteDialog, setShowDeleteDialog] = useState<{ item: FileSystemItem; index: number } | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; item: FileSystemItem | null; index: number | null; isBlankSpace?: boolean } | null>(null);
+  const [clipboard, setClipboard] = useState<{ path: string; isDirectory: boolean; isCut: boolean } | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
   const renameInputRef = useRef<HTMLInputElement>(null);
@@ -389,6 +392,124 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
     handleItemClick(item, index);
   };
 
+  const handleContextMenu = (e: React.MouseEvent, item: FileSystemItem, index: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setContextMenu({ x: e.clientX, y: e.clientY, item, index, isBlankSpace: false });
+  };
+
+  const handleBlankSpaceContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setContextMenu({ x: e.clientX, y: e.clientY, item: null, index: null, isBlankSpace: true });
+  };
+
+  const handleContextMenuClose = () => {
+    setContextMenu(null);
+  };
+
+  const handleCut = async () => {
+    if (!contextMenu || !contextMenu.item) return;
+
+    const { item } = contextMenu;
+    setClipboard({ path: item.path, isDirectory: item.isDirectory, isCut: true });
+    setContextMenu(null);
+  };
+
+  const handleCopy = async () => {
+    if (!contextMenu || !contextMenu.item) return;
+
+    const { item } = contextMenu;
+    // 파일만 복사 가능
+    if (!item.isDirectory) {
+      setClipboard({ path: item.path, isDirectory: false, isCut: false });
+    }
+    setContextMenu(null);
+  };
+
+  const handlePaste = async () => {
+    if (!clipboard || !window.api?.filesystem) return;
+
+    try {
+      const sourcePath = clipboard.path;
+      // 경로에서 파일명 추출
+      const separator = sourcePath.includes('\\') ? '\\' : '/';
+      const sourceName = sourcePath.split(separator).pop() || '';
+      // 대상 경로 생성
+      const pathSeparator = currentPath.includes('\\') ? '\\' : '/';
+      const destPath = `${currentPath}${pathSeparator}${sourceName}`;
+
+      // 같은 위치에 붙여넣기 시도 시 에러 처리
+      if (sourcePath === destPath) {
+        alert('같은 위치에는 붙여넣을 수 없습니다.');
+        return;
+      }
+
+      // 대상 위치에 같은 이름의 파일이 있는지 확인
+      const items = await window.api.filesystem.listDirectory(currentPath);
+      const exists = items.some(item => item.name === sourceName);
+      
+      if (exists) {
+        alert('같은 이름의 파일 또는 폴더가 이미 존재합니다.');
+        return;
+      }
+
+      if (clipboard.isCut) {
+        // 잘라내기: 이동
+        await window.api.filesystem.moveFile(sourcePath, destPath);
+        
+        // 작업 히스토리에 추가
+        undoService.addAction({
+          type: 'move',
+          path: destPath,
+          oldPath: sourcePath,
+          isDirectory: clipboard.isDirectory,
+        });
+
+        // 잘라낸 파일이 선택된 파일이면 선택 해제
+        if (onFileSelect && selectedFilePath === sourcePath) {
+          onFileSelect('');
+        }
+      } else {
+        // 복사: 파일만 복사 가능
+        if (!clipboard.isDirectory) {
+          await window.api.filesystem.copyFile(sourcePath, destPath);
+          
+          // 작업 히스토리에 추가
+          undoService.addAction({
+            type: 'copy',
+            path: destPath,
+            oldPath: sourcePath,
+            isDirectory: false,
+          });
+        }
+      }
+
+      // 잘라내기인 경우 클립보드 비우기
+      if (clipboard.isCut) {
+        setClipboard(null);
+      }
+
+      loadDirectory(currentPath);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : '붙여넣기 중 오류가 발생했습니다.';
+      alert(errorMessage);
+      console.error('Error pasting file:', err);
+    }
+  };
+
+  const handleContextMenuDelete = () => {
+    if (!contextMenu || !contextMenu.item || contextMenu.index === null) return;
+    const { item, index } = contextMenu;
+    setShowDeleteDialog({ item, index });
+    setContextMenu(null);
+    setTimeout(() => {
+      if (deleteDialogRef.current) {
+        deleteDialogRef.current.focus();
+      }
+    }, 100);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -409,7 +530,10 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
       onKeyDown={handleKeyDown}
       ref={listRef}
     >
-      <div className="flex flex-col gap-1 overflow-y-auto flex-1">
+      <div 
+        className="flex flex-col gap-1 overflow-y-auto flex-1"
+        onContextMenu={handleBlankSpaceContextMenu}
+      >
         {hasParentDirectory && (
           <div
             data-parent-item
@@ -446,6 +570,10 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
                     : 'hover:bg-gray-100 dark:hover:bg-gray-700'
                 }`}
                 onClick={handleItemClickWrapper(item, index)}
+                onContextMenu={(e) => {
+                  e.stopPropagation();
+                  handleContextMenu(e, item, index);
+                }}
               >
                 <div className="w-4 flex items-center justify-center">
                   {cursorIndex === index && <span className="text-sm">▶</span>}
@@ -481,6 +609,20 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
           })
         )}
       </div>
+      {contextMenu && (
+        <ContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          onClose={handleContextMenuClose}
+          onCut={handleCut}
+          onCopy={handleCopy}
+          onPaste={handlePaste}
+          onDelete={handleContextMenuDelete}
+          canCopy={contextMenu.item ? !contextMenu.item.isDirectory : false}
+          canPaste={clipboard !== null}
+          isBlankSpace={contextMenu.isBlankSpace || false}
+        />
+      )}
       {showDeleteDialog && (
         <div 
             className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 dark:bg-opacity-70 z-50"

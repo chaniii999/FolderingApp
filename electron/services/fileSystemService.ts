@@ -236,3 +236,47 @@ export function deleteDirectory(dirPath: string): void {
   }
 }
 
+export function copyFile(sourcePath: string, destPath: string): void {
+  try {
+    if (!fs.existsSync(sourcePath)) {
+      throw new Error('원본 파일 또는 폴더가 존재하지 않습니다.');
+    }
+
+    const stats = fs.statSync(sourcePath);
+    
+    if (stats.isDirectory()) {
+      // 디렉토리 복사
+      if (fs.existsSync(destPath)) {
+        throw new Error('대상 위치에 같은 이름의 파일 또는 폴더가 이미 존재합니다.');
+      }
+      fs.cpSync(sourcePath, destPath, { recursive: true });
+    } else {
+      // 파일 복사
+      if (fs.existsSync(destPath)) {
+        throw new Error('대상 위치에 같은 이름의 파일이 이미 존재합니다.');
+      }
+      fs.copyFileSync(sourcePath, destPath);
+    }
+  } catch (error) {
+    console.error('Error copying file:', error);
+    throw error;
+  }
+}
+
+export function moveFile(sourcePath: string, destPath: string): void {
+  try {
+    if (!fs.existsSync(sourcePath)) {
+      throw new Error('원본 파일 또는 폴더가 존재하지 않습니다.');
+    }
+
+    if (fs.existsSync(destPath)) {
+      throw new Error('대상 위치에 같은 이름의 파일 또는 폴더가 이미 존재합니다.');
+    }
+
+    fs.renameSync(sourcePath, destPath);
+  } catch (error) {
+    console.error('Error moving file:', error);
+    throw error;
+  }
+}
+

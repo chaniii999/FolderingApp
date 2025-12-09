@@ -139,5 +139,23 @@ export function fileSystemHandlers(ipcMain: IpcMain): void {
       throw error;
     }
   });
+
+  ipcMain.handle('filesystem:copyFile', async (_event, sourcePath: string, destPath: string) => {
+    try {
+      fileSystemService.copyFile(sourcePath, destPath);
+    } catch (error) {
+      console.error('Error copying file:', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('filesystem:moveFile', async (_event, sourcePath: string, destPath: string) => {
+    try {
+      fileSystemService.moveFile(sourcePath, destPath);
+    } catch (error) {
+      console.error('Error moving file:', error);
+      throw error;
+    }
+  });
 }
 

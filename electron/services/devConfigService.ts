@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { app } from 'electron';
 
 export interface DevConfig {
   devTools: boolean;
@@ -8,18 +9,35 @@ export interface DevConfig {
 
 const defaultConfig: DevConfig = {
   devTools: false,
-  menuBar: false,
+  menuBar: true, // 프로덕션 빌드에서도 메뉴바 표시
 };
 
 let cachedConfig: DevConfig | null = null;
 
 function getConfigPath(): string {
-  const cwd = process.cwd();
-  const configPath = path.join(cwd, 'config', 'dev.json');
-  console.log('[DevConfig] Config path:', configPath);
-  console.log('[DevConfig] Current working directory:', cwd);
-  console.log('[DevConfig] File exists:', fs.existsSync(configPath));
-  return configPath;
+  // 개발 모드에서는 프로젝트 루트의 config 폴더 사용
+  // 프로덕션에서는 userData 경로 사용
+  const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
+  
+  if (isDev) {
+    const cwd = process.cwd();
+    const configPath = path.join(cwd, 'config', 'dev.json');
+    console.log('[DevConfig] Dev mode - Config path:', configPath);
+    return configPath;
+  } else {
+    // 프로덕션: userData 경로 사용 (app.whenReady() 이후에만 호출 가능)
+    try {
+      const userDataPath = app.getPath('userData');
+      const configPath = path.join(userDataPath, 'config', 'dev.json');
+      console.log('[DevConfig] Production - Config path:', configPath);
+      return configPath;
+    } catch (error) {
+      // app이 준비되지 않았을 경우 fallback
+      console.warn('[DevConfig] app.getPath failed, using process.cwd()');
+      const cwd = process.cwd();
+      return path.join(cwd, 'config', 'dev.json');
+    }
+  }
 }
 
 export function loadDevConfig(): DevConfig {
