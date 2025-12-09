@@ -715,6 +715,11 @@ function App() {
               }
             }}
             isDialogOpen={showNewFileDialog}
+            onFocusExplorer={() => {
+              if (fileExplorerRef.current) {
+                fileExplorerRef.current.focus();
+              }
+            }}
           />
         </div>
         {systemConfig.showHelp && (

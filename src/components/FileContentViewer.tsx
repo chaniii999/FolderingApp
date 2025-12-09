@@ -29,9 +29,10 @@ interface FileContentViewerProps {
   onEditStateChange?: (state: { isEditing: boolean; hasChanges: boolean }) => void;
   onFileDeleted?: () => void;
   isDialogOpen?: boolean;
+  onFocusExplorer?: () => void;
 }
 
-const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProps>(({ filePath, onSelectPreviousFile, onSelectNextFile, onDeselectFile, textEditorConfig, autoEdit = false, onEditModeEntered, onRenameRequest, onEditModeChange, onEditStateChange, onFileDeleted, isDialogOpen = false }, ref) => {
+const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProps>(({ filePath, onSelectPreviousFile, onSelectNextFile, onDeselectFile, textEditorConfig, autoEdit = false, onEditModeEntered, onRenameRequest, onEditModeChange, onEditStateChange, onFileDeleted, isDialogOpen = false, onFocusExplorer }, ref) => {
   const config = textEditorConfig || { horizontalPadding: 80, fontSize: 14 };
   const [content, setContent] = useState<string>('');
   const [originalContent, setOriginalContent] = useState<string>('');
@@ -608,9 +609,18 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
     }
   }, [showDeleteDialog]);
 
+  const handleBlankAreaClick = () => {
+    if (!filePath && onFocusExplorer) {
+      onFocusExplorer();
+    }
+  };
+
   if (!filePath) {
     return (
-      <div className="flex flex-col h-full">
+      <div 
+        className="flex flex-col h-full cursor-pointer"
+        onClick={handleBlankAreaClick}
+      >
         <div className="flex-1 flex items-center justify-center text-gray-500 dark:text-gray-400">
           파일을 선택하세요
         </div>
