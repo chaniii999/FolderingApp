@@ -756,6 +756,10 @@ function App() {
                         <span className="text-gray-700 dark:text-gray-300">뒤로가기</span>
                         <kbd className="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs font-mono dark:text-gray-200">{getHotkeys().goBack} / Esc</kbd>
                       </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-gray-700 dark:text-gray-300">파일 검색</span>
+                        <kbd className="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs font-mono dark:text-gray-200">Ctrl+F / /</kbd>
+                      </div>
                     </div>
                   </div>
                   <div>
