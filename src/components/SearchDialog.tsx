@@ -62,6 +62,9 @@ function SearchDialog({ currentPath, onClose, onFileSelect, onPathChange }: Sear
   }, [selectedIndex]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    // 모든 키 이벤트를 다이얼로그 내부에서만 처리하도록 전파 차단
+    e.stopPropagation();
+    
     if (e.key === 'Escape') {
       e.preventDefault();
       onClose();
@@ -88,6 +91,68 @@ function SearchDialog({ currentPath, onClose, onFileSelect, onPathChange }: Sear
       return;
     }
   };
+
+  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // 입력 필드에서 특정 키만 처리하고 나머지는 부모로 전달
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation();
+      onClose();
+      return;
+    }
+
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      e.stopPropagation();
+      handleKeyDown(e);
+      return;
+    }
+
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      e.stopPropagation();
+      if (results.length > 0 && results[selectedIndex]) {
+        handleSelectResult(results[selectedIndex]);
+      }
+      return;
+    }
+
+    // 입력 관련 키는 허용하되 전파는 차단
+    e.stopPropagation();
+  };
+
+  useEffect(() => {
+    // 다이얼로그가 열려있을 때 전역 핫키 차단
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // 다이얼로그 내부 요소에서 발생한 이벤트는 허용
+      const target = e.target as HTMLElement;
+      const dialogElement = document.querySelector('[data-search-dialog]');
+      if (dialogElement && dialogElement.contains(target)) {
+        return; // 다이얼로그 내부 이벤트는 허용
+      }
+
+      // 다이얼로그 외부에서 발생한 핫키만 차단
+      // Ctrl+F, /, Ctrl+Z 등 핫키 차단
+      if ((e.ctrlKey && (e.key === 'f' || e.key === 'F' || e.key === 'z' || e.key === 'Z')) || 
+          e.key === '/' ||
+          (e.ctrlKey && (e.key === '+' || e.key === '=' || e.key === '-')) ||
+          e.key === 'n' || e.key === 'N' ||
+          e.key === 'e' || e.key === 'E' ||
+          e.key === 'p' || e.key === 'P' ||
+          e.key === 'o' || e.key === 'O' ||
+          e.key === 'b' || e.key === 'B' ||
+          e.key === 'i' || e.key === 'I') {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalKeyDown, true);
+
+    return () => {
+      window.removeEventListener('keydown', handleGlobalKeyDown, true);
+    };
+  }, []);
 
   const handleSelectResult = (result: SearchResult) => {
     if (result.isDirectory) {
@@ -117,16 +182,25 @@ function SearchDialog({ currentPath, onClose, onFileSelect, onPathChange }: Sear
 
   return (
     <div
+      data-search-dialog
       className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 dark:bg-opacity-70 z-50"
       onClick={(e) => {
         if (e.target === e.currentTarget) {
           onClose();
         }
       }}
+      onKeyDown={(e) => {
+        // 다이얼로그 외부로 키 이벤트 전파 차단
+        e.stopPropagation();
+        handleKeyDown(e);
+      }}
     >
       <div
         className="bg-white dark:bg-gray-800 rounded-lg shadow-lg w-full max-w-2xl mx-4 max-h-[80vh] flex flex-col"
-        onKeyDown={handleKeyDown}
+        onKeyDown={(e) => {
+          e.stopPropagation();
+          handleKeyDown(e);
+        }}
         tabIndex={0}
       >
         <div className="p-4 border-b border-gray-200 dark:border-gray-700">
@@ -136,6 +210,7 @@ function SearchDialog({ currentPath, onClose, onFileSelect, onPathChange }: Sear
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={handleInputKeyDown}
               placeholder="파일명 검색..."
               className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />

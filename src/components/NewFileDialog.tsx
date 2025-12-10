@@ -40,6 +40,9 @@ function NewFileDialog({ currentPath, onClose, onCreated }: NewFileDialogProps) 
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    // 모든 키 이벤트를 다이얼로그 내부에서만 처리하도록 전파 차단
+    e.stopPropagation();
+    
     // Enter로 확인 처리
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -67,6 +70,38 @@ function NewFileDialog({ currentPath, onClose, onCreated }: NewFileDialogProps) 
       return;
     }
   };
+
+  useEffect(() => {
+    // 다이얼로그가 열려있을 때 전역 핫키 차단
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // 다이얼로그 내부 요소에서 발생한 이벤트는 허용
+      const target = e.target as HTMLElement;
+      const dialogElement = document.querySelector('[data-new-file-dialog]');
+      if (dialogElement && dialogElement.contains(target)) {
+        return; // 다이얼로그 내부 이벤트는 허용
+      }
+
+      // 다이얼로그 외부에서 발생한 핫키만 차단
+      if ((e.ctrlKey && (e.key === 'f' || e.key === 'F' || e.key === 'z' || e.key === 'Z')) || 
+          e.key === '/' ||
+          (e.ctrlKey && (e.key === '+' || e.key === '=' || e.key === '-')) ||
+          e.key === 'n' || e.key === 'N' ||
+          e.key === 'e' || e.key === 'E' ||
+          e.key === 'p' || e.key === 'P' ||
+          e.key === 'o' || e.key === 'O' ||
+          e.key === 'b' || e.key === 'B' ||
+          e.key === 'i' || e.key === 'I') {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalKeyDown, true);
+
+    return () => {
+      window.removeEventListener('keydown', handleGlobalKeyDown, true);
+    };
+  }, []);
 
   const handleCreate = async () => {
     if (!fileName.trim()) {
@@ -103,6 +138,7 @@ function NewFileDialog({ currentPath, onClose, onCreated }: NewFileDialogProps) 
 
   return (
     <div
+      data-new-file-dialog
       className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 dark:bg-opacity-70 z-50"
       onClick={(e) => {
         if (e.target === e.currentTarget) {
@@ -110,8 +146,9 @@ function NewFileDialog({ currentPath, onClose, onCreated }: NewFileDialogProps) 
         }
       }}
       onKeyDown={(e) => {
-        // 다이얼로그 외부의 키 이벤트 차단
+        // 다이얼로그 외부로 키 이벤트 전파 차단
         e.stopPropagation();
+        handleKeyDown(e);
       }}
     >
       <div
@@ -120,7 +157,10 @@ function NewFileDialog({ currentPath, onClose, onCreated }: NewFileDialogProps) 
           e.stopPropagation();
           handleDialogClick(e);
         }}
-        onKeyDown={handleKeyDown}
+        onKeyDown={(e) => {
+          e.stopPropagation();
+          handleKeyDown(e);
+        }}
         tabIndex={0}
       >
         <h3 className="text-lg font-semibold mb-4 dark:text-gray-200">새로 만들기</h3>
