@@ -38,6 +38,21 @@ function App() {
       
       const path = await window.api.filesystem.getCurrentDirectory();
       setCurrentPath(path);
+      
+      // 가이드.md가 있으면 자동으로 선택
+      try {
+        const files = await window.api.filesystem.listDirectory(path);
+        const guideFile = files.find(file => file.name === '가이드.md' && !file.isDirectory);
+        if (guideFile) {
+          // 약간의 지연 후 선택 (FileExplorer가 로드된 후)
+          setTimeout(() => {
+            setSelectedFilePath(guideFile.path);
+          }, 500);
+        }
+      } catch (guideErr) {
+        // 가이드.md 확인 실패해도 계속 진행
+        console.log('Guide file check skipped:', guideErr);
+      }
     } catch (err) {
       console.error('Error getting current directory:', err);
       try {
@@ -484,6 +499,10 @@ function App() {
         return;
       }
 
+      // 이전 시작 경로 확인 (처음 설정인지 확인)
+      const previousPath = await window.api.filesystem.getCurrentDirectory();
+      const isFirstTime = !previousPath || previousPath === (await window.api.filesystem.getHomeDirectory());
+
       const selectedPath = await window.api.filesystem.selectStartPath();
       if (selectedPath) {
         // 선택된 경로를 저장하고 현재 경로 업데이트
@@ -491,9 +510,33 @@ function App() {
         setCurrentPath(selectedPath);
         setSelectedFilePath(null);
         undoService.setCurrentPath(selectedPath);
-        // FileExplorer 새로고침
-        if (fileExplorerRef.current) {
-          fileExplorerRef.current.refresh();
+        
+        // 처음 시작 위치 설정 시 가이드.md 생성 및 자동 선택
+        if (isFirstTime) {
+          try {
+            const guidePath = await window.api.filesystem.createGuideFile(selectedPath);
+            if (guidePath) {
+              // FileExplorer 새로고침 후 가이드.md 자동 선택
+              if (fileExplorerRef.current) {
+                fileExplorerRef.current.refresh();
+                // 새로고침 후 파일 목록이 로드된 후 가이드.md 선택
+                setTimeout(() => {
+                  setSelectedFilePath(guidePath);
+                }, 300);
+              }
+            }
+          } catch (guideErr) {
+            console.error('Error creating guide file:', guideErr);
+            // 가이드 파일 생성 실패해도 계속 진행
+            if (fileExplorerRef.current) {
+              fileExplorerRef.current.refresh();
+            }
+          }
+        } else {
+          // FileExplorer 새로고침
+          if (fileExplorerRef.current) {
+            fileExplorerRef.current.refresh();
+          }
         }
       }
     } catch (err) {

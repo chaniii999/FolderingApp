@@ -55,6 +55,7 @@ const api = {
     selectStartPath: (): Promise<string | null> => ipcRenderer.invoke('filesystem:selectStartPath'),
     saveStartPath: (startPath: string): Promise<void> => ipcRenderer.invoke('filesystem:saveStartPath', startPath),
     openFolder: (folderPath: string): Promise<void> => ipcRenderer.invoke('filesystem:openFolder', folderPath),
+    createGuideFile: (dirPath: string): Promise<string | null> => ipcRenderer.invoke('filesystem:createGuideFile', dirPath),
   },
   menu: {
     updateCheckbox: (id: string, checked: boolean): Promise<void> => ipcRenderer.invoke('menu:updateCheckbox', id, checked),

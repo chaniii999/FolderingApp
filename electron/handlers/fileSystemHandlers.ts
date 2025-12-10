@@ -166,5 +166,14 @@ export function fileSystemHandlers(ipcMain: IpcMain): void {
       throw error;
     }
   });
+
+  ipcMain.handle('filesystem:createGuideFile', async (_event, dirPath: string) => {
+    try {
+      return fileSystemService.createGuideFile(dirPath);
+    } catch (error) {
+      console.error('Error creating guide file:', error);
+      throw error;
+    }
+  });
 }
 

@@ -353,6 +353,16 @@ app.whenReady().then(async () => {
       console.log('[Main] No path selected, using home directory');
     } else {
       console.log('[Main] Start path selected:', selectedPath);
+      // 처음 시작 경로 설정 시 가이드.md 생성
+      try {
+        const { createGuideFile } = await import('./services/fileSystemService');
+        const guidePath = createGuideFile(selectedPath);
+        if (guidePath) {
+          console.log('[Main] Guide file created:', guidePath);
+        }
+      } catch (error) {
+        console.error('[Main] Error creating guide file:', error);
+      }
     }
   } else {
     console.log('[Main] Using saved start path:', startPath);
