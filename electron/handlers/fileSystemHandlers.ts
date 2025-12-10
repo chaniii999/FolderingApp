@@ -157,5 +157,14 @@ export function fileSystemHandlers(ipcMain: IpcMain): void {
       throw error;
     }
   });
+
+  ipcMain.handle('filesystem:searchFiles', async (_event, dirPath: string, query: string, recursive: boolean) => {
+    try {
+      return fileSystemService.searchFiles(dirPath, query, recursive);
+    } catch (error) {
+      console.error('Error searching files:', error);
+      throw error;
+    }
+  });
 }
 

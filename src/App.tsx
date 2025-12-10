@@ -3,6 +3,7 @@ import FileExplorer, { type FileExplorerRef } from './components/FileExplorer';
 import FileContentViewer, { type FileContentViewerRef } from './components/FileContentViewer';
 import Resizer from './components/Resizer';
 import NewFileDialog from './components/NewFileDialog';
+import SearchDialog from './components/SearchDialog';
 import { BackIcon } from './components/icons/BackIcon';
 import { ForwardIcon } from './components/icons/ForwardIcon';
 import { getHotkeys } from './config/hotkeys';
@@ -26,6 +27,7 @@ function App() {
   const fileContentViewerRef = useRef<FileContentViewerRef>(null);
   const [fileViewerState, setFileViewerState] = useState<{ isEditing: boolean; hasChanges: boolean }>({ isEditing: false, hasChanges: false });
   const [showFullPath, setShowFullPath] = useState<boolean>(false);
+  const [showSearchDialog, setShowSearchDialog] = useState<boolean>(false);
 
   const initializeCurrentPath = async () => {
     try {
@@ -334,7 +336,7 @@ function App() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // 다이얼로그가 열려있으면 핫키 무시
-      if (showNewFileDialog) {
+      if (showNewFileDialog || showSearchDialog) {
         return;
       }
       
@@ -342,13 +344,19 @@ function App() {
         e.preventDefault();
         handleUndo();
       }
+      
+      // Ctrl+F 또는 / 키로 검색 다이얼로그 열기
+      if ((e.ctrlKey && (e.key === 'f' || e.key === 'F')) || e.key === '/') {
+        e.preventDefault();
+        setShowSearchDialog(true);
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [showNewFileDialog]);
+  }, [showNewFileDialog, showSearchDialog]);
 
   const handleNewFileCreated = (filePath?: string) => {
     // 파일/폴더 생성 후 디렉토리 새로고침
@@ -668,7 +676,7 @@ function App() {
                     onPathChange={handlePathChange}
                     onFileSelect={handleFileSelect}
                     selectedFilePath={selectedFilePath}
-                    isDialogOpen={showNewFileDialog}
+                    isDialogOpen={showNewFileDialog || showSearchDialog}
                     hideNonTextFiles={systemConfig.hideNonTextFiles}
                   />
                 </div>
@@ -846,6 +854,20 @@ function App() {
             }, 100);
           }}
           onCreated={handleNewFileCreated}
+        />
+      )}
+      {showSearchDialog && (
+        <SearchDialog
+          currentPath={currentPath}
+          onClose={() => {
+            setShowSearchDialog(false);
+            // 다이얼로그가 닫힐 때 FileExplorer에 포커스 복귀
+            setTimeout(() => {
+              fileExplorerRef.current?.focus();
+            }, 100);
+          }}
+          onFileSelect={handleFileSelect}
+          onPathChange={handlePathChange}
         />
       )}
     </div>

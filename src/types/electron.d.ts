@@ -20,6 +20,10 @@ export interface FileSystemItem {
   size?: number;
 }
 
+export interface SearchResult extends FileSystemItem {
+  relativePath: string;
+}
+
 export interface ElectronAPI {
   folder: {
     list: () => Promise<Folder[]>;
@@ -49,6 +53,7 @@ export interface ElectronAPI {
     deleteDirectory: (dirPath: string) => Promise<void>;
     copyFile: (sourcePath: string, destPath: string) => Promise<void>;
     moveFile: (sourcePath: string, destPath: string) => Promise<void>;
+    searchFiles: (dirPath: string, query: string, recursive: boolean) => Promise<SearchResult[]>;
     selectStartPath: () => Promise<string | null>;
     saveStartPath: (startPath: string) => Promise<void>;
     openFolder: (folderPath: string) => Promise<void>;

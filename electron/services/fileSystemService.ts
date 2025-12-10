@@ -280,3 +280,77 @@ export function moveFile(sourcePath: string, destPath: string): void {
   }
 }
 
+export interface SearchResult extends FileSystemItem {
+  relativePath: string; // 검색 기준 폴더로부터의 상대 경로
+}
+
+export function searchFiles(dirPath: string, query: string, recursive: boolean = false): SearchResult[] {
+  const results: SearchResult[] = [];
+  const queryLower = query.toLowerCase();
+  
+  if (!fs.existsSync(dirPath)) {
+    return [];
+  }
+
+  try {
+    const items = fs.readdirSync(dirPath, { withFileTypes: true });
+    
+    for (const item of items) {
+      try {
+        const fullPath = path.join(dirPath, item.name);
+        let stats;
+        
+        try {
+          stats = fs.statSync(fullPath);
+        } catch (statError: any) {
+          if (statError.code === 'EPERM' || statError.code === 'EACCES') {
+            continue;
+          }
+          throw statError;
+        }
+        
+        // 파일명에 검색어가 포함되어 있는지 확인
+        const matches = item.name.toLowerCase().includes(queryLower);
+        
+        if (matches) {
+          const relativePath = path.relative(dirPath, fullPath);
+          results.push({
+            name: item.name,
+            path: fullPath,
+            isDirectory: item.isDirectory(),
+            size: item.isFile() ? stats.size : undefined,
+            relativePath: relativePath,
+          });
+        }
+        
+        // 재귀 검색이 활성화되어 있고 디렉토리인 경우
+        if (recursive && item.isDirectory()) {
+          try {
+            const subResults = searchFiles(fullPath, query, true);
+            results.push(...subResults);
+          } catch (error) {
+            // 하위 디렉토리 검색 중 오류 발생 시 건너뛰기
+            console.warn(`Error searching in ${fullPath}:`, error);
+            continue;
+          }
+        }
+      } catch (error: any) {
+        console.warn(`Error processing item ${item.name}:`, error.message);
+        continue;
+      }
+    }
+  } catch (error) {
+    console.error('Error searching files:', error);
+    throw error;
+  }
+  
+  // 정렬: 디렉토리 먼저, 그 다음 이름순
+  results.sort((a, b) => {
+    if (a.isDirectory && !b.isDirectory) return -1;
+    if (!a.isDirectory && b.isDirectory) return 1;
+    return a.name.localeCompare(b.name);
+  });
+  
+  return results;
+}
+

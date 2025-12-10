@@ -51,6 +51,7 @@ const api = {
     deleteDirectory: (dirPath: string): Promise<void> => ipcRenderer.invoke('filesystem:deleteDirectory', dirPath),
     copyFile: (sourcePath: string, destPath: string): Promise<void> => ipcRenderer.invoke('filesystem:copyFile', sourcePath, destPath),
     moveFile: (sourcePath: string, destPath: string): Promise<void> => ipcRenderer.invoke('filesystem:moveFile', sourcePath, destPath),
+    searchFiles: (dirPath: string, query: string, recursive: boolean) => ipcRenderer.invoke('filesystem:searchFiles', dirPath, query, recursive),
     selectStartPath: (): Promise<string | null> => ipcRenderer.invoke('filesystem:selectStartPath'),
     saveStartPath: (startPath: string): Promise<void> => ipcRenderer.invoke('filesystem:saveStartPath', startPath),
     openFolder: (folderPath: string): Promise<void> => ipcRenderer.invoke('filesystem:openFolder', folderPath),
