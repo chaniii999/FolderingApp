@@ -13,6 +13,7 @@ interface FileExplorerProps {
   onFileCreated?: (filePath: string, isDirectory: boolean) => void;
   isDialogOpen?: boolean;
   hideNonTextFiles?: boolean;
+  isEditing?: boolean;
 }
 
 export interface FileExplorerRef {
@@ -22,7 +23,7 @@ export interface FileExplorerRef {
 }
 
 const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
-  ({ currentPath, onPathChange, onFileSelect, selectedFilePath, onFileCreated, isDialogOpen = false, hideNonTextFiles = false }, ref) => {
+  ({ currentPath, onPathChange, onFileSelect, selectedFilePath, onFileCreated, isDialogOpen = false, hideNonTextFiles = false, isEditing = false }, ref) => {
   const [items, setItems] = useState<FileSystemItem[]>([]);
   const [cursorIndex, setCursorIndex] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -166,6 +167,19 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (loading) return;
     
+    // 다이얼로그가 열려있거나 텍스트 편집 중이거나 이름 변경 중이면 핫키 무시 (기본 탐색 키는 제외)
+    if (isDialogOpen || isEditing || renamingIndex !== null) {
+      // 이름 변경 중일 때는 Enter, Esc만 허용
+      if (renamingIndex !== null) {
+        if (e.key !== 'Enter' && e.key !== 'Escape' && e.key !== 'Esc') {
+          return;
+        }
+      } else {
+        // 다이얼로그가 열려있거나 편집 중일 때는 모든 핫키 무시
+        return;
+      }
+    }
+    
     // 파일이 선택되어 있으면 화살표 키는 FileContentViewer에서 처리하도록 함
     if (selectedFilePath && (isHotkey(e.key, 'moveUp') || isHotkey(e.key, 'moveDown') || e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
       return;
@@ -176,15 +190,6 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
       e.preventDefault();
       e.stopPropagation();
       return;
-    }
-    
-    // 이름 변경 중이면 일부 키만 허용
-    if (renamingIndex !== null) {
-      // Enter, Esc는 이미 처리되므로 여기서는 다른 키만 막음
-      if (e.key !== 'Enter' && e.key !== 'Escape' && e.key !== 'Esc') {
-        // 이름 변경 입력 필드에서 처리하도록 함
-        return;
-      }
     }
 
     if (isHotkey(e.key, 'moveUp')) {

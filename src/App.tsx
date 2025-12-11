@@ -267,16 +267,44 @@ function App() {
     };
   }, []);
 
+  // 핫키가 작동하지 않아야 할 상황 체크
+  const shouldBlockHotkey = useCallback(() => {
+    return (
+      showNewFileDialog || 
+      showSearchDialog || 
+      fileViewerState.isEditing
+    );
+  }, [showNewFileDialog, showSearchDialog, fileViewerState.isEditing]);
+  
+  // 입력 요소인지 확인 (textarea, input 등)
+  const isInputElement = useCallback((target: EventTarget | null): boolean => {
+    if (!target) return false;
+    const element = target as HTMLElement;
+    const tagName = element.tagName?.toLowerCase();
+    const isContentEditable = element.isContentEditable;
+    return (
+      tagName === 'textarea' ||
+      tagName === 'input' ||
+      isContentEditable === true
+    );
+  }, []);
+
   // n 핫키 처리 (새로 만들기)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // 다이얼로그가 열려있으면 핫키 무시
-      if (showNewFileDialog) {
+      // 입력 요소에서 발생한 이벤트는 무시
+      if (isInputElement(e.target)) {
+        return;
+      }
+      
+      // 핫키가 작동하지 않아야 할 상황에서는 아예 처리하지 않음
+      if (shouldBlockHotkey()) {
         return;
       }
       
       if ((e.key === 'n' || e.key === 'N') && !e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey) {
         e.preventDefault();
+        e.stopPropagation();
         if (currentPath) {
           setShowNewFileDialog(true);
         }
@@ -287,18 +315,24 @@ function App() {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [currentPath, showNewFileDialog]);
+  }, [currentPath, shouldBlockHotkey, isInputElement]);
 
   // b 핫키 처리 (디렉토리 탭 토글)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // 다이얼로그가 열려있으면 핫키 무시
-      if (showNewFileDialog) {
+      // 입력 요소에서 발생한 이벤트는 무시
+      if (isInputElement(e.target)) {
+        return;
+      }
+      
+      // 핫키가 작동하지 않아야 할 상황에서는 아예 처리하지 않음
+      if (shouldBlockHotkey()) {
         return;
       }
       
       if ((e.key === 'b' || e.key === 'B') && !e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey) {
         e.preventDefault();
+        e.stopPropagation();
         setIsExplorerVisible((prev) => !prev);
       }
     };
@@ -307,7 +341,7 @@ function App() {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [showNewFileDialog]);
+  }, [shouldBlockHotkey, isInputElement]);
 
 
   const handleConfigChange = useCallback(async (updates: Partial<TextEditorConfig>) => {
@@ -320,8 +354,13 @@ function App() {
   // 글씨 크기 조절 핫키 처리
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // 다이얼로그가 열려있으면 핫키 무시
-      if (showNewFileDialog) {
+      // 입력 요소에서 발생한 이벤트는 무시
+      if (isInputElement(e.target)) {
+        return;
+      }
+      
+      // 핫키가 작동하지 않아야 할 상황에서는 아예 처리하지 않음
+      if (shouldBlockHotkey()) {
         return;
       }
 
@@ -357,11 +396,11 @@ function App() {
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown, true); // capture phase에서 처리하여 다른 핸들러보다 먼저 실행
+    window.addEventListener('keydown', handleKeyDown);
     return () => {
-      window.removeEventListener('keydown', handleKeyDown, true);
+      window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [showNewFileDialog, textEditorConfig, handleConfigChange]);
+  }, [shouldBlockHotkey, textEditorConfig, handleConfigChange, isInputElement]);
 
   const handleSystemConfigChange = async (updates: Partial<SystemConfig>) => {
     const newConfig = { ...systemConfig, ...updates };
@@ -459,19 +498,35 @@ function App() {
   // Ctrl+Z 핫키 처리
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // 다이얼로그가 열려있으면 핫키 무시
-      if (showNewFileDialog || showSearchDialog) {
+      // 입력 요소에서 발생한 이벤트는 무시 (단, Ctrl+Z는 textarea에서도 되돌리기로 사용되므로 제외)
+      const isHotkeyKey = 
+        (e.ctrlKey && (e.key === 'f' || e.key === 'F')) ||
+        e.key === '/' ||
+        (e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey && (e.key === 'Tab' || e.key === 'PageUp' || e.key === 'PageDown'));
+      
+      if (isHotkeyKey && isInputElement(e.target)) {
         return;
       }
       
-      if (e.ctrlKey && (e.key === 'z' || e.key === 'Z')) {
+      // 핫키가 작동하지 않아야 할 상황에서는 아예 처리하지 않음
+      if (shouldBlockHotkey()) {
+        return;
+      }
+      
+      if (e.ctrlKey && (e.key === 'z' || e.key === 'Z') && !e.shiftKey) {
+        // 입력 요소에서 Ctrl+Z는 기본 동작(되돌리기)을 허용
+        if (isInputElement(e.target)) {
+          return;
+        }
         e.preventDefault();
+        e.stopPropagation();
         handleUndo();
       }
       
       // Ctrl+F 또는 / 키로 검색 다이얼로그 열기
       if ((e.ctrlKey && (e.key === 'f' || e.key === 'F')) || e.key === '/') {
         e.preventDefault();
+        e.stopPropagation();
         setShowSearchDialog(true);
       }
       
@@ -479,6 +534,7 @@ function App() {
       if (e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey) {
         if (e.key === 'Tab') {
           e.preventDefault();
+          e.stopPropagation();
           if (tabs.length > 1) {
             const currentIndex = tabs.findIndex(t => t.id === activeTabId);
             const nextIndex = (currentIndex + 1) % tabs.length;
@@ -486,6 +542,7 @@ function App() {
           }
         } else if (e.key === 'PageUp') {
           e.preventDefault();
+          e.stopPropagation();
           if (tabs.length > 1) {
             const currentIndex = tabs.findIndex(t => t.id === activeTabId);
             const prevIndex = currentIndex > 0 ? currentIndex - 1 : tabs.length - 1;
@@ -493,6 +550,7 @@ function App() {
           }
         } else if (e.key === 'PageDown') {
           e.preventDefault();
+          e.stopPropagation();
           if (tabs.length > 1) {
             const currentIndex = tabs.findIndex(t => t.id === activeTabId);
             const nextIndex = (currentIndex + 1) % tabs.length;
@@ -506,7 +564,7 @@ function App() {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [showNewFileDialog, showSearchDialog, tabs, activeTabId, handleTabClick]);
+  }, [shouldBlockHotkey, tabs, activeTabId, handleTabClick, handleUndo, isInputElement]);
 
   const handleNewFileCreated = (filePath?: string) => {
     // 파일/폴더 생성 후 디렉토리 새로고침
@@ -695,45 +753,6 @@ function App() {
     }
   };
 
-  // p 핫키 처리 (경로 선택)
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // 다이얼로그가 열려있으면 핫키 무시
-      if (showNewFileDialog) {
-        return;
-      }
-      
-      if ((e.key === 'p' || e.key === 'P') && !e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey) {
-        e.preventDefault();
-        handleSelectStartPath();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [showNewFileDialog]);
-
-  // o 핫키 처리 (현재 폴더 열기)
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // 다이얼로그가 열려있으면 핫키 무시
-      if (showNewFileDialog) {
-        return;
-      }
-      
-      if ((e.key === 'o' || e.key === 'O') && !e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey) {
-        e.preventDefault();
-        handleOpenCurrentFolder();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [showNewFileDialog, currentPath]);
 
   // 선택된 파일 이름 추출
   const getSelectedFileName = (): string | null => {
@@ -857,6 +876,7 @@ function App() {
                     selectedFilePath={selectedFilePath}
                     isDialogOpen={showNewFileDialog || showSearchDialog}
                     hideNonTextFiles={systemConfig.hideNonTextFiles}
+                    isEditing={fileViewerState.isEditing}
                   />
                 </div>
               </div>

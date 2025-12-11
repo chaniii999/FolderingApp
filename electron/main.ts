@@ -89,7 +89,6 @@ function setupMenuBar(showMenuBar: boolean, window: BrowserWindow) {
         submenu: [
           {
             label: 'Select Path',
-            accelerator: 'p',
             click: () => {
               if (mainWindow) {
                 mainWindow.webContents.send('menu:selectPath');
@@ -98,7 +97,6 @@ function setupMenuBar(showMenuBar: boolean, window: BrowserWindow) {
           },
           {
             label: 'Open Folder',
-            accelerator: 'o',
             click: () => {
               if (mainWindow) {
                 mainWindow.webContents.send('menu:openFolder');

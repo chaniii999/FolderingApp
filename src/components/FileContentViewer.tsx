@@ -153,6 +153,7 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
     }
   }, [isEditing, hasChanges, onEditModeChange, onEditStateChange]);
 
+
   // 편집 모드가 종료되고 삭제 대기 중이면 삭제 다이얼로그 표시
   useEffect(() => {
     if (pendingDelete && !isEditing) {
@@ -217,8 +218,8 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
     }
 
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
-      // 다이얼로그가 열려있으면 키 이벤트 처리하지 않음
-      if (isDialogOpen) {
+      // 다이얼로그가 열려있거나 편집 중이면 키 이벤트 처리하지 않음
+      if (isDialogOpen || isEditing) {
         return;
       }
 
@@ -390,9 +391,11 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
     }
 
     if (isEditing) {
+      // 편집 중일 때는 저장/취소 키만 처리하고 나머지는 textarea에서 처리
       // Ctrl+F5 저장
       if (e.ctrlKey && (e.key === 'F5' || e.key === 'f5')) {
         e.preventDefault();
+        e.stopPropagation();
         handleSave();
         return;
       }
@@ -400,9 +403,13 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
       // Esc 취소
       if (e.key === 'Escape' || e.key === 'Esc') {
         e.preventDefault();
+        e.stopPropagation();
         handleCancel();
         return;
       }
+      
+      // 나머지 키는 textarea에서 처리하도록 허용
+      return;
     } else {
       // 편집 모드가 아닐 때 Delete 키로 파일 삭제
       if ((e.key === 'Delete' || e.key === 'Del') && filePath && !loading && !error) {
@@ -655,6 +662,26 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
             ref={textareaRef}
             value={content}
             onChange={handleContentChange}
+            onKeyDown={(e) => {
+              // 저장/취소 키는 먼저 처리
+              if (e.ctrlKey && (e.key === 'F5' || e.key === 'f5')) {
+                e.preventDefault();
+                e.stopPropagation();
+                handleSave();
+                return;
+              }
+              
+              if (e.key === 'Escape' || e.key === 'Esc') {
+                e.preventDefault();
+                e.stopPropagation();
+                handleCancel();
+                return;
+              }
+              
+              // 나머지 모든 키 이벤트는 상위로 전파하지 않음
+              // 이렇게 하면 window 레벨의 핫키 핸들러가 실행되지 않음
+              e.stopPropagation();
+            }}
             className="w-full h-full font-mono resize-none border-none outline-none overflow-auto bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
             style={{
               paddingLeft: `${config.horizontalPadding}px`,
