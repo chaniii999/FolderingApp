@@ -4,6 +4,7 @@ import remarkGfm from 'remark-gfm';
 import { getHotkeys, isHotkey } from '../config/hotkeys';
 import { isTextFile } from '../utils/fileUtils';
 import { undoService } from '../services/undoService';
+import { toastService } from '../services/toastService';
 
 import type { TextEditorConfig } from '../services/textEditorConfigService';
 
@@ -521,9 +522,11 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
       setOriginalContent(content);
       setHasChanges(false);
       setIsEditing(false);
+      toastService.success('파일이 저장되었습니다.');
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : '파일 저장 중 오류가 발생했습니다.';
       setError(errorMessage);
+      toastService.error(errorMessage);
       console.error('Error saving file:', err);
     }
   }, [filePath, hasChanges, content]);
@@ -605,7 +608,7 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : '삭제 중 오류가 발생했습니다.';
-      alert(errorMessage);
+      toastService.error(errorMessage);
       console.error('Error deleting file:', err);
       setShowDeleteDialog(false);
     }

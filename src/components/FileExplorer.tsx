@@ -3,6 +3,7 @@ import type { FileSystemItem } from '../types/electron';
 import { isHotkey } from '../config/hotkeys';
 import { undoService } from '../services/undoService';
 import { isTextFile } from '../utils/fileUtils';
+import { toastService } from '../services/toastService';
 import ContextMenu from './ContextMenu';
 
 interface FileExplorerProps {
@@ -297,7 +298,7 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
       setRenamingName('');
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : '이름 변경 중 오류가 발생했습니다.';
-      alert(errorMessage);
+      toastService.error(errorMessage);
       console.error('Error renaming file:', err);
     }
   };
@@ -371,7 +372,7 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
       loadDirectory(currentPath);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : '삭제 중 오류가 발생했습니다.';
-      alert(errorMessage);
+      toastService.error(errorMessage);
       console.error('Error deleting file:', err);
     }
   };
@@ -464,7 +465,7 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
 
       // 같은 위치에 붙여넣기 시도 시 에러 처리
       if (sourcePath === destPath) {
-        alert('같은 위치에는 붙여넣을 수 없습니다.');
+        toastService.warning('같은 위치에는 붙여넣을 수 없습니다.');
         return;
       }
 
@@ -473,7 +474,7 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
       const exists = items.some(item => item.name === sourceName);
       
       if (exists) {
-        alert('같은 이름의 파일 또는 폴더가 이미 존재합니다.');
+        toastService.warning('같은 이름의 파일 또는 폴더가 이미 존재합니다.');
         return;
       }
 
@@ -514,9 +515,10 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
       }
 
       loadDirectory(currentPath);
+      toastService.success(clipboard.isCut ? '이동 완료' : '복사 완료');
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : '붙여넣기 중 오류가 발생했습니다.';
-      alert(errorMessage);
+      toastService.error(errorMessage);
       console.error('Error pasting file:', err);
     }
   };

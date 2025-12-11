@@ -6,6 +6,9 @@ import NewFileDialog from './components/NewFileDialog';
 import SearchDialog from './components/SearchDialog';
 import TabBar from './components/TabBar';
 import SaveConfirmDialog from './components/SaveConfirmDialog';
+import ToastContainer from './components/ToastContainer';
+import { toastService } from './services/toastService';
+import type { Toast } from './components/Toast';
 import { BackIcon } from './components/icons/BackIcon';
 import { ForwardIcon } from './components/icons/ForwardIcon';
 import { getHotkeys } from './config/hotkeys';
@@ -39,6 +42,16 @@ function App() {
   
   // 탭 닫기 확인 다이얼로그
   const [pendingTabClose, setPendingTabClose] = useState<{ tabId: string; fileName: string } | null>(null);
+  
+  // 토스트 관리
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  
+  useEffect(() => {
+    const unsubscribe = toastService.subscribe((newToasts) => {
+      setToasts(newToasts);
+    });
+    return unsubscribe;
+  }, []);
 
   const initializeCurrentPath = async () => {
     try {
@@ -203,7 +216,10 @@ function App() {
         await fileContentViewerRef.current.handleSave();
         // 저장 후 탭 닫기
         closeTabInternal(tabId);
+        setPendingTabClose(null);
       } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : '파일 저장 중 오류가 발생했습니다.';
+        toastService.error(errorMessage);
         console.error('Error saving file:', err);
         // 저장 실패 시 다이얼로그는 유지
         return;
@@ -211,9 +227,8 @@ function App() {
     } else {
       // 활성 탭이 아니면 그냥 닫기 (이미 저장된 상태)
       closeTabInternal(tabId);
+      setPendingTabClose(null);
     }
-    
-    setPendingTabClose(null);
   }, [pendingTabClose, tabs, activeTabId, closeTabInternal]);
   
   // 저장 확인 다이얼로그에서 저장하지 않고 닫기 선택
@@ -543,7 +558,7 @@ function App() {
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : '되돌리기 중 오류가 발생했습니다.';
-      alert(errorMessage);
+      toastService.error(errorMessage);
       console.error('Error undoing action:', err);
     }
   };
@@ -1136,6 +1151,10 @@ function App() {
           onCancel={handleCancelClose}
         />
       )}
+      <ToastContainer
+        toasts={toasts}
+        onClose={(id) => toastService.close(id)}
+      />
     </div>
   );
 }
