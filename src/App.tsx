@@ -1,17 +1,16 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import FileExplorer, { type FileExplorerRef } from './components/FileExplorer';
-import FileContentViewer, { type FileContentViewerRef } from './components/FileContentViewer';
-import Resizer from './components/Resizer';
+import { type FileExplorerRef } from './components/FileExplorer';
+import { type FileContentViewerRef } from './components/FileContentViewer';
 import NewFileDialog from './components/NewFileDialog';
 import SearchDialog from './components/SearchDialog';
-import TabBar from './components/TabBar';
 import SaveConfirmDialog from './components/SaveConfirmDialog';
 import ToastContainer from './components/ToastContainer';
+import AppHeader from './components/layout/AppHeader';
+import ExplorerPanel from './components/layout/ExplorerPanel';
+import ContentViewerPanel from './components/layout/ContentViewerPanel';
+import HelpPanel from './components/layout/HelpPanel';
 import { toastService } from './services/toastService';
 import type { Toast } from './components/Toast';
-import { BackIcon } from './components/icons/BackIcon';
-import { ForwardIcon } from './components/icons/ForwardIcon';
-import { getHotkeys } from './config/hotkeys';
 import { undoService } from './services/undoService';
 import { type Theme } from './services/themeService';
 import { useHotkeys, type HotkeyConfig } from './hooks/useHotkeys';
@@ -592,283 +591,76 @@ function App() {
 
   return (
     <div className="flex flex-col h-screen w-screen">
-      <header className="flex flex-col gap-1 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
-        <div className="flex items-center gap-4 px-6 py-2">
-          <button
-            onClick={handleToggleExplorer}
-            className="flex items-center justify-center w-8 h-8 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 cursor-pointer"
-            title={`${isExplorerVisible ? '디렉토리 탭 닫기' : '디렉토리 탭 열기'} (${getHotkeys().toggleExplorer})`}
-          >
-            {isExplorerVisible ? <BackIcon /> : <ForwardIcon />}
-          </button>
-          <div className="flex items-center gap-2 flex-1">
-            {getSelectedFileName() && (
-              <span className="text-lg text-gray-700 dark:text-gray-300 font-semibold">
-                {getSelectedFileName()}
-              </span>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            {selectedFilePath && !fileViewerState.isEditing && (
-              <>
-                <button
-                  onClick={() => fileContentViewerRef.current?.handleEdit()}
-                  className="px-3 py-1.5 text-sm bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded hover:bg-gray-300 dark:hover:bg-gray-600"
-                  title={`편집 (${getHotkeys().edit})`}
-                >
-                  Edit
-                </button>
-                <button
-                  onClick={() => fileContentViewerRef.current?.handleDelete()}
-                  className="px-3 py-1.5 text-sm bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded hover:bg-gray-300 dark:hover:bg-gray-600"
-                  title="삭제"
-                >
-                  Del
-                </button>
-              </>
-            )}
-            {selectedFilePath && fileViewerState.isEditing && (
-              <>
-                {fileViewerState.hasChanges && (
-                  <span className="text-xs text-orange-600 dark:text-orange-400">변경됨</span>
-                )}
-                <button
-                  onClick={() => fileContentViewerRef.current?.handleSave()}
-                  className="px-3 py-1.5 text-sm bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded hover:bg-gray-300 dark:hover:bg-gray-600"
-                  title={`저장 (${getHotkeys().save})`}
-                >
-                  저장
-                </button>
-                <button
-                  onClick={() => fileContentViewerRef.current?.handleCancel()}
-                  className="px-3 py-1.5 text-sm bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded hover:bg-gray-300 dark:hover:bg-gray-600"
-                  title={`취소 (${getHotkeys().cancel})`}
-                >
-                  취소
-                </button>
-                <button
-                  onClick={() => fileContentViewerRef.current?.handleDelete()}
-                  className="px-3 py-1.5 text-sm bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded hover:bg-gray-300 dark:hover:bg-gray-600"
-                  title="삭제"
-                >
-                  🗑️
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-      </header>
+      <AppHeader
+        isExplorerVisible={isExplorerVisible}
+        onToggleExplorer={handleToggleExplorer}
+        selectedFileName={getSelectedFileName()}
+        selectedFilePath={selectedFilePath}
+        fileViewerState={fileViewerState}
+        fileContentViewerRef={fileContentViewerRef}
+      />
       <main className="flex-1 flex overflow-hidden">
         {isExplorerVisible && (
-          <>
-            <div
-              className="flex flex-col overflow-hidden border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800"
-              style={{ width: `${explorerWidth}px`, minWidth: `${explorerWidth}px` }}
-            >
-              <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 flex items-center gap-2">
-                {currentPath && (
-                  <span 
-                    className="text-sm text-gray-500 dark:text-gray-400 font-mono cursor-pointer hover:text-gray-700 dark:hover:text-gray-300 flex-1 min-w-0 truncate"
-                    onClick={() => setShowFullPath(!showFullPath)}
-                    title="클릭하여 전체 경로 표시/숨기기"
-                  >
-                    {showFullPath ? currentPath : getCurrentFolderName()}
-                  </span>
-                )}
-                <button
-                  onClick={() => setShowNewFileDialog(true)}
-                  className="px-2 py-1 text-sm bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded hover:bg-gray-300 dark:hover:bg-gray-600 flex items-center justify-center flex-shrink-0"
-                  title="새 파일/폴더 만들기 (n)"
-                >
-                  📁
-                </button>
-              </div>
-              <div className="flex flex-col p-4 flex-1 overflow-hidden">
-                {error && (
-                  <div className="mb-4 px-4 py-2 bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 rounded">
-                    {error}
-                  </div>
-                )}
-                <div className="flex-1 overflow-hidden">
-                  <FileExplorer
-                    ref={fileExplorerRef}
-                    currentPath={currentPath}
-                    onPathChange={handlePathChange}
-                    onFileSelect={handleFileSelect}
-                    selectedFilePath={selectedFilePath}
-                    isDialogOpen={showNewFileDialog || showSearchDialog}
-                    hideNonTextFiles={systemConfig.hideNonTextFiles}
-                    isEditing={fileViewerState.isEditing}
-                  />
-                </div>
-              </div>
-            </div>
-            <Resizer
-              onResize={setExplorerWidth}
-              minWidth={200}
-              maxWidth={600}
-            />
-          </>
-        )}
-        <div className="flex-1 flex flex-col overflow-hidden">
-          {tabs.length > 0 && (
-            <TabBar
-              tabs={tabs}
-              activeTabId={activeTabId}
-              onTabClick={handleTabClick}
-              onTabClose={handleTabClose}
-            />
-          )}
-          <div className="flex-1 overflow-hidden">
-            <FileContentViewer 
-            ref={fileContentViewerRef}
-            filePath={selectedFilePath}
-            onSelectPreviousFile={handleSelectPreviousFile}
-            onSelectNextFile={handleSelectNextFile}
-            onDeselectFile={() => {
-              setSelectedFilePath(null);
-              setNewlyCreatedFilePath(null);
-              setFileViewerState({ isEditing: false, hasChanges: false });
-            }}
-            textEditorConfig={textEditorConfig}
-            autoEdit={newlyCreatedFilePath === selectedFilePath}
-            onEditModeEntered={() => setNewlyCreatedFilePath(null)}
-            onEditModeChange={useCallback((_isEditing: boolean) => {
-              // 상태는 onEditStateChange에서 추적
-            }, [])}
-            onEditStateChange={handleEditStateChange}
-            onRenameRequest={(filePath) => {
-              if (fileExplorerRef.current && !showNewFileDialog) {
-                fileExplorerRef.current.startRenameForPath(filePath);
-                setTimeout(() => {
-                  fileExplorerRef.current?.focus();
-                }, 100);
-              }
-            }}
-            onFileDeleted={() => {
-              setFileViewerState({ isEditing: false, hasChanges: false });
-              // 파일 삭제 후 디렉토리 새로고침
-              if (fileExplorerRef.current) {
-                fileExplorerRef.current.refresh();
-              }
-            }}
-            isDialogOpen={showNewFileDialog}
-            onFocusExplorer={() => {
-              if (fileExplorerRef.current) {
-                fileExplorerRef.current.focus();
-              }
-            }}
+          <ExplorerPanel
+            fileExplorerRef={fileExplorerRef}
+            currentPath={currentPath}
+            explorerWidth={explorerWidth}
+            showFullPath={showFullPath}
+            error={error}
+            selectedFilePath={selectedFilePath}
+            isDialogOpen={showNewFileDialog || showSearchDialog}
+            hideNonTextFiles={systemConfig.hideNonTextFiles}
+            isEditing={fileViewerState.isEditing}
+            onPathChange={handlePathChange}
+            onFileSelect={handleFileSelect}
+            onNewFileClick={() => setShowNewFileDialog(true)}
+            onToggleFullPath={() => setShowFullPath(!showFullPath)}
+            onResize={setExplorerWidth}
+            getCurrentFolderName={getCurrentFolderName}
           />
-          </div>
-        </div>
-        {systemConfig.showHelp && (
-          <div className="flex flex-col border-l border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900" style={{ width: '240px', minWidth: '240px' }}>
-              <div className="px-2 py-2 border-b border-gray-200 dark:border-gray-700">
-                <h3 className="text-sm font-semibold dark:text-gray-200">사용 가능한 핫키</h3>
-              </div>
-              <div className="flex-1 overflow-y-auto px-2 py-2 bg-white dark:bg-gray-800">
-                <div className="space-y-2">
-                  <div>
-                    <h4 className="font-semibold mb-0.5 text-xs dark:text-gray-200">파일 탐색</h4>
-                    <div className="space-y-0.5 text-xs">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-gray-700 dark:text-gray-300">위로 이동</span>
-                        <kbd className="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs font-mono dark:text-gray-200">↑</kbd>
-                      </div>
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-gray-700 dark:text-gray-300">아래로 이동</span>
-                        <kbd className="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs font-mono dark:text-gray-200">↓</kbd>
-                      </div>
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-gray-700 dark:text-gray-300">선택/확인</span>
-                        <kbd className="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs font-mono dark:text-gray-200">{getHotkeys().enter} / Enter</kbd>
-                      </div>
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-gray-700 dark:text-gray-300">뒤로가기</span>
-                        <kbd className="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs font-mono dark:text-gray-200">{getHotkeys().goBack} / Esc</kbd>
-                      </div>
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-gray-700 dark:text-gray-300">파일 검색</span>
-                        <kbd className="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs font-mono dark:text-gray-200">Ctrl+F / /</kbd>
-                      </div>
-                    </div>
-                  </div>
-                  <div>
-                    <h4 className="font-semibold mb-0.5 text-xs dark:text-gray-200">파일 편집</h4>
-                    <div className="space-y-0.5 text-xs">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-gray-700 dark:text-gray-300">편집 모드</span>
-                        <kbd className="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs font-mono dark:text-gray-200">{getHotkeys().edit}</kbd>
-                      </div>
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-gray-700 dark:text-gray-300">저장</span>
-                        <kbd className="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs font-mono dark:text-gray-200">{getHotkeys().save}</kbd>
-                      </div>
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-gray-700 dark:text-gray-300">취소</span>
-                        <kbd className="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs font-mono dark:text-gray-200">{getHotkeys().cancel}</kbd>
-                      </div>
-                    </div>
-                  </div>
-                  <div>
-                    <h4 className="font-semibold mb-0.5 text-xs dark:text-gray-200">텍스트 편집기 설정</h4>
-                    <div className="space-y-0.5 text-xs">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-gray-700 dark:text-gray-300">글씨 크기 증가</span>
-                        <kbd className="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs font-mono dark:text-gray-200">Ctrl + +</kbd>
-                      </div>
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-gray-700 dark:text-gray-300">글씨 크기 감소</span>
-                        <kbd className="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs font-mono dark:text-gray-200">Ctrl + -</kbd>
-                      </div>
-                    </div>
-                  </div>
-                  <div>
-                    <h4 className="font-semibold mb-0.5 text-xs dark:text-gray-200">파일 관리</h4>
-                    <div className="space-y-0.5 text-xs">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-gray-700 dark:text-gray-300">새로 만들기</span>
-                        <kbd className="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs font-mono dark:text-gray-200">n</kbd>
-                      </div>
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-gray-700 dark:text-gray-300">이름 변경</span>
-                        <kbd className="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs font-mono dark:text-gray-200">e</kbd>
-                      </div>
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-gray-700 dark:text-gray-300">삭제</span>
-                        <kbd className="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs font-mono dark:text-gray-200">Delete</kbd>
-                      </div>
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-gray-700 dark:text-gray-300">되돌리기</span>
-                        <kbd className="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs font-mono dark:text-gray-200">Ctrl+Z</kbd>
-                      </div>
-                    </div>
-                  </div>
-                  <div>
-                    <h4 className="font-semibold mb-0.5 text-xs dark:text-gray-200">레이아웃</h4>
-                    <div className="space-y-0.5 text-xs">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-gray-700 dark:text-gray-300">디렉토리 탭 토글</span>
-                        <kbd className="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs font-mono dark:text-gray-200">b</kbd>
-                      </div>
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-gray-700 dark:text-gray-300">이전 파일</span>
-                        <kbd className="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs font-mono dark:text-gray-200">←</kbd>
-                      </div>
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-gray-700 dark:text-gray-300">다음 파일</span>
-                        <kbd className="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs font-mono dark:text-gray-200">→</kbd>
-                      </div>
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-gray-700 dark:text-gray-300">텍스트 스크롤</span>
-                        <kbd className="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs font-mono dark:text-gray-200">↑ / ↓</kbd>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
         )}
+        <ContentViewerPanel
+          tabs={tabs}
+          activeTabId={activeTabId}
+          selectedFilePath={selectedFilePath}
+          newlyCreatedFilePath={newlyCreatedFilePath}
+          fileContentViewerRef={fileContentViewerRef}
+          fileExplorerRef={fileExplorerRef}
+          textEditorConfig={textEditorConfig}
+          fileViewerState={fileViewerState}
+          showNewFileDialog={showNewFileDialog}
+          onTabClick={handleTabClick}
+          onTabClose={handleTabClose}
+          onSelectPreviousFile={handleSelectPreviousFile}
+          onSelectNextFile={handleSelectNextFile}
+          onDeselectFile={() => {
+            setSelectedFilePath(null);
+            setNewlyCreatedFilePath(null);
+            setFileViewerState({ isEditing: false, hasChanges: false });
+          }}
+          onEditStateChange={handleEditStateChange}
+          onEditModeEntered={() => setNewlyCreatedFilePath(null)}
+          onRenameRequest={(filePath) => {
+            if (fileExplorerRef.current && !showNewFileDialog) {
+              fileExplorerRef.current.startRenameForPath(filePath);
+              setTimeout(() => {
+                fileExplorerRef.current?.focus();
+              }, 100);
+            }
+          }}
+          onFileDeleted={() => {
+            setFileViewerState({ isEditing: false, hasChanges: false });
+            if (fileExplorerRef.current) {
+              fileExplorerRef.current.refresh();
+            }
+          }}
+          onFocusExplorer={() => {
+            if (fileExplorerRef.current) {
+              fileExplorerRef.current.focus();
+            }
+          }}
+        />
+        {systemConfig.showHelp && <HelpPanel />}
       </main>
       {showNewFileDialog && (
         <NewFileDialog
