@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import FileExplorer, { type FileExplorerRef } from './components/FileExplorer';
 import FileContentViewer, { type FileContentViewerRef } from './components/FileContentViewer';
 import Resizer from './components/Resizer';
@@ -18,6 +18,7 @@ import { undoService, type UndoAction } from './services/undoService';
 import { isTextFile } from './utils/fileUtils';
 import { applyTheme, type Theme } from './services/themeService';
 import type { Tab } from './types/tabs';
+import { useHotkeys, type HotkeyConfig } from './hooks/useHotkeys';
 
 function App() {
   const [error, setError] = useState<string | null>(null);
@@ -357,61 +358,6 @@ function App() {
     );
   }, []);
 
-  // n 핫키 처리 (새로 만들기)
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // 입력 요소에서 발생한 이벤트는 무시
-      if (isInputElement(e.target)) {
-        return;
-      }
-      
-      // 핫키가 작동하지 않아야 할 상황에서는 아예 처리하지 않음
-      if (shouldBlockHotkey()) {
-        return;
-      }
-      
-      if ((e.key === 'n' || e.key === 'N') && !e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey) {
-        e.preventDefault();
-        e.stopPropagation();
-        if (currentPath) {
-          setShowNewFileDialog(true);
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [currentPath, shouldBlockHotkey, isInputElement]);
-
-  // b 핫키 처리 (디렉토리 탭 토글)
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // 입력 요소에서 발생한 이벤트는 무시
-      if (isInputElement(e.target)) {
-        return;
-      }
-      
-      // 핫키가 작동하지 않아야 할 상황에서는 아예 처리하지 않음
-      if (shouldBlockHotkey()) {
-        return;
-      }
-      
-      if ((e.key === 'b' || e.key === 'B') && !e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey) {
-        e.preventDefault();
-        e.stopPropagation();
-        setIsExplorerVisible((prev) => !prev);
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [shouldBlockHotkey, isInputElement]);
-
-
   const handleConfigChange = useCallback(async (updates: Partial<TextEditorConfig>) => {
     const newConfig = { ...textEditorConfig, ...updates };
     setTextEditorConfig(newConfig);
@@ -419,56 +365,183 @@ function App() {
     // saveTextEditorConfig에서 이미 메뉴 업데이트를 호출함
   }, [textEditorConfig]);
 
-  // 글씨 크기 조절 핫키 처리
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // 입력 요소에서 발생한 이벤트는 무시
-      if (isInputElement(e.target)) {
-        return;
-      }
-      
-      // 핫키가 작동하지 않아야 할 상황에서는 아예 처리하지 않음
-      if (shouldBlockHotkey()) {
-        return;
+  const handleUndo = useCallback(async () => {
+    const action = undoService.popLastAction();
+    if (!action) return;
+
+    try {
+      if (!window.api?.filesystem) {
+        throw new Error('API가 로드되지 않았습니다.');
       }
 
-      // Ctrl 키가 눌려있을 때만 처리
-      if (!e.ctrlKey || e.altKey || e.metaKey) {
-        return;
+      switch (action.type) {
+        case 'create':
+          // 생성 작업을 되돌리려면 삭제
+          if (action.isDirectory) {
+            await window.api.filesystem.deleteDirectory(action.path);
+          } else {
+            await window.api.filesystem.deleteFile(action.path);
+          }
+          break;
+        case 'delete':
+          // 삭제 작업을 되돌리려면 다시 생성
+          if (action.isDirectory) {
+            await window.api.filesystem.createDirectory(action.path);
+          } else {
+            await window.api.filesystem.createFile(action.path, action.content || '');
+          }
+          break;
+        case 'rename':
+          // 이름 변경을 되돌리려면 원래 이름으로 다시 변경
+          if (action.oldPath) {
+            const oldName = action.oldPath.split(/[/\\]/).pop() || '';
+            await window.api.filesystem.renameFile(action.path, oldName);
+          }
+          break;
       }
 
-      // 글씨 크기 증가: Ctrl + +
-      if ((e.key === '+' || e.key === '=') && !e.shiftKey) {
-        e.preventDefault();
-        e.stopPropagation();
+      // 디렉토리 새로고침
+      if (fileExplorerRef.current) {
+        fileExplorerRef.current.refresh();
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : '되돌리기 중 오류가 발생했습니다.';
+      toastService.error(errorMessage);
+      console.error('Error undoing action:', err);
+    }
+  }, []);
+
+  // 핫키 설정 배열
+  const hotkeys = useMemo<HotkeyConfig[]>(() => [
+    // n 핫키: 새로 만들기
+    {
+      key: 'n',
+      handler: () => {
+        if (currentPath) {
+          setShowNewFileDialog(true);
+        }
+      },
+    },
+    // b 핫키: 디렉토리 탭 토글
+    {
+      key: 'b',
+      handler: () => {
+        setIsExplorerVisible((prev) => !prev);
+      },
+    },
+    // Ctrl+Z: 되돌리기 (입력 요소에서는 기본 동작 허용)
+    {
+      key: 'z',
+      ctrl: true,
+      handler: () => {
+        handleUndo();
+      },
+    },
+    // Ctrl+F: 검색 다이얼로그 열기
+    {
+      key: 'f',
+      ctrl: true,
+      handler: () => {
+        setShowSearchDialog(true);
+      },
+    },
+    // /: 검색 다이얼로그 열기
+    {
+      key: '/',
+      handler: () => {
+        setShowSearchDialog(true);
+      },
+    },
+    // Ctrl+Tab: 다음 탭으로 전환
+    {
+      key: 'Tab',
+      ctrl: true,
+      handler: () => {
+        if (tabs.length > 1) {
+          const currentIndex = tabs.findIndex(t => t.id === activeTabId);
+          const nextIndex = (currentIndex + 1) % tabs.length;
+          handleTabClick(tabs[nextIndex].id);
+        }
+      },
+    },
+    // Ctrl+PageUp: 이전 탭으로 전환
+    {
+      key: 'PageUp',
+      ctrl: true,
+      handler: () => {
+        if (tabs.length > 1) {
+          const currentIndex = tabs.findIndex(t => t.id === activeTabId);
+          const prevIndex = currentIndex > 0 ? currentIndex - 1 : tabs.length - 1;
+          handleTabClick(tabs[prevIndex].id);
+        }
+      },
+    },
+    // Ctrl+PageDown: 다음 탭으로 전환
+    {
+      key: 'PageDown',
+      ctrl: true,
+      handler: () => {
+        if (tabs.length > 1) {
+          const currentIndex = tabs.findIndex(t => t.id === activeTabId);
+          const nextIndex = (currentIndex + 1) % tabs.length;
+          handleTabClick(tabs[nextIndex].id);
+        }
+      },
+    },
+    // Ctrl++: 글씨 크기 증가
+    {
+      key: '+',
+      ctrl: true,
+      handler: () => {
         const fontSizeOptions = [10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 36, 40];
         const currentIndex = fontSizeOptions.indexOf(textEditorConfig.fontSize);
         if (currentIndex < fontSizeOptions.length - 1) {
           const newFontSize = fontSizeOptions[currentIndex + 1];
           handleConfigChange({ fontSize: newFontSize });
         }
-        return;
-      }
-
-      // 글씨 크기 감소: Ctrl + -
-      if ((e.key === '-' || e.key === '_') && !e.shiftKey) {
-        e.preventDefault();
-        e.stopPropagation();
+      },
+    },
+    {
+      key: '=',
+      ctrl: true,
+      handler: () => {
+        const fontSizeOptions = [10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 36, 40];
+        const currentIndex = fontSizeOptions.indexOf(textEditorConfig.fontSize);
+        if (currentIndex < fontSizeOptions.length - 1) {
+          const newFontSize = fontSizeOptions[currentIndex + 1];
+          handleConfigChange({ fontSize: newFontSize });
+        }
+      },
+    },
+    // Ctrl+-: 글씨 크기 감소
+    {
+      key: '-',
+      ctrl: true,
+      handler: () => {
         const fontSizeOptions = [10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 36, 40];
         const currentIndex = fontSizeOptions.indexOf(textEditorConfig.fontSize);
         if (currentIndex > 0) {
           const newFontSize = fontSizeOptions[currentIndex - 1];
           handleConfigChange({ fontSize: newFontSize });
         }
-        return;
-      }
-    };
+      },
+    },
+    {
+      key: '_',
+      ctrl: true,
+      handler: () => {
+        const fontSizeOptions = [10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 36, 40];
+        const currentIndex = fontSizeOptions.indexOf(textEditorConfig.fontSize);
+        if (currentIndex > 0) {
+          const newFontSize = fontSizeOptions[currentIndex - 1];
+          handleConfigChange({ fontSize: newFontSize });
+        }
+      },
+    },
+  ], [currentPath, tabs, activeTabId, handleTabClick, handleUndo, textEditorConfig, handleConfigChange]);
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [shouldBlockHotkey, textEditorConfig, handleConfigChange, isInputElement]);
+  // 핫키 훅 사용
+  useHotkeys(hotkeys, shouldBlockHotkey, isInputElement);
 
   const handleSystemConfigChange = async (updates: Partial<SystemConfig>) => {
     const newConfig = { ...systemConfig, ...updates };
@@ -517,122 +590,6 @@ function App() {
     setSelectedFilePath(null);
   };
 
-  const handleUndo = async () => {
-    const action = undoService.popLastAction();
-    if (!action) return;
-
-    try {
-      if (!window.api?.filesystem) {
-        throw new Error('API가 로드되지 않았습니다.');
-      }
-
-      switch (action.type) {
-        case 'create':
-          // 생성 작업을 되돌리려면 삭제
-          if (action.isDirectory) {
-            await window.api.filesystem.deleteDirectory(action.path);
-          } else {
-            await window.api.filesystem.deleteFile(action.path);
-          }
-          break;
-        case 'delete':
-          // 삭제 작업을 되돌리려면 다시 생성
-          if (action.isDirectory) {
-            await window.api.filesystem.createDirectory(action.path);
-          } else {
-            await window.api.filesystem.createFile(action.path, action.content || '');
-          }
-          break;
-        case 'rename':
-          // 이름 변경을 되돌리려면 원래 이름으로 다시 변경
-          if (action.oldPath) {
-            const oldName = action.oldPath.split(/[/\\]/).pop() || '';
-            await window.api.filesystem.renameFile(action.path, oldName);
-          }
-          break;
-      }
-
-      // 디렉토리 새로고침
-      if (fileExplorerRef.current) {
-        fileExplorerRef.current.refresh();
-      }
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : '되돌리기 중 오류가 발생했습니다.';
-      toastService.error(errorMessage);
-      console.error('Error undoing action:', err);
-    }
-  };
-
-  // Ctrl+Z 핫키 처리
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // 입력 요소에서 발생한 이벤트는 무시 (단, Ctrl+Z는 textarea에서도 되돌리기로 사용되므로 제외)
-      const isHotkeyKey = 
-        (e.ctrlKey && (e.key === 'f' || e.key === 'F')) ||
-        e.key === '/' ||
-        (e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey && (e.key === 'Tab' || e.key === 'PageUp' || e.key === 'PageDown'));
-      
-      if (isHotkeyKey && isInputElement(e.target)) {
-        return;
-      }
-      
-      // 핫키가 작동하지 않아야 할 상황에서는 아예 처리하지 않음
-      if (shouldBlockHotkey()) {
-        return;
-      }
-      
-      if (e.ctrlKey && (e.key === 'z' || e.key === 'Z') && !e.shiftKey) {
-        // 입력 요소에서 Ctrl+Z는 기본 동작(되돌리기)을 허용
-        if (isInputElement(e.target)) {
-          return;
-        }
-        e.preventDefault();
-        e.stopPropagation();
-        handleUndo();
-      }
-      
-      // Ctrl+F 또는 / 키로 검색 다이얼로그 열기
-      if ((e.ctrlKey && (e.key === 'f' || e.key === 'F')) || e.key === '/') {
-        e.preventDefault();
-        e.stopPropagation();
-        setShowSearchDialog(true);
-      }
-      
-      // 탭 전환 단축키
-      if (e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey) {
-        if (e.key === 'Tab') {
-          e.preventDefault();
-          e.stopPropagation();
-          if (tabs.length > 1) {
-            const currentIndex = tabs.findIndex(t => t.id === activeTabId);
-            const nextIndex = (currentIndex + 1) % tabs.length;
-            handleTabClick(tabs[nextIndex].id);
-          }
-        } else if (e.key === 'PageUp') {
-          e.preventDefault();
-          e.stopPropagation();
-          if (tabs.length > 1) {
-            const currentIndex = tabs.findIndex(t => t.id === activeTabId);
-            const prevIndex = currentIndex > 0 ? currentIndex - 1 : tabs.length - 1;
-            handleTabClick(tabs[prevIndex].id);
-          }
-        } else if (e.key === 'PageDown') {
-          e.preventDefault();
-          e.stopPropagation();
-          if (tabs.length > 1) {
-            const currentIndex = tabs.findIndex(t => t.id === activeTabId);
-            const nextIndex = (currentIndex + 1) % tabs.length;
-            handleTabClick(tabs[nextIndex].id);
-          }
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [shouldBlockHotkey, tabs, activeTabId, handleTabClick, handleUndo, isInputElement]);
 
   const handleNewFileCreated = (filePath?: string) => {
     // 파일/폴더 생성 후 디렉토리 새로고침
