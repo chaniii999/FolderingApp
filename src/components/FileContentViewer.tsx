@@ -45,6 +45,7 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [pendingDelete, setPendingDelete] = useState(false);
   const deleteDialogRef = useRef<HTMLDivElement>(null);
+  const saveDialogRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -616,6 +617,21 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
     }
   }, [showDeleteDialog]);
 
+  useEffect(() => {
+    if (showSaveDialog && saveDialogRef.current) {
+      // textarea 포커스 제거
+      if (textareaRef.current) {
+        textareaRef.current.blur();
+      }
+      // 다이얼로그에 포커스
+      setTimeout(() => {
+        if (saveDialogRef.current) {
+          saveDialogRef.current.focus();
+        }
+      }, 0);
+    }
+  }, [showSaveDialog]);
+
   const handleBlankAreaClick = () => {
     if (!filePath && onFocusExplorer) {
       onFocusExplorer();
@@ -663,6 +679,13 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
             value={content}
             onChange={handleContentChange}
             onKeyDown={(e) => {
+              // 저장 다이얼로그가 열려있으면 모든 키 입력 차단
+              if (showSaveDialog) {
+                e.preventDefault();
+                e.stopPropagation();
+                return;
+              }
+              
               // 저장/취소 키는 먼저 처리
               if (e.ctrlKey && (e.key === 'F5' || e.key === 'f5')) {
                 e.preventDefault();
@@ -682,6 +705,7 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
               // 이렇게 하면 window 레벨의 핫키 핸들러가 실행되지 않음
               e.stopPropagation();
             }}
+            tabIndex={showSaveDialog ? -1 : 0}
             className="w-full h-full font-mono resize-none border-none outline-none overflow-auto bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
             style={{
               paddingLeft: `${config.horizontalPadding}px`,
@@ -725,7 +749,7 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
       
           {showSaveDialog && (
             <div 
-              className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50"
+              className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 dark:bg-opacity-70 z-50"
               onClick={(e) => {
                 // 배경 클릭 시 다이얼로그 닫기 방지
                 e.stopPropagation();
@@ -736,8 +760,36 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
               }}
             >
           <div 
-            className="bg-white rounded-lg p-6 max-w-md w-full mx-4"
+            ref={saveDialogRef}
+            className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4 shadow-lg"
             onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => {
+              // 다이얼로그 내부 키 이벤트 처리
+              e.stopPropagation();
+              
+              // z 또는 Enter로 저장
+              if (isHotkey(e.key, 'enter') || (e.key === 'Enter' && !e.shiftKey)) {
+                e.preventDefault();
+                if (dialogSelectedOption === 'save') {
+                  handleSaveDialogConfirm();
+                } else {
+                  setDialogSelectedOption('save');
+                }
+                return;
+              }
+              
+              // x 또는 Esc로 취소
+              if (isHotkey(e.key, 'goBack') || e.key === 'Escape' || e.key === 'Esc') {
+                e.preventDefault();
+                if (dialogSelectedOption === 'cancel') {
+                  handleSaveDialogCancel();
+                } else {
+                  setDialogSelectedOption('cancel');
+                }
+                return;
+              }
+            }}
+            tabIndex={0}
           >
             <h3 className="text-lg font-semibold mb-4 dark:text-gray-200">저장하시겠습니까?</h3>
             <p className="text-gray-600 dark:text-gray-300 mb-6">

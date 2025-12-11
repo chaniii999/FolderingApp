@@ -5,6 +5,7 @@ import Resizer from './components/Resizer';
 import NewFileDialog from './components/NewFileDialog';
 import SearchDialog from './components/SearchDialog';
 import TabBar from './components/TabBar';
+import SaveConfirmDialog from './components/SaveConfirmDialog';
 import { BackIcon } from './components/icons/BackIcon';
 import { ForwardIcon } from './components/icons/ForwardIcon';
 import { getHotkeys } from './config/hotkeys';
@@ -35,6 +36,9 @@ function App() {
   const [tabs, setTabs] = useState<Tab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
   const tabStateRef = useRef<Map<string, { isEditing: boolean; hasChanges: boolean }>>(new Map());
+  
+  // 탭 닫기 확인 다이얼로그
+  const [pendingTabClose, setPendingTabClose] = useState<{ tabId: string; fileName: string } | null>(null);
 
   const initializeCurrentPath = async () => {
     try {
@@ -139,20 +143,8 @@ function App() {
     }
   }, [tabs]);
   
-  // 탭 닫기
-  const handleTabClose = useCallback((tabId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    
-    const tab = tabs.find(t => t.id === tabId);
-    if (!tab) return;
-    
-    // 편집 중이거나 변경사항이 있으면 확인 필요
-    const tabState = tabStateRef.current.get(tabId);
-    if (tabState?.isEditing || tabState?.hasChanges) {
-      // TODO: 저장 확인 다이얼로그 표시
-      // 지금은 그냥 닫기
-    }
-    
+  // 실제 탭 닫기 로직
+  const closeTabInternal = useCallback((tabId: string) => {
     const tabIndex = tabs.findIndex(t => t.id === tabId);
     const newTabs = tabs.filter(t => t.id !== tabId);
     setTabs(newTabs);
@@ -179,6 +171,66 @@ function App() {
       }
     }
   }, [tabs, activeTabId]);
+  
+  // 탭 닫기
+  const handleTabClose = useCallback((tabId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    const tab = tabs.find(t => t.id === tabId);
+    if (!tab) return;
+    
+    // 편집 중이거나 변경사항이 있으면 확인 다이얼로그 표시
+    const tabState = tabStateRef.current.get(tabId);
+    if (tabState?.isEditing || tabState?.hasChanges) {
+      setPendingTabClose({ tabId, fileName: tab.fileName });
+      return;
+    }
+    
+    // 변경사항이 없으면 바로 닫기
+    closeTabInternal(tabId);
+  }, [tabs, closeTabInternal]);
+  
+  // 저장 확인 다이얼로그에서 저장 선택
+  const handleSaveAndClose = useCallback(async () => {
+    if (!pendingTabClose) return;
+    
+    const { tabId } = pendingTabClose;
+    const tab = tabs.find(t => t.id === tabId);
+    
+    // 해당 탭이 활성 탭이면 저장
+    if (tab && activeTabId === tabId && fileContentViewerRef.current) {
+      try {
+        await fileContentViewerRef.current.handleSave();
+        // 저장 후 탭 닫기
+        closeTabInternal(tabId);
+      } catch (err) {
+        console.error('Error saving file:', err);
+        // 저장 실패 시 다이얼로그는 유지
+        return;
+      }
+    } else {
+      // 활성 탭이 아니면 그냥 닫기 (이미 저장된 상태)
+      closeTabInternal(tabId);
+    }
+    
+    setPendingTabClose(null);
+  }, [pendingTabClose, tabs, activeTabId, closeTabInternal]);
+  
+  // 저장 확인 다이얼로그에서 저장하지 않고 닫기 선택
+  const handleDiscardAndClose = useCallback(() => {
+    if (!pendingTabClose) return;
+    
+    const { tabId } = pendingTabClose;
+    
+    // 변경사항을 버리고 탭 닫기
+    closeTabInternal(tabId);
+    setPendingTabClose(null);
+  }, [pendingTabClose, closeTabInternal]);
+  
+  // 저장 확인 다이얼로그 취소
+  const handleCancelClose = useCallback(() => {
+    setPendingTabClose(null);
+  }, []);
 
   // 디렉토리 변경 시 선택된 파일 상태 검증
   useEffect(() => {
@@ -272,9 +324,10 @@ function App() {
     return (
       showNewFileDialog || 
       showSearchDialog || 
-      fileViewerState.isEditing
+      fileViewerState.isEditing ||
+      pendingTabClose !== null
     );
-  }, [showNewFileDialog, showSearchDialog, fileViewerState.isEditing]);
+  }, [showNewFileDialog, showSearchDialog, fileViewerState.isEditing, pendingTabClose]);
   
   // 입력 요소인지 확인 (textarea, input 등)
   const isInputElement = useCallback((target: EventTarget | null): boolean => {
@@ -1009,14 +1062,6 @@ function App() {
                         <kbd className="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs font-mono dark:text-gray-200">n</kbd>
                       </div>
                       <div className="flex items-center justify-between gap-2">
-                        <span className="text-gray-700 dark:text-gray-300">경로 선택</span>
-                        <kbd className="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs font-mono dark:text-gray-200">{getHotkeys().selectPath}</kbd>
-                      </div>
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-gray-700 dark:text-gray-300">폴더 열기</span>
-                        <kbd className="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs font-mono dark:text-gray-200">o</kbd>
-                      </div>
-                      <div className="flex items-center justify-between gap-2">
                         <span className="text-gray-700 dark:text-gray-300">이름 변경</span>
                         <kbd className="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs font-mono dark:text-gray-200">e</kbd>
                       </div>
@@ -1081,6 +1126,14 @@ function App() {
           }}
           onFileSelect={handleFileSelect}
           onPathChange={handlePathChange}
+        />
+      )}
+      {pendingTabClose && (
+        <SaveConfirmDialog
+          fileName={pendingTabClose.fileName}
+          onSave={handleSaveAndClose}
+          onDiscard={handleDiscardAndClose}
+          onCancel={handleCancelClose}
         />
       )}
     </div>
