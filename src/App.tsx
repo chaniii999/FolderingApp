@@ -12,21 +12,17 @@ import type { Toast } from './components/Toast';
 import { BackIcon } from './components/icons/BackIcon';
 import { ForwardIcon } from './components/icons/ForwardIcon';
 import { getHotkeys } from './config/hotkeys';
-import { loadTextEditorConfig, saveTextEditorConfig, type TextEditorConfig } from './services/textEditorConfigService';
-import { loadSystemConfig, saveSystemConfig, type SystemConfig } from './services/systemConfigService';
 import { undoService } from './services/undoService';
-import { isTextFile } from './utils/fileUtils';
-import { applyTheme, type Theme } from './services/themeService';
+import { type Theme } from './services/themeService';
 import { useHotkeys, type HotkeyConfig } from './hooks/useHotkeys';
 import { useTabs } from './hooks/useTabs';
+import { useSettings } from './hooks/useSettings';
 
 function App() {
   const [error, setError] = useState<string | null>(null);
   const [currentPath, setCurrentPath] = useState<string>('');
   const [selectedFilePath, setSelectedFilePath] = useState<string | null>(null);
   const [explorerWidth, setExplorerWidth] = useState<number>(240);
-  const [textEditorConfig, setTextEditorConfig] = useState<TextEditorConfig>({ horizontalPadding: 80, fontSize: 14 });
-  const [systemConfig, setSystemConfig] = useState<SystemConfig>({ hideNonTextFiles: false, theme: 'light', showHelp: false });
   const [showNewFileDialog, setShowNewFileDialog] = useState(false);
   const [newlyCreatedFilePath, setNewlyCreatedFilePath] = useState<string | null>(null);
   const [isExplorerVisible, setIsExplorerVisible] = useState<boolean>(true);
@@ -54,6 +50,18 @@ function App() {
     fileContentViewerRef
   );
   
+  // 설정 관리
+  const {
+    textEditorConfig,
+    systemConfig,
+    handleConfigChange,
+    handleSystemConfigChange,
+  } = useSettings(
+    fileExplorerRef,
+    selectedFilePath,
+    setSelectedFilePath
+  );
+
   // 토스트 관리
   const [toasts, setToasts] = useState<Toast[]>([]);
   
@@ -123,23 +131,6 @@ function App() {
         undoService.setCurrentPath(currentPath);
       }
     });
-    loadTextEditorConfig().then(setTextEditorConfig);
-    loadSystemConfig().then(async (config) => {
-      setSystemConfig(config);
-      // 초기 테마 적용
-      applyTheme(config.theme);
-      // 초기 윈도우 테마 설정
-      window.dispatchEvent(new CustomEvent('theme:change', { detail: config.theme }));
-      // 초기 메뉴바 체크박스 상태 설정
-      if (window.api?.menu) {
-        try {
-          await window.api.menu.updateCheckbox('hideNonTextFiles', config.hideNonTextFiles);
-          await window.api.menu.updateCheckbox('showHelp', config.showHelp);
-        } catch (err) {
-          console.error('Error updating menu checkbox:', err);
-        }
-      }
-    });
     
     // 메뉴바 이벤트 리스너
     const handleMenuToggleHideNonTextFiles = (e: CustomEvent<boolean>) => {
@@ -163,17 +154,11 @@ function App() {
     };
     
     const handleMenuChangeHorizontalPadding = async (e: CustomEvent<number>) => {
-      const newConfig = { ...textEditorConfig, horizontalPadding: e.detail };
-      setTextEditorConfig(newConfig);
-      await saveTextEditorConfig(newConfig);
-      // saveTextEditorConfig에서 메뉴 업데이트를 호출함
+      await handleConfigChange({ horizontalPadding: e.detail });
     };
     
     const handleMenuChangeFontSize = async (e: CustomEvent<number>) => {
-      const newConfig = { ...textEditorConfig, fontSize: e.detail };
-      setTextEditorConfig(newConfig);
-      await saveTextEditorConfig(newConfig);
-      // saveTextEditorConfig에서 메뉴 업데이트를 호출함
+      await handleConfigChange({ fontSize: e.detail });
     };
     
     window.addEventListener('menu:toggleHideNonTextFiles', handleMenuToggleHideNonTextFiles as unknown as EventListener);
@@ -193,7 +178,7 @@ function App() {
       window.removeEventListener('menu:changeHorizontalPadding', handleMenuChangeHorizontalPadding as unknown as EventListener);
       window.removeEventListener('menu:changeFontSize', handleMenuChangeFontSize as unknown as EventListener);
     };
-  }, []);
+  }, [handleSystemConfigChange, handleConfigChange]);
 
   // 핫키가 작동하지 않아야 할 상황 체크
   const shouldBlockHotkey = useCallback(() => {
@@ -217,13 +202,6 @@ function App() {
       isContentEditable === true
     );
   }, []);
-
-  const handleConfigChange = useCallback(async (updates: Partial<TextEditorConfig>) => {
-    const newConfig = { ...textEditorConfig, ...updates };
-    setTextEditorConfig(newConfig);
-    await saveTextEditorConfig(newConfig);
-    // saveTextEditorConfig에서 이미 메뉴 업데이트를 호출함
-  }, [textEditorConfig]);
 
   const handleUndo = useCallback(async () => {
     const action = undoService.popLastAction();
@@ -402,47 +380,6 @@ function App() {
 
   // 핫키 훅 사용
   useHotkeys(hotkeys, shouldBlockHotkey, isInputElement);
-
-  const handleSystemConfigChange = async (updates: Partial<SystemConfig>) => {
-    const newConfig = { ...systemConfig, ...updates };
-    setSystemConfig(newConfig);
-    await saveSystemConfig(newConfig);
-    
-    // 테마 적용
-    if (updates.theme !== undefined) {
-      applyTheme(updates.theme);
-      // 메인 프로세스에 테마 변경 알림
-      if (window.api?.filesystem) {
-        // IPC를 통해 테마 변경 알림 (preload를 통해)
-        window.dispatchEvent(new CustomEvent('theme:change', { detail: updates.theme }));
-      }
-    }
-    
-    // 메뉴바 체크박스 상태 업데이트
-    if (window.api?.menu) {
-      try {
-        if (updates.hideNonTextFiles !== undefined) {
-          await window.api.menu.updateCheckbox('hideNonTextFiles', updates.hideNonTextFiles);
-        }
-        if (updates.showHelp !== undefined) {
-          await window.api.menu.updateCheckbox('showHelp', updates.showHelp);
-        }
-      } catch (err) {
-        console.error('Error updating menu checkbox:', err);
-      }
-    }
-    
-    // "텍스트 파일만 표시" 옵션이 켜질 때, 현재 선택된 파일이 텍스트 파일이 아니면 선택 해제
-    if (updates.hideNonTextFiles === true && selectedFilePath && !isTextFile(selectedFilePath)) {
-      setSelectedFilePath(null);
-      setNewlyCreatedFilePath(null);
-    }
-    
-    // 설정 변경 시 FileExplorer 새로고침
-    if (fileExplorerRef.current) {
-      fileExplorerRef.current.refresh();
-    }
-  };
 
   const handlePathChange = (newPath: string) => {
     undoService.setCurrentPath(newPath);
