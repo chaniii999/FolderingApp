@@ -38,20 +38,19 @@ class ToastService {
   }
 
   success(message: string, duration?: number) {
-    return this.show(message, 'success', duration);
+    return this.show(message, 'success', duration ?? 1000);
   }
 
   error(message: string, duration?: number) {
-    // 에러는 기본적으로 더 오래 표시
-    return this.show(message, 'error', duration ?? 5000);
+    return this.show(message, 'error', duration ?? 1000);
   }
 
   warning(message: string, duration?: number) {
-    return this.show(message, 'warning', duration);
+    return this.show(message, 'warning', duration ?? 1000);
   }
 
   info(message: string, duration?: number) {
-    return this.show(message, 'info', duration);
+    return this.show(message, 'info', duration ?? 1000);
   }
 
   close(id: string) {

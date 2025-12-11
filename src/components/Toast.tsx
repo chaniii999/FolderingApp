@@ -18,7 +18,7 @@ export default function ToastComponent({ toast, onClose }: ToastProps) {
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    const duration = toast.duration ?? 3000;
+    const duration = toast.duration ?? 1000;
     if (duration > 0) {
       timeoutRef.current = setTimeout(() => {
         onClose(toast.id);
@@ -65,33 +65,14 @@ export default function ToastComponent({ toast, onClose }: ToastProps) {
   return (
     <div
       className={`
-        flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg min-w-[300px] max-w-[500px]
+        flex items-center gap-2 px-3 py-2 rounded-md shadow-lg text-xs
         ${getToastStyles()}
         transition-all duration-300 ease-in-out
       `}
       role="alert"
     >
-      <span className="text-lg font-bold flex-shrink-0">{getIcon()}</span>
-      <p className="flex-1 text-sm font-medium">{toast.message}</p>
-      <button
-        onClick={() => onClose(toast.id)}
-        className="flex-shrink-0 w-5 h-5 flex items-center justify-center rounded hover:bg-black hover:bg-opacity-20 transition-colors"
-        aria-label="닫기"
-      >
-        <svg
-          className="w-4 h-4"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M6 18L18 6M6 6l12 12"
-          />
-        </svg>
-      </button>
+      <span className="text-sm flex-shrink-0">{getIcon()}</span>
+      <p className="flex-1 font-medium whitespace-nowrap">{toast.message}</p>
     </div>
   );
 }

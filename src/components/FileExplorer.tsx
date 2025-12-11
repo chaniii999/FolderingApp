@@ -515,7 +515,7 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
       }
 
       loadDirectory(currentPath);
-      toastService.success(clipboard.isCut ? '이동 완료' : '복사 완료');
+      toastService.success(clipboard.isCut ? '이동됨' : '복사됨');
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : '붙여넣기 중 오류가 발생했습니다.';
       toastService.error(errorMessage);

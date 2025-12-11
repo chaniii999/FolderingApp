@@ -522,7 +522,7 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
       setOriginalContent(content);
       setHasChanges(false);
       setIsEditing(false);
-      toastService.success('파일이 저장되었습니다.');
+      toastService.success('저장됨');
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : '파일 저장 중 오류가 발생했습니다.';
       setError(errorMessage);
