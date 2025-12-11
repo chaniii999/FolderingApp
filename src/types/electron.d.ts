@@ -58,6 +58,7 @@ export interface ElectronAPI {
     saveStartPath: (startPath: string) => Promise<void>;
     openFolder: (folderPath: string) => Promise<void>;
     createGuideFile: (dirPath: string) => Promise<string | null>;
+    getUserDataPath: () => Promise<string>;
   };
   menu: {
     updateCheckbox: (id: string, checked: boolean) => Promise<void>;

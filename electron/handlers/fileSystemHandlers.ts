@@ -2,6 +2,7 @@ import { IpcMain, shell } from 'electron';
 import * as fileSystemService from '../services/fileSystemService';
 import { saveStartPath, selectStartPath } from '../services/startPathService';
 import os from 'os';
+import { app } from 'electron';
 
 export function fileSystemHandlers(ipcMain: IpcMain): void {
   ipcMain.handle('filesystem:getCurrentDirectory', async () => {
@@ -172,6 +173,15 @@ export function fileSystemHandlers(ipcMain: IpcMain): void {
       return fileSystemService.createGuideFile(dirPath);
     } catch (error) {
       console.error('Error creating guide file:', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('filesystem:getUserDataPath', async () => {
+    try {
+      return app.getPath('userData');
+    } catch (error) {
+      console.error('Error getting user data path:', error);
       throw error;
     }
   });

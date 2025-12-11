@@ -5,6 +5,8 @@ import { getHotkeys, isHotkey } from '../config/hotkeys';
 import { isTextFile } from '../utils/fileUtils';
 import { undoService } from '../services/undoService';
 import { toastService } from '../services/toastService';
+import { autoSaveService } from '../services/autoSaveService';
+import RecoveryDialog from './RecoveryDialog';
 
 import type { TextEditorConfig } from '../services/textEditorConfigService';
 
@@ -47,6 +49,8 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
   const [pendingDelete, setPendingDelete] = useState(false);
   const deleteDialogRef = useRef<HTMLDivElement>(null);
   const saveDialogRef = useRef<HTMLDivElement>(null);
+  const [showRecoveryDialog, setShowRecoveryDialog] = useState(false);
+  const [recoveryContent, setRecoveryContent] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -499,11 +503,20 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
   const handleEditClick = useCallback(() => {
     if (filePath && !loading && !error) {
       setIsEditing(true);
+      // 편집 모드 진입 시 자동 저장 시작
+      if (filePath) {
+        autoSaveService.startAutoSave(filePath, content);
+      }
     }
-  }, [filePath, loading, error]);
+  }, [filePath, loading, error, content]);
 
   const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setContent(e.target.value);
+    const newContent = e.target.value;
+    setContent(newContent);
+    // 내용 변경 시 자동 저장 업데이트
+    if (filePath && isEditing) {
+      autoSaveService.updateContent(filePath, newContent);
+    }
   };
 
   const handleSave = useCallback(async () => {
@@ -522,12 +535,31 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
       setOriginalContent(content);
       setHasChanges(false);
       setIsEditing(false);
+      
+      // 저장 성공 시 자동 저장 정리
+      if (filePath) {
+        await autoSaveService.clearAutoSave(filePath);
+      }
+      
       toastService.success('저장됨');
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : '파일 저장 중 오류가 발생했습니다.';
       setError(errorMessage);
       toastService.error(errorMessage);
       console.error('Error saving file:', err);
+      
+      // 저장 실패 시 복구 가능한지 확인
+      if (filePath) {
+        try {
+          const recovery = await autoSaveService.getRecoveryContent(filePath);
+          if (recovery) {
+            setRecoveryContent(recovery);
+            setShowRecoveryDialog(true);
+          }
+        } catch (recoveryErr) {
+          console.error('Error checking recovery:', recoveryErr);
+        }
+      }
     }
   }, [filePath, hasChanges, content]);
 
@@ -540,8 +572,13 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
       setHasChanges(false);
       setIsEditing(false);
       setShowSaveDialog(false);
+      
+      // 편집 모드 종료 시 자동 저장 중지
+      if (filePath) {
+        autoSaveService.stopAutoSave(filePath);
+      }
     }
-  }, [hasChanges, originalContent]);
+  }, [hasChanges, originalContent, filePath]);
 
   const handleSaveDialogConfirm = async () => {
     await handleSave();
@@ -875,6 +912,28 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
             </div>
           </div>
         </div>
+      )}
+      
+      {showRecoveryDialog && recoveryContent !== null && filePath && (
+        <RecoveryDialog
+          fileName={filePath.split(/[/\\]/).pop() || filePath}
+          onRecover={async () => {
+            setContent(recoveryContent);
+            setHasChanges(true);
+            setShowRecoveryDialog(false);
+            setRecoveryContent(null);
+            // 복구 후 다시 저장 시도
+            try {
+              await handleSave();
+            } catch (err) {
+              console.error('Error saving after recovery:', err);
+            }
+          }}
+          onDiscard={() => {
+            setShowRecoveryDialog(false);
+            setRecoveryContent(null);
+          }}
+        />
       )}
     </div>
   );
