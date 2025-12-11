@@ -4,6 +4,7 @@ import FileContentViewer, { type FileContentViewerRef } from './components/FileC
 import Resizer from './components/Resizer';
 import NewFileDialog from './components/NewFileDialog';
 import SearchDialog from './components/SearchDialog';
+import TabBar from './components/TabBar';
 import { BackIcon } from './components/icons/BackIcon';
 import { ForwardIcon } from './components/icons/ForwardIcon';
 import { getHotkeys } from './config/hotkeys';
@@ -12,6 +13,7 @@ import { loadSystemConfig, saveSystemConfig, type SystemConfig } from './service
 import { undoService, type UndoAction } from './services/undoService';
 import { isTextFile } from './utils/fileUtils';
 import { applyTheme, type Theme } from './services/themeService';
+import type { Tab } from './types/tabs';
 
 function App() {
   const [error, setError] = useState<string | null>(null);
@@ -28,6 +30,11 @@ function App() {
   const [fileViewerState, setFileViewerState] = useState<{ isEditing: boolean; hasChanges: boolean }>({ isEditing: false, hasChanges: false });
   const [showFullPath, setShowFullPath] = useState<boolean>(false);
   const [showSearchDialog, setShowSearchDialog] = useState<boolean>(false);
+  
+  // 탭 관리
+  const [tabs, setTabs] = useState<Tab[]>([]);
+  const [activeTabId, setActiveTabId] = useState<string | null>(null);
+  const tabStateRef = useRef<Map<string, { isEditing: boolean; hasChanges: boolean }>>(new Map());
 
   const initializeCurrentPath = async () => {
     try {
@@ -39,14 +46,14 @@ function App() {
       const path = await window.api.filesystem.getCurrentDirectory();
       setCurrentPath(path);
       
-      // 가이드.md가 있으면 자동으로 선택
+      // 가이드.md가 있으면 자동으로 선택 및 탭 추가
       try {
         const files = await window.api.filesystem.listDirectory(path);
         const guideFile = files.find(file => file.name === '가이드.md' && !file.isDirectory);
         if (guideFile) {
-          // 약간의 지연 후 선택 (FileExplorer가 로드된 후)
+          // 약간의 지연 후 선택 및 탭 추가 (FileExplorer가 로드된 후)
           setTimeout(() => {
-            setSelectedFilePath(guideFile.path);
+            addOrSwitchTab(guideFile.path);
           }, 500);
         }
       } catch (guideErr) {
@@ -69,7 +76,109 @@ function App() {
   // FileContentViewer 상태 변경 핸들러
   const handleEditStateChange = useCallback((state: { isEditing: boolean; hasChanges: boolean }) => {
     setFileViewerState(state);
+    // 활성 탭의 상태도 업데이트
+    if (activeTabId) {
+      tabStateRef.current.set(activeTabId, state);
+      setTabs(prevTabs => prevTabs.map(tab => 
+        tab.id === activeTabId 
+          ? { ...tab, isEditing: state.isEditing, hasChanges: state.hasChanges }
+          : tab
+      ));
+    }
+  }, [activeTabId]);
+  
+  // 탭 추가 또는 전환
+  const addOrSwitchTab = useCallback((filePath: string) => {
+    const fileName = filePath.split(/[/\\]/).pop() || filePath;
+    const tabId = filePath;
+    
+    setTabs(prevTabs => {
+      // 이미 열려있는 탭인지 확인
+      const existingTab = prevTabs.find(tab => tab.id === tabId);
+      if (existingTab) {
+        // 이미 열려있으면 해당 탭으로 전환
+        setActiveTabId(tabId);
+        setSelectedFilePath(filePath);
+        // 저장된 상태 복원
+        const savedState = tabStateRef.current.get(tabId);
+        if (savedState) {
+          setFileViewerState(savedState);
+        }
+        return prevTabs;
+      }
+      
+      // 새 탭 추가
+      const newTab: Tab = {
+        id: tabId,
+        filePath,
+        fileName,
+        isEditing: false,
+        hasChanges: false,
+      };
+      
+      setActiveTabId(tabId);
+      setSelectedFilePath(filePath);
+      tabStateRef.current.set(tabId, { isEditing: false, hasChanges: false });
+      return [...prevTabs, newTab];
+    });
   }, []);
+  
+  // 탭 전환
+  const handleTabClick = useCallback((tabId: string) => {
+    const tab = tabs.find(t => t.id === tabId);
+    if (tab) {
+      setActiveTabId(tabId);
+      setSelectedFilePath(tab.filePath);
+      // 저장된 상태 복원
+      const savedState = tabStateRef.current.get(tabId);
+      if (savedState) {
+        setFileViewerState(savedState);
+      } else {
+        setFileViewerState({ isEditing: false, hasChanges: false });
+      }
+    }
+  }, [tabs]);
+  
+  // 탭 닫기
+  const handleTabClose = useCallback((tabId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    const tab = tabs.find(t => t.id === tabId);
+    if (!tab) return;
+    
+    // 편집 중이거나 변경사항이 있으면 확인 필요
+    const tabState = tabStateRef.current.get(tabId);
+    if (tabState?.isEditing || tabState?.hasChanges) {
+      // TODO: 저장 확인 다이얼로그 표시
+      // 지금은 그냥 닫기
+    }
+    
+    const tabIndex = tabs.findIndex(t => t.id === tabId);
+    const newTabs = tabs.filter(t => t.id !== tabId);
+    setTabs(newTabs);
+    tabStateRef.current.delete(tabId);
+    
+    // 닫은 탭이 활성 탭이었으면 다른 탭으로 전환
+    if (activeTabId === tabId) {
+      if (newTabs.length > 0) {
+        // 닫은 탭의 이전 탭으로 전환 (없으면 다음 탭)
+        const newActiveTab = newTabs[Math.max(0, tabIndex - 1)];
+        setActiveTabId(newActiveTab.id);
+        setSelectedFilePath(newActiveTab.filePath);
+        const savedState = tabStateRef.current.get(newActiveTab.id);
+        if (savedState) {
+          setFileViewerState(savedState);
+        } else {
+          setFileViewerState({ isEditing: false, hasChanges: false });
+        }
+      } else {
+        // 모든 탭이 닫혔으면
+        setActiveTabId(null);
+        setSelectedFilePath(null);
+        setFileViewerState({ isEditing: false, hasChanges: false });
+      }
+    }
+  }, [tabs, activeTabId]);
 
   // 디렉토리 변경 시 선택된 파일 상태 검증
   useEffect(() => {
@@ -365,13 +474,39 @@ function App() {
         e.preventDefault();
         setShowSearchDialog(true);
       }
+      
+      // 탭 전환 단축키
+      if (e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey) {
+        if (e.key === 'Tab') {
+          e.preventDefault();
+          if (tabs.length > 1) {
+            const currentIndex = tabs.findIndex(t => t.id === activeTabId);
+            const nextIndex = (currentIndex + 1) % tabs.length;
+            handleTabClick(tabs[nextIndex].id);
+          }
+        } else if (e.key === 'PageUp') {
+          e.preventDefault();
+          if (tabs.length > 1) {
+            const currentIndex = tabs.findIndex(t => t.id === activeTabId);
+            const prevIndex = currentIndex > 0 ? currentIndex - 1 : tabs.length - 1;
+            handleTabClick(tabs[prevIndex].id);
+          }
+        } else if (e.key === 'PageDown') {
+          e.preventDefault();
+          if (tabs.length > 1) {
+            const currentIndex = tabs.findIndex(t => t.id === activeTabId);
+            const nextIndex = (currentIndex + 1) % tabs.length;
+            handleTabClick(tabs[nextIndex].id);
+          }
+        }
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [showNewFileDialog, showSearchDialog]);
+  }, [showNewFileDialog, showSearchDialog, tabs, activeTabId, handleTabClick]);
 
   const handleNewFileCreated = (filePath?: string) => {
     // 파일/폴더 생성 후 디렉토리 새로고침
@@ -386,9 +521,9 @@ function App() {
           isDirectory: false,
         });
         setTimeout(() => {
-          setSelectedFilePath(filePath);
+          addOrSwitchTab(filePath);
           setNewlyCreatedFilePath(filePath);
-        }, 200); // 디렉토리 새로고침 후 파일 선택
+        }, 200); // 디렉토리 새로고침 후 파일 선택 및 탭 추가
       } else {
         // 폴더 생성은 FileExplorer에서 처리하므로 여기서는 포커스만 (다이얼로그가 닫힌 후)
         // 다이얼로그가 열려있지 않을 때만 포커스 이동
@@ -408,7 +543,8 @@ function App() {
       setNewlyCreatedFilePath(null);
       return;
     }
-    setSelectedFilePath(filePath);
+    // 탭 추가 또는 전환
+    addOrSwitchTab(filePath);
     // 파일 선택 후에는 포커스를 이동시키지 않음 (뒤로가기 버튼을 누를 때만 포커스 이동)
   };
 
@@ -455,7 +591,7 @@ function App() {
       return;
     }
     
-    // 파일이 선택되어 있으면 파일 선택 해제
+    // 파일이 선택되어 있으면 파일 선택 해제 (탭은 유지)
     if (selectedFilePath) {
       setSelectedFilePath(null);
       if (!showNewFileDialog) {
@@ -511,17 +647,17 @@ function App() {
         setSelectedFilePath(null);
         undoService.setCurrentPath(selectedPath);
         
-        // 처음 시작 위치 설정 시 가이드.md 생성 및 자동 선택
+        // 처음 시작 위치 설정 시 가이드.md 생성 및 자동 선택 및 탭 추가
         if (isFirstTime) {
           try {
             const guidePath = await window.api.filesystem.createGuideFile(selectedPath);
             if (guidePath) {
-              // FileExplorer 새로고침 후 가이드.md 자동 선택
+              // FileExplorer 새로고침 후 가이드.md 자동 선택 및 탭 추가
               if (fileExplorerRef.current) {
                 fileExplorerRef.current.refresh();
-                // 새로고침 후 파일 목록이 로드된 후 가이드.md 선택
+                // 새로고침 후 파일 목록이 로드된 후 가이드.md 선택 및 탭 추가
                 setTimeout(() => {
-                  setSelectedFilePath(guidePath);
+                  addOrSwitchTab(guidePath);
                 }, 300);
               }
             }
@@ -615,8 +751,8 @@ function App() {
 
   return (
     <div className="flex flex-col h-screen w-screen">
-      <header className="flex flex-col gap-1 px-6 py-2 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
-        <div className="flex items-center gap-4">
+      <header className="flex flex-col gap-1 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
+        <div className="flex items-center gap-4 px-6 py-2">
           <button
             onClick={handleToggleExplorer}
             className="flex items-center justify-center w-8 h-8 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 cursor-pointer"
@@ -732,8 +868,17 @@ function App() {
             />
           </>
         )}
-        <div className="flex-1 overflow-hidden">
-          <FileContentViewer 
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {tabs.length > 0 && (
+            <TabBar
+              tabs={tabs}
+              activeTabId={activeTabId}
+              onTabClick={handleTabClick}
+              onTabClose={handleTabClose}
+            />
+          )}
+          <div className="flex-1 overflow-hidden">
+            <FileContentViewer 
             ref={fileContentViewerRef}
             filePath={selectedFilePath}
             onSelectPreviousFile={handleSelectPreviousFile}
@@ -772,6 +917,7 @@ function App() {
               }
             }}
           />
+          </div>
         </div>
         {systemConfig.showHelp && (
           <div className="flex flex-col border-l border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900" style={{ width: '240px', minWidth: '240px' }}>
