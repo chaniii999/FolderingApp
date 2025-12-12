@@ -1,7 +1,9 @@
+import React from 'react';
 import { BackIcon } from '../icons/BackIcon';
 import { ForwardIcon } from '../icons/ForwardIcon';
 import { getHotkeys } from '../../config/hotkeys';
 import type { FileContentViewerRef } from '../FileContentViewer';
+import { usePerformanceMeasure } from '../../utils/usePerformanceMeasure';
 
 interface AppHeaderProps {
   isExplorerVisible: boolean;
@@ -12,7 +14,7 @@ interface AppHeaderProps {
   fileContentViewerRef: React.RefObject<FileContentViewerRef>;
 }
 
-export default function AppHeader({
+function AppHeader({
   isExplorerVisible,
   onToggleExplorer,
   selectedFileName,
@@ -20,6 +22,7 @@ export default function AppHeader({
   fileViewerState,
   fileContentViewerRef,
 }: AppHeaderProps) {
+  usePerformanceMeasure('AppHeader');
   return (
     <header className="flex flex-col gap-1 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
       <div className="flex items-center gap-4 px-6 py-2">
@@ -89,4 +92,6 @@ export default function AppHeader({
     </header>
   );
 }
+
+export default React.memo(AppHeader);
 

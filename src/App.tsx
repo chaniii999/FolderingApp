@@ -16,8 +16,12 @@ import { type Theme } from './services/themeService';
 import { useHotkeys, type HotkeyConfig } from './hooks/useHotkeys';
 import { useTabs } from './hooks/useTabs';
 import { useSettings } from './hooks/useSettings';
+import { usePerformanceMeasure } from './utils/usePerformanceMeasure';
+import { performanceMonitor } from './utils/performanceMonitor';
 
 function App() {
+  usePerformanceMeasure('App');
+  
   const [error, setError] = useState<string | null>(null);
   const [currentPath, setCurrentPath] = useState<string>('');
   const [selectedFilePath, setSelectedFilePath] = useState<string | null>(null);
@@ -130,6 +134,17 @@ function App() {
         undoService.setCurrentPath(currentPath);
       }
     });
+
+    // 개발 모드에서 성능 리포트 출력 (5초 후)
+    if (import.meta.env.DEV) {
+      const timeoutId = setTimeout(() => {
+        console.log('📊 초기 렌더링 성능 리포트:');
+        performanceMonitor.printReport();
+        console.log('\n💡 성능 리포트를 다시 보려면: window.showPerformanceReport()');
+      }, 5000);
+
+      return () => clearTimeout(timeoutId);
+    }
     
     // 메뉴바 이벤트 리스너
     const handleMenuToggleHideNonTextFiles = (e: CustomEvent<boolean>) => {
@@ -380,14 +395,14 @@ function App() {
   // 핫키 훅 사용
   useHotkeys(hotkeys, shouldBlockHotkey, isInputElement);
 
-  const handlePathChange = (newPath: string) => {
+  const handlePathChange = useCallback((newPath: string) => {
     undoService.setCurrentPath(newPath);
     setCurrentPath(newPath);
     setSelectedFilePath(null);
-  };
+  }, []);
 
 
-  const handleNewFileCreated = (filePath?: string) => {
+  const handleNewFileCreated = useCallback((filePath?: string) => {
     // 파일/폴더 생성 후 디렉토리 새로고침
     if (fileExplorerRef.current) {
       fileExplorerRef.current.refresh();
@@ -413,9 +428,9 @@ function App() {
         }
       }
     }
-  };
+  }, [addOrSwitchTab, showNewFileDialog]);
 
-  const handleFileSelect = (filePath: string) => {
+  const handleFileSelect = useCallback((filePath: string) => {
     // 빈 문자열이 전달되면 선택 해제
     if (!filePath || filePath === '') {
       setSelectedFilePath(null);
@@ -425,9 +440,9 @@ function App() {
     // 탭 추가 또는 전환
     addOrSwitchTab(filePath);
     // 파일 선택 후에는 포커스를 이동시키지 않음 (뒤로가기 버튼을 누를 때만 포커스 이동)
-  };
+  }, [addOrSwitchTab]);
 
-  const getFileList = async (): Promise<string[]> => {
+  const getFileList = useCallback(async (): Promise<string[]> => {
     if (!currentPath) return [];
     
     try {
@@ -442,9 +457,9 @@ function App() {
       console.error('Error getting file list:', err);
       return [];
     }
-  };
+  }, [currentPath]);
 
-  const handleSelectPreviousFile = async () => {
+  const handleSelectPreviousFile = useCallback(async () => {
     const files = await getFileList();
     if (files.length === 0 || !selectedFilePath) return;
     
@@ -452,9 +467,9 @@ function App() {
     if (currentIndex > 0) {
       setSelectedFilePath(files[currentIndex - 1]);
     }
-  };
+  }, [getFileList, selectedFilePath]);
 
-  const handleSelectNextFile = async () => {
+  const handleSelectNextFile = useCallback(async () => {
     const files = await getFileList();
     if (files.length === 0 || !selectedFilePath) return;
     
@@ -462,9 +477,9 @@ function App() {
     if (currentIndex < files.length - 1) {
       setSelectedFilePath(files[currentIndex + 1]);
     }
-  };
+  }, [getFileList, selectedFilePath]);
 
-  const handleBackClick = async () => {
+  const handleBackClick = useCallback(async () => {
     // 다이얼로그가 열려있으면 뒤로가기 무시
     if (showNewFileDialog) {
       return;
@@ -501,13 +516,13 @@ function App() {
     } catch (err) {
       console.error('Error going back:', err);
     }
-  };
+  }, [showNewFileDialog, selectedFilePath, currentPath]);
 
-  const handleToggleExplorer = () => {
+  const handleToggleExplorer = useCallback(() => {
     setIsExplorerVisible(!isExplorerVisible);
-  };
+  }, [isExplorerVisible]);
 
-  const handleSelectStartPath = async () => {
+  const handleSelectStartPath = useCallback(async () => {
     try {
       if (!window.api?.filesystem) {
         console.error('API가 로드되지 않았습니다.');
@@ -557,9 +572,9 @@ function App() {
     } catch (err) {
       console.error('Error selecting start path:', err);
     }
-  };
+  }, [addOrSwitchTab]);
 
-  const handleOpenCurrentFolder = async () => {
+  const handleOpenCurrentFolder = useCallback(async () => {
     try {
       if (!currentPath) return;
       
@@ -572,22 +587,21 @@ function App() {
     } catch (err) {
       console.error('Error opening folder:', err);
     }
-  };
-
+  }, [currentPath]);
 
   // 선택된 파일 이름 추출
-  const getSelectedFileName = (): string | null => {
+  const getSelectedFileName = useCallback((): string | null => {
     if (!selectedFilePath) return null;
     const fileName = selectedFilePath.split(/[/\\]/).pop() || null;
     return fileName;
-  };
+  }, [selectedFilePath]);
 
   // 현재 폴더 이름만 추출 (예: d:~~~/app -> app)
-  const getCurrentFolderName = (): string => {
+  const getCurrentFolderName = useCallback((): string => {
     if (!currentPath) return '';
     const parts = currentPath.split(/[/\\]/).filter(part => part.length > 0);
     return parts.length > 0 ? parts[parts.length - 1] : currentPath;
-  };
+  }, [currentPath]);
 
   return (
     <div className="flex flex-col h-screen w-screen">

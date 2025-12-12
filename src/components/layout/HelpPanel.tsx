@@ -1,10 +1,11 @@
+import React from 'react';
 import { getHotkeys } from '../../config/hotkeys';
 
 interface HelpPanelProps {
   // 현재는 props가 없지만, 나중에 확장 가능성을 위해 유지
 }
 
-export default function HelpPanel(_props: HelpPanelProps) {
+function HelpPanel(_props: HelpPanelProps) {
   return (
     <div className="flex flex-col border-l border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900" style={{ width: '240px', minWidth: '240px' }}>
       <div className="px-2 py-2 border-b border-gray-200 dark:border-gray-700">
@@ -114,4 +115,6 @@ export default function HelpPanel(_props: HelpPanelProps) {
     </div>
   );
 }
+
+export default React.memo(HelpPanel);
 

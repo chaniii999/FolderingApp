@@ -4,6 +4,7 @@ import { isHotkey } from '../config/hotkeys';
 import { undoService } from '../services/undoService';
 import { isTextFile } from '../utils/fileUtils';
 import { toastService } from '../services/toastService';
+import { usePerformanceMeasure } from '../utils/usePerformanceMeasure';
 import ContextMenu from './ContextMenu';
 
 interface FileExplorerProps {
@@ -25,7 +26,9 @@ export interface FileExplorerRef {
 
 const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
   ({ currentPath, onPathChange, onFileSelect, selectedFilePath, onFileCreated, isDialogOpen = false, hideNonTextFiles = false, isEditing = false }, ref) => {
+  usePerformanceMeasure('FileExplorer');
   const [items, setItems] = useState<FileSystemItem[]>([]);
+  const itemsRef = useRef<FileSystemItem[]>([]); // useImperativeHandle에서 사용하기 위한 ref
   const [cursorIndex, setCursorIndex] = useState(0);
   const [loading, setLoading] = useState(false);
   const [hasParentDirectory, setHasParentDirectory] = useState(false);
@@ -62,6 +65,7 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
         : directoryItems;
       
       setItems(filteredItems);
+      itemsRef.current = filteredItems; // ref도 업데이트
       // ".." 항목이 있으면 -1로 초기화, 없으면 0으로 초기화
       setCursorIndex(hasParent ? -1 : 0);
     } catch (error) {
@@ -85,14 +89,16 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
       loadDirectory(currentPath);
     },
     startRenameForPath: (filePath: string) => {
-      const index = items.findIndex(item => item.path === filePath);
+      // itemsRef를 사용하여 dependency에서 items 제거
+      const currentItems = itemsRef.current;
+      const index = currentItems.findIndex(item => item.path === filePath);
       if (index !== -1) {
         setCursorIndex(index);
         setRenamingIndex(index);
-        setRenamingName(items[index].name);
+        setRenamingName(currentItems[index].name);
       }
     },
-  }), [loadDirectory, currentPath, items]);
+  }), [loadDirectory, currentPath]);
 
   useEffect(() => {
     // 다이얼로그가 열려있지 않고 파일이 선택되어 있지 않을 때만 자동 포커스

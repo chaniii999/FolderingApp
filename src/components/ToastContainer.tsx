@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import React, { useCallback } from 'react';
 import ToastComponent, { type Toast } from './Toast';
 
 interface ToastContainerProps {
@@ -6,7 +6,7 @@ interface ToastContainerProps {
   onClose: (id: string) => void;
 }
 
-export default function ToastContainer({ toasts, onClose }: ToastContainerProps) {
+function ToastContainer({ toasts, onClose }: ToastContainerProps) {
   if (toasts.length === 0) {
     return null;
   }
@@ -25,4 +25,6 @@ export default function ToastContainer({ toasts, onClose }: ToastContainerProps)
     </div>
   );
 }
+
+export default React.memo(ToastContainer);
 

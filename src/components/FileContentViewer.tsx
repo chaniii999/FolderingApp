@@ -6,6 +6,7 @@ import { isTextFile } from '../utils/fileUtils';
 import { undoService } from '../services/undoService';
 import { toastService } from '../services/toastService';
 import { autoSaveService } from '../services/autoSaveService';
+import { usePerformanceMeasure } from '../utils/usePerformanceMeasure';
 import RecoveryDialog from './RecoveryDialog';
 
 import type { TextEditorConfig } from '../services/textEditorConfigService';
@@ -36,6 +37,7 @@ interface FileContentViewerProps {
 }
 
 const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProps>(({ filePath, onSelectPreviousFile, onSelectNextFile, onDeselectFile, textEditorConfig, autoEdit = false, onEditModeEntered, onRenameRequest, onEditModeChange, onEditStateChange, onFileDeleted, isDialogOpen = false, onFocusExplorer }, ref) => {
+  usePerformanceMeasure('FileContentViewer');
   const config = textEditorConfig || { horizontalPadding: 80, fontSize: 14 };
   const [content, setContent] = useState<string>('');
   const [originalContent, setOriginalContent] = useState<string>('');
@@ -149,15 +151,31 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
     }
   }, [autoEdit, filePath, loading, error, isEditing, onEditModeEntered]);
 
-  // 편집 모드 변경 시 콜백 호출
+  // 편집 모드 변경 시 콜백 호출 (무한 루프 방지를 위해 useRef 사용)
+  const onEditStateChangeRef = useRef(onEditStateChange);
+  const onEditModeChangeRef = useRef(onEditModeChange);
+  const prevStateRef = useRef<{ isEditing: boolean; hasChanges: boolean }>({ isEditing: false, hasChanges: false });
+
+  // ref 업데이트 (함수가 변경될 때만)
   useEffect(() => {
-    if (onEditModeChange) {
-      onEditModeChange(isEditing);
+    onEditStateChangeRef.current = onEditStateChange;
+    onEditModeChangeRef.current = onEditModeChange;
+  }, [onEditStateChange, onEditModeChange]);
+
+  // 상태 변경 시에만 콜백 호출
+  useEffect(() => {
+    // 상태가 실제로 변경된 경우에만 콜백 호출
+    if (prevStateRef.current.isEditing !== isEditing || prevStateRef.current.hasChanges !== hasChanges) {
+      prevStateRef.current = { isEditing, hasChanges };
+      
+      if (onEditModeChangeRef.current) {
+        onEditModeChangeRef.current(isEditing);
+      }
+      if (onEditStateChangeRef.current) {
+        onEditStateChangeRef.current({ isEditing, hasChanges });
+      }
     }
-    if (onEditStateChange) {
-      onEditStateChange({ isEditing, hasChanges });
-    }
-  }, [isEditing, hasChanges, onEditModeChange, onEditStateChange]);
+  }, [isEditing, hasChanges]); // 함수를 dependency에서 제거하여 무한 루프 방지 // onEditModeChange, onEditStateChange를 dependency에서 제거
 
 
   // 편집 모드가 종료되고 삭제 대기 중이면 삭제 다이얼로그 표시

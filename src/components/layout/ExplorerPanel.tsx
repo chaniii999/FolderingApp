@@ -1,5 +1,7 @@
+import React from 'react';
 import FileExplorer, { type FileExplorerRef } from '../FileExplorer';
 import Resizer from '../Resizer';
+import { usePerformanceMeasure } from '../../utils/usePerformanceMeasure';
 
 interface ExplorerPanelProps {
   fileExplorerRef: React.RefObject<FileExplorerRef>;
@@ -19,7 +21,7 @@ interface ExplorerPanelProps {
   getCurrentFolderName: () => string;
 }
 
-export default function ExplorerPanel({
+function ExplorerPanel({
   fileExplorerRef,
   currentPath,
   explorerWidth,
@@ -36,6 +38,7 @@ export default function ExplorerPanel({
   onResize,
   getCurrentFolderName,
 }: ExplorerPanelProps) {
+  usePerformanceMeasure('ExplorerPanel');
   return (
     <>
       <div
@@ -88,4 +91,6 @@ export default function ExplorerPanel({
     </>
   );
 }
+
+export default React.memo(ExplorerPanel);
 

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info';
 
@@ -14,7 +14,7 @@ interface ToastProps {
   onClose: (id: string) => void;
 }
 
-export default function ToastComponent({ toast, onClose }: ToastProps) {
+function ToastComponent({ toast, onClose }: ToastProps) {
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
@@ -76,4 +76,6 @@ export default function ToastComponent({ toast, onClose }: ToastProps) {
     </div>
   );
 }
+
+export default React.memo(ToastComponent);
 

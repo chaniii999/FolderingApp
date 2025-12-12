@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import React, { useCallback } from 'react';
 import type { Tab } from '../types/tabs';
 
 interface TabBarProps {
@@ -8,7 +8,7 @@ interface TabBarProps {
   onTabClose: (tabId: string, e: React.MouseEvent) => void;
 }
 
-export default function TabBar({ tabs, activeTabId, onTabClick, onTabClose }: TabBarProps) {
+function TabBar({ tabs, activeTabId, onTabClick, onTabClose }: TabBarProps) {
   const handleTabClick = useCallback((tabId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     onTabClick(tabId);
@@ -86,4 +86,6 @@ export default function TabBar({ tabs, activeTabId, onTabClick, onTabClose }: Ta
     </div>
   );
 }
+
+export default React.memo(TabBar);
 
