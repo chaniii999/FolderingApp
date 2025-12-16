@@ -15,7 +15,7 @@
     "build:app:mac": "npm run build && npm run rebuild && electron-builder --mac --publish never",
     "build:app:dir": "npm run build && electron-builder --dir",
     "postinstall": "electron-builder install-app-deps || true",
-    "rebuild": "@electron/rebuild -f -w better-sqlite3",
+    "rebuild": "electron-rebuild -f -w better-sqlite3",
     "preview": "vite preview",
     "clean": "rimraf dist dist-electron release",
     "test": "vitest",
