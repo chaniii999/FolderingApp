@@ -305,11 +305,16 @@ npm run build:app
 # Windows용만 빌드
 npm run build:app:win
 
+# macOS용 빌드 (macOS 환경 필요)
+npm run build:app:mac
+
 # 디렉토리 형태로 빌드 (설치 파일 없이)
 npm run build:app:dir
 ```
 
 빌드된 파일은 `release` 폴더에 생성됩니다.
+
+**참고**: macOS 빌드는 macOS 환경에서만 가능합니다. 자세한 내용은 [macOS 빌드 가이드](./docs/macOS-빌드-가이드.md)를 참조하세요.
 
 ## 라이선스
 
