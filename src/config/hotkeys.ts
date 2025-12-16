@@ -16,7 +16,7 @@ export const defaultHotkeys: HotkeyConfig = {
   enter: 'z',
   goBack: 'x',
   edit: 'i',
-  save: 'Control+F5',
+  save: 'Control+S',
   cancel: 'Escape',
   toggleExplorer: 'b',
   selectPath: 'p',
@@ -39,7 +39,7 @@ export function resetHotkeys(): void {
 export function isHotkey(key: string, action: keyof HotkeyConfig, event?: KeyboardEvent): boolean {
   const hotkey = currentHotkeys[action];
   
-  // 조합 키 처리 (예: Control+F5)
+  // 조합 키 처리 (예: Control+S)
   if (hotkey.includes('+')) {
     const parts = hotkey.split('+').map(p => p.trim());
     const keyPart = parts[parts.length - 1].toLowerCase();

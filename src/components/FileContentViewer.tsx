@@ -416,8 +416,8 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
 
     if (isEditing) {
       // 편집 중일 때는 저장/취소 키만 처리하고 나머지는 textarea에서 처리
-      // Ctrl+F5 저장
-      if (e.ctrlKey && (e.key === 'F5' || e.key === 'f5')) {
+      // Ctrl+S 저장
+      if (isHotkey(e.key, 'save', e.nativeEvent)) {
         e.preventDefault();
         e.stopPropagation();
         handleSave();
@@ -745,7 +745,7 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
               }
               
               // 저장/취소 키는 먼저 처리
-              if (e.ctrlKey && (e.key === 'F5' || e.key === 'f5')) {
+              if (isHotkey(e.key, 'save', e.nativeEvent)) {
                 e.preventDefault();
                 e.stopPropagation();
                 handleSave();

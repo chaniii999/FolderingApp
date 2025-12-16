@@ -189,7 +189,7 @@ export function createGuideFile(dirPath: string): string | null {
 
 ### 2. 파일 편집하기
 - 파일을 선택한 후 **\`i\`** 키를 누르면 편집 모드가 시작됩니다
-- 내용을 수정한 후 **\`Ctrl+F5\`** 키로 저장할 수 있습니다
+- 내용을 수정한 후 **\`Ctrl+S\`** 키로 저장할 수 있습니다
 - **\`Esc\`** 키로 편집을 취소할 수 있습니다
 
 ### 3. 파일 검색하기
@@ -214,7 +214,7 @@ export function createGuideFile(dirPath: string): string | null {
 
 ### 파일 편집
 - **\`i\`**: 편집 모드 시작
-- **\`Ctrl+F5\`**: 저장
+- **\`Ctrl+S\`**: 저장
 - **\`Esc\`**: 편집 취소
 
 ### 파일 관리
