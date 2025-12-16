@@ -125,10 +125,21 @@
 3. 앱 아이콘을 `Applications` 폴더로 드래그하세요
 4. `Applications` 폴더에서 앱을 실행하세요
 
-**참고**: 
-- 처음 실행 시 macOS Gatekeeper 경고가 표시될 수 있습니다. 이는 코드 서명되지 않은 앱이기 때문입니다.
-- 경고를 해제하려면: 시스템 설정 → 개인 정보 보호 및 보안 → "확인 없이 열기" 클릭
-- 자세한 내용은 [macOS 빌드 가이드](./docs/macOS-빌드-가이드.md)를 참조하세요.
+**⚠️ 중요 - "damaged and can't be opened" 경고 해결**:
+
+Chrome 등에서 다운로드한 DMG 파일을 열 때 "damaged and can't be opened" 경고가 나타날 수 있습니다. 이는 macOS Gatekeeper의 보안 기능입니다.
+
+**빠른 해결 방법** (터미널에서 실행):
+```bash
+# DMG 파일의 quarantine 속성 제거
+xattr -d com.apple.quarantine ~/Downloads/Foldering\ App-1.2.0-arm64.dmg
+```
+
+**다른 해결 방법**:
+- 시스템 설정 → 개인 정보 보호 및 보안 → "확인 없이 열기" 클릭
+- 또는 Applications 폴더에서 앱을 우클릭하고 "열기" 선택
+
+
 
 ### 개발자용 (소스 코드에서 빌드)
 
