@@ -348,7 +348,13 @@ app.whenReady().then(async () => {
     console.log('[Main] No start path found, showing dialog...');
     const selectedPath = await selectStartPath(true); // 처음 실행이므로 true 전달
     if (!selectedPath) {
-      console.log('[Main] No path selected, using home directory');
+      // 사용자가 취소한 경우 홈 디렉토리를 기본값으로 저장
+      // 이렇게 하면 다음에 다시 대화상자가 표시되지 않음
+      console.log('[Main] No path selected, using home directory as default');
+      const homePath = getStartPathOrHome();
+      const { saveStartPath } = await import('./services/startPathService');
+      saveStartPath(homePath);
+      console.log('[Main] Home directory saved as start path:', homePath);
     } else {
       console.log('[Main] Start path selected:', selectedPath);
       // 처음 시작 경로 설정 시 가이드.md 생성
