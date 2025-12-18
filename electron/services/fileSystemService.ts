@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { app } from 'electron';
-import { getStartPathOrHome } from './startPathService';
+import { getStartPathOrHome, loadStartPath } from './startPathService';
 
 export interface FileSystemItem {
   name: string;
@@ -96,6 +96,54 @@ export function getParentDirectory(dirPath: string): string | null {
     
     // 루트 디렉토리인 경우 null 반환
     if (parent === dirPath) {
+      return null;
+    }
+    
+    // SelectPath로 지정한 루트 디렉토리인 경우 null 반환
+    const rootPath = loadStartPath();
+    if (rootPath) {
+      // 절대 경로로 변환하여 비교 (대소문자 무시)
+      const resolvedDirPath = path.resolve(dirPath);
+      const resolvedRootPath = path.resolve(rootPath);
+      const resolvedParent = path.resolve(parent);
+      
+      // Windows에서는 대소문자를 구분하지 않으므로 소문자로 변환하여 비교
+      const isWindows = process.platform === 'win32';
+      const comparePath = (p1: string, p2: string): boolean => {
+        if (isWindows) {
+          return p1.toLowerCase() === p2.toLowerCase();
+        }
+        return p1 === p2;
+      };
+      
+      const startsWithPath = (p1: string, p2: string): boolean => {
+        if (isWindows) {
+          return p1.toLowerCase().startsWith(p2.toLowerCase() + path.sep);
+        }
+        return p1.startsWith(p2 + path.sep);
+      };
+      
+      // 현재 경로가 루트 경로와 같으면 null 반환 (상위 디렉토리로 이동 불가)
+      if (comparePath(resolvedDirPath, resolvedRootPath)) {
+        return null;
+      }
+      
+      // 루트 경로 내부에 있는지 확인
+      if (startsWithPath(resolvedDirPath, resolvedRootPath) || comparePath(resolvedDirPath, resolvedRootPath)) {
+        // 루트 경로 내부이므로 부모 디렉토리 확인
+        // 부모가 루트 경로와 같으면 null 반환 (상위 디렉토리로 이동 불가)
+        if (comparePath(resolvedParent, resolvedRootPath)) {
+          return null;
+        }
+        // 부모가 루트 경로 내부에 있으면 부모 반환
+        if (startsWithPath(resolvedParent, resolvedRootPath) || comparePath(resolvedParent, resolvedRootPath)) {
+          return parent;
+        }
+        // 부모가 루트 경로 밖이면 null 반환
+        return null;
+      }
+      
+      // 루트 경로 밖이면 null 반환 (루트 경로로 제한)
       return null;
     }
     

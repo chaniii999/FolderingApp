@@ -24,60 +24,163 @@ export interface FileExplorerRef {
   startRenameForPath: (filePath: string) => void;
 }
 
+interface TreeNode extends FileSystemItem {
+  children?: TreeNode[];
+  isExpanded?: boolean;
+  isLoading?: boolean;
+}
+
 const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
   ({ currentPath, onPathChange, onFileSelect, selectedFilePath, onFileCreated, isDialogOpen = false, hideNonTextFiles = false, isEditing = false }, ref) => {
   usePerformanceMeasure('FileExplorer');
-  const [items, setItems] = useState<FileSystemItem[]>([]);
-  const itemsRef = useRef<FileSystemItem[]>([]); // useImperativeHandle에서 사용하기 위한 ref
-  const [cursorIndex, setCursorIndex] = useState(0);
+  const [treeData, setTreeData] = useState<TreeNode[]>([]);
+  const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
+  const [loadedPaths, setLoadedPaths] = useState<Set<string>>(new Set());
+  const [cursorPath, setCursorPath] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [hasParentDirectory, setHasParentDirectory] = useState(false);
-  const [renamingIndex, setRenamingIndex] = useState<number | null>(null);
+  const [renamingPath, setRenamingPath] = useState<string | null>(null);
   const [renamingName, setRenamingName] = useState<string>('');
-  const [showDeleteDialog, setShowDeleteDialog] = useState<{ item: FileSystemItem; index: number } | null>(null);
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; item: FileSystemItem | null; index: number | null; isBlankSpace?: boolean } | null>(null);
+  const [showDeleteDialog, setShowDeleteDialog] = useState<{ item: FileSystemItem; path: string } | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; item: FileSystemItem | null; path: string | null; isBlankSpace?: boolean } | null>(null);
   const [clipboard, setClipboard] = useState<{ path: string; isDirectory: boolean; isCut: boolean } | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const itemRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const renameInputRef = useRef<HTMLInputElement>(null);
   const deleteDialogRef = useRef<HTMLDivElement>(null);
 
-  const loadDirectory = useCallback(async (path: string) => {
+  // 루트 경로 가져오기 (SelectPath로 지정한 경로)
+  const getRootPath = useCallback(async (): Promise<string | null> => {
     try {
-      setLoading(true);
-      
+      if (!window.api?.filesystem) return null;
+      // getCurrentDirectory는 SelectPath로 지정한 경로를 반환
+      const rootPath = await window.api.filesystem.getCurrentDirectory();
+      return rootPath || currentPath;
+    } catch {
+      return currentPath;
+    }
+  }, [currentPath]);
+
+  // 디렉토리 로드
+  const loadDirectory = useCallback(async (dirPath: string): Promise<FileSystemItem[]> => {
+    try {
       if (!window.api?.filesystem) {
         console.error('API가 로드되지 않았습니다.');
-        return;
+        return [];
       }
       
-      // 부모 디렉토리 존재 여부 확인
-      const parentPath = await window.api.filesystem.getParentDirectory(path);
-      const hasParent = parentPath !== null;
-      setHasParentDirectory(hasParent);
-      
-      const directoryItems = await window.api.filesystem.listDirectory(path);
+      const directoryItems = await window.api.filesystem.listDirectory(dirPath);
       
       // 텍스트 파일이 아닌 파일 필터링 (옵션이 켜져있을 때)
       const filteredItems = hideNonTextFiles
         ? directoryItems.filter(item => item.isDirectory || isTextFile(item.path))
         : directoryItems;
       
-      setItems(filteredItems);
-      itemsRef.current = filteredItems; // ref도 업데이트
-      // ".." 항목이 있으면 -1로 초기화, 없으면 0으로 초기화
-      setCursorIndex(hasParent ? -1 : 0);
+      return filteredItems;
     } catch (error) {
       console.error('Error loading directory:', error);
-    } finally {
-      setLoading(false);
+      return [];
     }
   }, [hideNonTextFiles]);
 
+  // 트리 데이터 초기화
+  const initializeTree = useCallback(async () => {
+    try {
+      setLoading(true);
+      const rootPath = await getRootPath();
+      if (!rootPath) return;
+
+      const items = await loadDirectory(rootPath);
+      const rootNodes: TreeNode[] = items.map(item => ({
+        ...item,
+        isExpanded: false,
+        isLoading: false,
+      }));
+
+      setTreeData(rootNodes);
+      setLoadedPaths(new Set([rootPath]));
+    } catch (error) {
+      console.error('Error initializing tree:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [getRootPath, loadDirectory]);
+
   useEffect(() => {
-    loadDirectory(currentPath);
-  }, [currentPath, loadDirectory]);
+    initializeTree();
+  }, [initializeTree]);
+
+  // 특정 경로의 하위 항목 로드
+  const loadChildren = useCallback(async (parentPath: string): Promise<TreeNode[]> => {
+    const items = await loadDirectory(parentPath);
+    return items.map(item => ({
+      ...item,
+      isExpanded: false,
+      isLoading: false,
+    }));
+  }, [loadDirectory]);
+
+  // 트리에서 노드 찾기
+  const findNodeInTree = useCallback((nodes: TreeNode[], targetPath: string): TreeNode | null => {
+    for (const node of nodes) {
+      if (node.path === targetPath) {
+        return node;
+      }
+      if (node.children) {
+        const found = findNodeInTree(node.children, targetPath);
+        if (found) return found;
+      }
+    }
+    return null;
+  }, []);
+
+  // 트리 업데이트 (재귀)
+  const updateTreeNode = useCallback((nodes: TreeNode[], targetPath: string, updater: (node: TreeNode) => TreeNode): TreeNode[] => {
+    return nodes.map(node => {
+      if (node.path === targetPath) {
+        return updater(node);
+      }
+      if (node.children) {
+        return {
+          ...node,
+          children: updateTreeNode(node.children, targetPath, updater),
+        };
+      }
+      return node;
+    });
+  }, []);
+
+  // 폴더 확장/축소
+  const toggleExpand = useCallback(async (nodePath: string) => {
+    const isExpanded = expandedPaths.has(nodePath);
+    
+    if (isExpanded) {
+      // 축소
+      setExpandedPaths(prev => {
+        const next = new Set(prev);
+        next.delete(nodePath);
+        return next;
+      });
+    } else {
+      // 확장
+      setExpandedPaths(prev => new Set(prev).add(nodePath));
+      
+      // 하위 항목이 아직 로드되지 않았으면 로드
+      if (!loadedPaths.has(nodePath)) {
+        setTreeData(prev => updateTreeNode(prev, nodePath, node => ({ ...node, isLoading: true })));
+        
+        const children = await loadChildren(nodePath);
+        
+        setTreeData(prev => updateTreeNode(prev, nodePath, node => ({
+          ...node,
+          children,
+          isLoading: false,
+        })));
+        
+        setLoadedPaths(prev => new Set(prev).add(nodePath));
+      }
+    }
+  }, [expandedPaths, loadedPaths, loadChildren, updateTreeNode]);
 
   useImperativeHandle(ref, () => ({
     focus: () => {
@@ -86,196 +189,201 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
       }
     },
     refresh: () => {
-      loadDirectory(currentPath);
+      initializeTree();
     },
     startRenameForPath: (filePath: string) => {
-      // itemsRef를 사용하여 dependency에서 items 제거
-      const currentItems = itemsRef.current;
-      const index = currentItems.findIndex(item => item.path === filePath);
-      if (index !== -1) {
-        setCursorIndex(index);
-        setRenamingIndex(index);
-        setRenamingName(currentItems[index].name);
+      setRenamingPath(filePath);
+      const node = findNodeInTree(treeData, filePath);
+      if (node) {
+        setRenamingName(node.name);
       }
     },
-  }), [loadDirectory, currentPath]);
+  }), [initializeTree, findNodeInTree, treeData]);
 
-  useEffect(() => {
-    // 다이얼로그가 열려있지 않고 파일이 선택되어 있지 않을 때만 자동 포커스
-    // 파일이 선택되어 있으면 포커스를 이동시키지 않음 (뒤로가기 버튼을 누를 때만 포커스 이동)
-    if (!loading && listRef.current && !isDialogOpen && !selectedFilePath) {
-      listRef.current.focus();
-    }
-  }, [loading, isDialogOpen, selectedFilePath]);
+  // 트리 노드 렌더링 (재귀)
+  const renderTreeNode = useCallback((node: TreeNode, depth: number = 0, flatIndex: { current: number } = { current: 0 }): JSX.Element | null => {
+    const isExpanded = expandedPaths.has(node.path);
+    const isSelected = cursorPath === node.path;
+    const isRenaming = renamingPath === node.path;
+    const index = flatIndex.current++;
 
-  useEffect(() => {
-    if (!scrollContainerRef.current) return;
-    
-    // ".." 항목은 별도 처리 (ref가 없음)
-    if (cursorIndex === -1) {
-      // ".." 항목으로 스크롤 (첫 번째 요소)
-      const firstElement = listRef.current?.querySelector('[data-parent-item]');
-      if (firstElement) {
-        const container = scrollContainerRef.current;
-        const containerRect = container.getBoundingClientRect();
-        const elementRect = firstElement.getBoundingClientRect();
-        
-        // 요소가 보이지 않으면 즉시 스크롤
-        if (elementRect.top < containerRect.top || elementRect.bottom > containerRect.bottom) {
-          firstElement.scrollIntoView({
-            behavior: 'auto',
-            block: 'nearest',
-          });
-        }
-      }
-      return;
-    }
-    
-    // 일반 항목 스크롤
-    const targetElement = itemRefs.current[cursorIndex];
-    if (targetElement) {
-      const container = scrollContainerRef.current;
-      const containerRect = container.getBoundingClientRect();
-      const elementRect = targetElement.getBoundingClientRect();
+    const handleNodeClick = async () => {
+      if (renamingPath) return;
+      setCursorPath(node.path);
       
-      // 요소가 보이지 않으면 즉시 스크롤
-      if (elementRect.top < containerRect.top || elementRect.bottom > containerRect.bottom) {
-        targetElement.scrollIntoView({
-          behavior: 'auto',
-          block: 'nearest',
-        });
+      if (node.isDirectory) {
+        await toggleExpand(node.path);
+      } else if (onFileSelect) {
+        onFileSelect(node.path);
+      }
+    };
+
+    const handleContextMenu = (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setContextMenu({ x: e.clientX, y: e.clientY, item: node, path: node.path, isBlankSpace: false });
+    };
+
+    return (
+      <div key={node.path}>
+        <div
+          ref={(el) => {
+            if (el) {
+              itemRefs.current.set(node.path, el);
+            } else {
+              itemRefs.current.delete(node.path);
+            }
+          }}
+          className={`flex items-center gap-2 px-2 py-1 cursor-pointer ${
+            isSelected
+              ? 'bg-blue-500 text-white'
+              : 'hover:bg-gray-100 dark:hover:bg-gray-700'
+          }`}
+          style={{ paddingLeft: `${8 + depth * 16}px` }}
+          onClick={handleNodeClick}
+          onContextMenu={handleContextMenu}
+        >
+          <div className="w-4 flex items-center justify-center">
+            {isSelected && <span className="text-sm">▶</span>}
+          </div>
+          {node.isDirectory && (
+            <div className="w-4 flex items-center justify-center">
+              {node.isLoading ? (
+                <span className="text-xs">⏳</span>
+              ) : isExpanded ? (
+                <span className="text-xs">▼</span>
+              ) : (
+                <span className="text-xs">▶</span>
+              )}
+            </div>
+          )}
+          {!node.isDirectory && <div className="w-4" />}
+          <div className="flex-1 flex items-center gap-2">
+            <span className="text-sm">{node.isDirectory ? '📁' : '📄'}</span>
+            {isRenaming ? (
+              <input
+                ref={renamingPath === node.path ? renameInputRef : null}
+                type="text"
+                value={renamingName}
+                onChange={(e) => setRenamingName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleRenameConfirm();
+                  } else if (e.key === 'Escape' || e.key === 'Esc') {
+                    e.preventDefault();
+                    handleRenameCancel();
+                  }
+                  e.stopPropagation();
+                }}
+                onBlur={handleRenameConfirm}
+                className="flex-1 px-1 border border-blue-500 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm"
+                onClick={(e) => e.stopPropagation()}
+              />
+            ) : (
+              <span className="truncate text-sm">{node.name}</span>
+            )}
+          </div>
+        </div>
+        {node.isDirectory && isExpanded && node.children && (
+          <div>
+            {node.children.map(child => renderTreeNode(child, depth + 1, flatIndex))}
+          </div>
+        )}
+      </div>
+    );
+  }, [expandedPaths, cursorPath, renamingPath, renamingName, toggleExpand, onFileSelect]);
+
+  // 평면화된 노드 리스트 생성 (키보드 네비게이션용)
+  const flattenTree = useCallback((nodes: TreeNode[], result: TreeNode[] = []): TreeNode[] => {
+    for (const node of nodes) {
+      result.push(node);
+      if (node.isDirectory && expandedPaths.has(node.path) && node.children) {
+        flattenTree(node.children, result);
       }
     }
-  }, [cursorIndex]);
-
-  // selectedFilePath가 변경되면 해당 파일의 인덱스를 찾아 cursorIndex 업데이트
-  useEffect(() => {
-    if (selectedFilePath && items.length > 0) {
-      const fileIndex = items.findIndex(item => item.path === selectedFilePath);
-      if (fileIndex !== -1) {
-        // cursorIndex는 items 배열의 실제 인덱스 사용 (0부터 시작)
-        setCursorIndex(fileIndex);
-      }
-    }
-  }, [selectedFilePath, items]);
-
-  const handleBack = async () => {
-    if (!window.api?.filesystem) {
-      console.error('API가 로드되지 않았습니다.');
-      return;
-    }
-    
-    const parentPath = await window.api.filesystem.getParentDirectory(currentPath);
-    if (parentPath) {
-      onPathChange(parentPath);
-    }
-  };
+    return result;
+  }, [expandedPaths]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (loading) return;
     
-    // 다이얼로그가 열려있거나 텍스트 편집 중이거나 이름 변경 중이면 핫키 무시 (기본 탐색 키는 제외)
-    if (isDialogOpen || isEditing || renamingIndex !== null) {
-      // 이름 변경 중일 때는 Enter, Esc만 허용
-      if (renamingIndex !== null) {
+    if (isDialogOpen || isEditing || renamingPath) {
+      if (renamingPath) {
         if (e.key !== 'Enter' && e.key !== 'Escape' && e.key !== 'Esc') {
           return;
         }
       } else {
-        // 다이얼로그가 열려있거나 편집 중일 때는 모든 핫키 무시
         return;
       }
     }
     
-    // 파일이 선택되어 있으면 화살표 키는 FileContentViewer에서 처리하도록 함
-    if (selectedFilePath && (isHotkey(e.key, 'moveUp') || isHotkey(e.key, 'moveDown') || e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
-      return;
-    }
-    
-    // 삭제 다이얼로그가 열려있으면 키 이벤트 무시
     if (showDeleteDialog) {
       e.preventDefault();
       e.stopPropagation();
       return;
     }
 
+    const flatNodes = flattenTree(treeData);
+    const currentIndex = cursorPath ? flatNodes.findIndex(n => n.path === cursorPath) : -1;
+
     if (isHotkey(e.key, 'moveUp')) {
       e.preventDefault();
-      // ".." 항목이 있으면 -1부터, 없으면 0부터 시작
-      const minIndex = hasParentDirectory ? -1 : 0;
-      setCursorIndex((prev) => (prev > minIndex ? prev - 1 : prev));
+      if (currentIndex > 0) {
+        setCursorPath(flatNodes[currentIndex - 1].path);
+      }
     } else if (isHotkey(e.key, 'moveDown')) {
       e.preventDefault();
-      // 최대 인덱스: items.length - 1 (hasParentDirectory와 관계없이)
-      const maxIndex = items.length - 1;
-      setCursorIndex((prev) => {
-        // ".." 항목이 있고 현재가 -1이면 0으로 이동
-        if (hasParentDirectory && prev === -1) {
-          return 0;
-        }
-        // 그 외에는 다음 인덱스로 이동
-        return prev < maxIndex ? prev + 1 : prev;
-      });
+      if (currentIndex < flatNodes.length - 1) {
+        setCursorPath(flatNodes[currentIndex + 1].path);
+      }
     } else if (isHotkey(e.key, 'enter') || (e.key === 'Enter' && !e.shiftKey)) {
       e.preventDefault();
-      if (renamingIndex !== null) {
+      if (renamingPath) {
         handleRenameConfirm();
-      } else {
-        handleEnter();
+      } else if (cursorPath) {
+        const node = flatNodes.find(n => n.path === cursorPath);
+        if (node) {
+          if (node.isDirectory) {
+            toggleExpand(node.path);
+          } else if (onFileSelect) {
+            onFileSelect(node.path);
+          }
+        }
       }
     } else if (isHotkey(e.key, 'goBack')) {
       e.preventDefault();
-      if (renamingIndex !== null) {
+      if (renamingPath) {
         handleRenameCancel();
-      } else {
-        handleBack();
+      } else if (cursorPath) {
+        const node = flatNodes.find(n => n.path === cursorPath);
+        if (node?.isDirectory && expandedPaths.has(node.path)) {
+          toggleExpand(node.path);
+        }
       }
     } else if (e.key === 'e' || e.key === 'E') {
       e.preventDefault();
-      handleStartRename();
+      if (cursorPath) {
+        const node = flatNodes.find(n => n.path === cursorPath);
+        if (node) {
+          setRenamingPath(node.path);
+          setRenamingName(node.name);
+        }
+      }
     } else if (e.key === 'Delete' || e.key === 'Del') {
       e.preventDefault();
-      handleDelete();
-    }
-  };
-
-  const handleEnter = async () => {
-    // ".." 항목 처리 (cursorIndex가 -1이면 ".." 항목)
-    if (hasParentDirectory && cursorIndex === -1) {
-      handleBack();
-      return;
-    }
-    
-    // 다른 항목 처리
-    if (items.length === 0 || cursorIndex < 0 || cursorIndex >= items.length) return;
-    
-    if (!window.api?.filesystem) {
-      console.error('API가 로드되지 않았습니다.');
-      return;
-    }
-
-    const selectedItem = items[cursorIndex];
-    
-    if (selectedItem.isDirectory) {
-      const newPath = await window.api.filesystem.changeDirectory(currentPath, selectedItem.name);
-      if (newPath) {
-        onPathChange(newPath);
+      if (cursorPath) {
+        const node = flatNodes.find(n => n.path === cursorPath);
+        if (node) {
+          setShowDeleteDialog({ item: node, path: node.path });
+        }
       }
-    } else if (onFileSelect) {
-      onFileSelect(selectedItem.path);
     }
-  };
-
-  const handleStartRename = () => {
-    if (cursorIndex < 0 || cursorIndex >= items.length) return;
-    const item = items[cursorIndex];
-    setRenamingIndex(cursorIndex);
-    setRenamingName(item.name);
   };
 
   const handleRenameConfirm = async () => {
-    if (renamingIndex === null || !renamingName.trim()) {
-      setRenamingIndex(null);
+    if (!renamingPath || !renamingName.trim()) {
+      setRenamingPath(null);
       setRenamingName('');
       return;
     }
@@ -285,22 +393,29 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
         throw new Error('API가 로드되지 않았습니다.');
       }
 
-      const item = items[renamingIndex];
-      const oldName = item.name;
-      const oldPath = item.path;
-      await window.api.filesystem.renameFile(item.path, renamingName.trim());
+      const node = findNodeInTree(treeData, renamingPath);
+      if (!node) return;
+
+      const oldName = node.name;
+      const oldPath = node.path;
+      await window.api.filesystem.renameFile(node.path, renamingName.trim());
       
-      // 작업 히스토리에 추가
       undoService.addAction({
         type: 'rename',
-        path: item.path.replace(oldName, renamingName.trim()),
+        path: node.path.replace(oldName, renamingName.trim()),
         oldPath: oldPath,
         newName: renamingName.trim(),
-        isDirectory: item.isDirectory,
+        isDirectory: node.isDirectory,
       });
       
-      loadDirectory(currentPath);
-      setRenamingIndex(null);
+      // 트리 업데이트
+      setTreeData(prev => updateTreeNode(prev, renamingPath, node => ({
+        ...node,
+        name: renamingName.trim(),
+        path: node.path.replace(oldName, renamingName.trim()),
+      })));
+      
+      setRenamingPath(null);
       setRenamingName('');
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : '이름 변경 중 오류가 발생했습니다.';
@@ -310,28 +425,9 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
   };
 
   const handleRenameCancel = () => {
-    setRenamingIndex(null);
+    setRenamingPath(null);
     setRenamingName('');
   };
-
-  const handleDelete = () => {
-    if (cursorIndex < 0 || cursorIndex >= items.length) return;
-    const item = items[cursorIndex];
-    setShowDeleteDialog({ item, index: cursorIndex });
-    // 다이얼로그가 열릴 때 포커스를 다이얼로그로 이동
-    setTimeout(() => {
-      if (deleteDialogRef.current) {
-        deleteDialogRef.current.focus();
-      }
-    }, 100);
-  };
-
-  useEffect(() => {
-    // 삭제 다이얼로그가 열릴 때 포커스 설정
-    if (showDeleteDialog && deleteDialogRef.current) {
-      deleteDialogRef.current.focus();
-    }
-  }, [showDeleteDialog]);
 
   const handleDeleteConfirm = async () => {
     if (!showDeleteDialog) return;
@@ -343,7 +439,6 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
 
       const { item } = showDeleteDialog;
       
-      // 삭제 전에 파일 내용 읽기 (되돌리기용)
       let content = '';
       if (!item.isDirectory && window.api?.filesystem?.readFile) {
         try {
@@ -354,7 +449,6 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
         }
       }
       
-      // 작업 히스토리에 추가
       undoService.addAction({
         type: 'delete',
         path: item.path,
@@ -370,12 +464,29 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
 
       setShowDeleteDialog(null);
       
-      // 삭제된 파일이 선택된 파일이면 선택 해제
       if (onFileSelect && selectedFilePath === item.path) {
         onFileSelect('');
       }
       
-      loadDirectory(currentPath);
+      // 트리에서 노드 제거
+      const removeNode = (nodes: TreeNode[], targetPath: string): TreeNode[] => {
+        return nodes.filter(node => {
+          if (node.path === targetPath) {
+            return false;
+          }
+          if (node.children) {
+            node.children = removeNode(node.children, targetPath);
+          }
+          return true;
+        });
+      };
+      
+      setTreeData(prev => removeNode(prev, item.path));
+      setExpandedPaths(prev => {
+        const next = new Set(prev);
+        next.delete(item.path);
+        return next;
+      });
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : '삭제 중 오류가 발생했습니다.';
       toastService.error(errorMessage);
@@ -384,54 +495,40 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
   };
 
   useEffect(() => {
-    if (renamingIndex !== null && renameInputRef.current) {
+    if (renamingPath && renameInputRef.current) {
       renameInputRef.current.focus();
       renameInputRef.current.select();
     }
-  }, [renamingIndex]);
+  }, [renamingPath]);
 
-  const handleItemClick = async (item: FileSystemItem, index: number) => {
-    if (renamingIndex !== null) return; // 이름 변경 중이면 클릭 무시
-    setCursorIndex(index);
-    
-    if (!window.api?.filesystem) {
-      console.error('API가 로드되지 않았습니다.');
-      return;
+  useEffect(() => {
+    if (selectedFilePath) {
+      setCursorPath(selectedFilePath);
     }
-    
-    if (item.isDirectory) {
-      const newPath = await window.api.filesystem.changeDirectory(currentPath, item.name);
-      if (newPath) {
-        onPathChange(newPath);
+  }, [selectedFilePath]);
+
+  useEffect(() => {
+    if (cursorPath && itemRefs.current.has(cursorPath)) {
+      const element = itemRefs.current.get(cursorPath);
+      if (element && scrollContainerRef.current) {
+        const container = scrollContainerRef.current;
+        const containerRect = container.getBoundingClientRect();
+        const elementRect = element.getBoundingClientRect();
+        
+        if (elementRect.top < containerRect.top || elementRect.bottom > containerRect.bottom) {
+          element.scrollIntoView({
+            behavior: 'auto',
+            block: 'nearest',
+          });
+        }
       }
-    } else if (onFileSelect) {
-      onFileSelect(item.path);
     }
-  };
-
-  const handleItemRef = (index: number) => (el: HTMLDivElement | null) => {
-    // ".." 항목은 -1 인덱스 사용
-    if (index === -1) {
-      // 별도 ref 배열에 저장하거나 무시
-      return;
-    }
-    itemRefs.current[index] = el;
-  };
-
-  const handleItemClickWrapper = (item: FileSystemItem, index: number) => () => {
-    handleItemClick(item, index);
-  };
-
-  const handleContextMenu = (e: React.MouseEvent, item: FileSystemItem, index: number) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setContextMenu({ x: e.clientX, y: e.clientY, item, index, isBlankSpace: false });
-  };
+  }, [cursorPath]);
 
   const handleBlankSpaceContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setContextMenu({ x: e.clientX, y: e.clientY, item: null, index: null, isBlankSpace: true });
+    setContextMenu({ x: e.clientX, y: e.clientY, item: null, path: null, isBlankSpace: true });
   };
 
   const handleContextMenuClose = () => {
@@ -440,7 +537,6 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
 
   const handleCut = async () => {
     if (!contextMenu || !contextMenu.item) return;
-
     const { item } = contextMenu;
     setClipboard({ path: item.path, isDirectory: item.isDirectory, isCut: true });
     setContextMenu(null);
@@ -448,9 +544,7 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
 
   const handleCopy = async () => {
     if (!contextMenu || !contextMenu.item) return;
-
     const { item } = contextMenu;
-    // 파일만 복사 가능
     if (!item.isDirectory) {
       setClipboard({ path: item.path, isDirectory: false, isCut: false });
     }
@@ -462,20 +556,16 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
 
     try {
       const sourcePath = clipboard.path;
-      // 경로에서 파일명 추출
       const separator = sourcePath.includes('\\') ? '\\' : '/';
       const sourceName = sourcePath.split(separator).pop() || '';
-      // 대상 경로 생성
       const pathSeparator = currentPath.includes('\\') ? '\\' : '/';
       const destPath = `${currentPath}${pathSeparator}${sourceName}`;
 
-      // 같은 위치에 붙여넣기 시도 시 에러 처리
       if (sourcePath === destPath) {
         toastService.warning('같은 위치에는 붙여넣을 수 없습니다.');
         return;
       }
 
-      // 대상 위치에 같은 이름의 파일이 있는지 확인
       const items = await window.api.filesystem.listDirectory(currentPath);
       const exists = items.some(item => item.name === sourceName);
       
@@ -485,10 +575,7 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
       }
 
       if (clipboard.isCut) {
-        // 잘라내기: 이동
         await window.api.filesystem.moveFile(sourcePath, destPath);
-        
-        // 작업 히스토리에 추가
         undoService.addAction({
           type: 'move',
           path: destPath,
@@ -496,16 +583,12 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
           isDirectory: clipboard.isDirectory,
         });
 
-        // 잘라낸 파일이 선택된 파일이면 선택 해제
         if (onFileSelect && selectedFilePath === sourcePath) {
           onFileSelect('');
         }
       } else {
-        // 복사: 파일만 복사 가능
         if (!clipboard.isDirectory) {
           await window.api.filesystem.copyFile(sourcePath, destPath);
-          
-          // 작업 히스토리에 추가
           undoService.addAction({
             type: 'copy',
             path: destPath,
@@ -515,12 +598,11 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
         }
       }
 
-      // 잘라내기인 경우 클립보드 비우기
       if (clipboard.isCut) {
         setClipboard(null);
       }
 
-      loadDirectory(currentPath);
+      initializeTree();
       toastService.success(clipboard.isCut ? '이동됨' : '복사됨');
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : '붙여넣기 중 오류가 발생했습니다.';
@@ -530,15 +612,10 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
   };
 
   const handleContextMenuDelete = () => {
-    if (!contextMenu || !contextMenu.item || contextMenu.index === null) return;
-    const { item, index } = contextMenu;
-    setShowDeleteDialog({ item, index });
+    if (!contextMenu || !contextMenu.item || !contextMenu.path) return;
+    const { item, path } = contextMenu;
+    setShowDeleteDialog({ item, path });
     setContextMenu(null);
-    setTimeout(() => {
-      if (deleteDialogRef.current) {
-        deleteDialogRef.current.focus();
-      }
-    }, 100);
   };
 
   if (loading) {
@@ -548,10 +625,6 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
       </div>
     );
   }
-
-  const handleParentClick = () => {
-    handleBack();
-  };
 
   return (
     <div
@@ -566,79 +639,12 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
         className="flex flex-col gap-1 overflow-y-auto flex-1"
         onContextMenu={handleBlankSpaceContextMenu}
       >
-        {hasParentDirectory && (
-          <div
-            data-parent-item
-            className={`flex items-center gap-2 px-2 py-1 cursor-pointer ${
-              cursorIndex === -1
-                ? 'bg-blue-500 text-white'
-                : 'hover:bg-gray-100 dark:hover:bg-gray-700'
-            }`}
-            onClick={handleParentClick}
-          >
-            <div className="w-4 flex items-center justify-center">
-              {cursorIndex === -1 && <span className="text-sm">▶</span>}
-            </div>
-            <div className="flex-1 flex items-center gap-2">
-              <span>📁</span>
-              <span className="truncate">..</span>
-            </div>
-          </div>
-        )}
-        {items.length === 0 ? (
+        {treeData.length === 0 ? (
           <div className="flex items-center justify-center h-full text-gray-500 dark:text-gray-400">
             폴더가 비어있습니다
           </div>
         ) : (
-          items.map((item, index) => {
-            // cursorIndex는 실제 items 배열의 인덱스를 사용 (0부터 시작)
-            return (
-              <div
-                key={item.path}
-                ref={handleItemRef(index)}
-                className={`flex items-center gap-2 px-2 py-1 cursor-pointer ${
-                  cursorIndex === index
-                    ? 'bg-blue-500 text-white'
-                    : 'hover:bg-gray-100 dark:hover:bg-gray-700'
-                }`}
-                onClick={handleItemClickWrapper(item, index)}
-                onContextMenu={(e) => {
-                  e.stopPropagation();
-                  handleContextMenu(e, item, index);
-                }}
-              >
-                <div className="w-4 flex items-center justify-center">
-                  {cursorIndex === index && <span className="text-sm">▶</span>}
-                </div>
-                <div className="flex-1 flex items-center gap-2">
-                  <span>{item.isDirectory ? '📁' : '📄'}</span>
-                  {renamingIndex === index ? (
-                    <input
-                      ref={renameInputRef}
-                      type="text"
-                      value={renamingName}
-                      onChange={(e) => setRenamingName(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          handleRenameConfirm();
-                        } else if (e.key === 'Escape' || e.key === 'Esc') {
-                          e.preventDefault();
-                          handleRenameCancel();
-                        }
-                        e.stopPropagation();
-                      }}
-                      onBlur={handleRenameConfirm}
-                      className="flex-1 px-1 border border-blue-500 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
-                      onClick={(e) => e.stopPropagation()}
-                    />
-                  ) : (
-                    <span className="truncate">{item.name}</span>
-                  )}
-                </div>
-              </div>
-            );
-          })
+          treeData.map(node => renderTreeNode(node))
         )}
       </div>
       {contextMenu && (
@@ -657,9 +663,8 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
       )}
       {showDeleteDialog && (
         <div 
-            className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 dark:bg-opacity-70 z-50"
+          className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 dark:bg-opacity-70 z-50"
           onClick={(e) => {
-            // 다이얼로그 외부 클릭 시 이벤트 차단
             e.stopPropagation();
           }}
         >
@@ -667,7 +672,6 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
             ref={deleteDialogRef}
             className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4"
             onKeyDown={(e) => {
-              // 다이얼로그 외부의 키 이벤트 차단
               e.stopPropagation();
               
               if (e.key === 'Enter' && !e.shiftKey) {
@@ -708,4 +712,3 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
 FileExplorer.displayName = 'FileExplorer';
 
 export default FileExplorer;
-
