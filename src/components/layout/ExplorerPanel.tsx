@@ -15,6 +15,7 @@ interface ExplorerPanelProps {
   isEditing: boolean;
   onPathChange: (newPath: string) => void;
   onFileSelect: (filePath: string) => void;
+  onFileDeleted?: (filePath: string) => void;
   onNewFileClick: () => void;
   onToggleFullPath: () => void;
   onResize: (width: number) => void;
@@ -33,6 +34,7 @@ function ExplorerPanel({
   isEditing,
   onPathChange,
   onFileSelect,
+  onFileDeleted,
   onNewFileClick,
   onToggleFullPath,
   onResize,
@@ -76,6 +78,7 @@ function ExplorerPanel({
               onPathChange={onPathChange}
               onFileSelect={onFileSelect}
               selectedFilePath={selectedFilePath}
+              onFileDeleted={onFileDeleted}
               isDialogOpen={isDialogOpen}
               hideNonTextFiles={hideNonTextFiles}
               isEditing={isEditing}

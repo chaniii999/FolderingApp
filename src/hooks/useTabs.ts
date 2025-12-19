@@ -175,6 +175,15 @@ export function useTabs(
     setPendingTabClose(null);
   }, []);
 
+  // 파일 경로로 탭 닫기 (파일 삭제 시 사용)
+  const closeTabByFilePath = useCallback((filePath: string) => {
+    const tab = tabs.find(t => t.filePath === filePath);
+    if (tab) {
+      // 변경사항 확인 없이 바로 닫기
+      closeTabInternal(tab.id);
+    }
+  }, [tabs, closeTabInternal]);
+
   return {
     tabs,
     activeTabId,
@@ -186,6 +195,7 @@ export function useTabs(
     handleSaveAndClose,
     handleDiscardAndClose,
     handleCancelClose,
+    closeTabByFilePath,
   };
 }
 

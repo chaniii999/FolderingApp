@@ -13,6 +13,7 @@ interface FileExplorerProps {
   onFileSelect?: (filePath: string) => void;
   selectedFilePath?: string | null;
   onFileCreated?: (filePath: string, isDirectory: boolean) => void;
+  onFileDeleted?: (filePath: string) => void;
   isDialogOpen?: boolean;
   hideNonTextFiles?: boolean;
   isEditing?: boolean;
@@ -31,7 +32,7 @@ interface TreeNode extends FileSystemItem {
 }
 
 const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
-  ({ currentPath, onPathChange, onFileSelect, selectedFilePath, onFileCreated, isDialogOpen = false, hideNonTextFiles = false, isEditing = false }, ref) => {
+  ({ currentPath, onFileSelect, selectedFilePath, onFileDeleted, isDialogOpen = false, hideNonTextFiles = false, isEditing = false }, ref) => {
   usePerformanceMeasure('FileExplorer');
   const [treeData, setTreeData] = useState<TreeNode[]>([]);
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
@@ -205,7 +206,7 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
     const isExpanded = expandedPaths.has(node.path);
     const isSelected = cursorPath === node.path;
     const isRenaming = renamingPath === node.path;
-    const index = flatIndex.current++;
+    flatIndex.current++;
 
     const handleNodeClick = async () => {
       if (renamingPath) return;
@@ -464,8 +465,24 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
 
       setShowDeleteDialog(null);
       
-      if (onFileSelect && selectedFilePath === item.path) {
-        onFileSelect('');
+      // 파일 삭제 시 탭 제거 및 선택 해제
+      if (!item.isDirectory) {
+        if (onFileDeleted) {
+          onFileDeleted(item.path);
+        }
+        if (onFileSelect && selectedFilePath === item.path) {
+          onFileSelect('');
+        }
+        // 커서 경로도 해제
+        if (cursorPath === item.path) {
+          setCursorPath(null);
+        }
+        // 포커스 복귀
+        setTimeout(() => {
+          if (listRef.current) {
+            listRef.current.focus();
+          }
+        }, 100);
       }
       
       // 트리에서 노드 제거
@@ -576,12 +593,7 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
 
       if (clipboard.isCut) {
         await window.api.filesystem.moveFile(sourcePath, destPath);
-        undoService.addAction({
-          type: 'move',
-          path: destPath,
-          oldPath: sourcePath,
-          isDirectory: clipboard.isDirectory,
-        });
+        // move는 undoService에 저장하지 않음 (UndoActionType에 없음)
 
         if (onFileSelect && selectedFilePath === sourcePath) {
           onFileSelect('');
@@ -589,12 +601,7 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
       } else {
         if (!clipboard.isDirectory) {
           await window.api.filesystem.copyFile(sourcePath, destPath);
-          undoService.addAction({
-            type: 'copy',
-            path: destPath,
-            oldPath: sourcePath,
-            isDirectory: false,
-          });
+          // copy는 undoService에 저장하지 않음 (UndoActionType에 없음)
         }
       }
 

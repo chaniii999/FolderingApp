@@ -47,6 +47,7 @@ function App() {
     handleSaveAndClose,
     handleDiscardAndClose,
     handleCancelClose,
+    closeTabByFilePath,
   } = useTabs(
     setSelectedFilePath,
     setFileViewerState,
@@ -627,6 +628,16 @@ function App() {
             isEditing={fileViewerState.isEditing}
             onPathChange={handlePathChange}
             onFileSelect={handleFileSelect}
+            onFileDeleted={(filePath) => {
+              closeTabByFilePath(filePath);
+              setSelectedFilePath(null);
+              setFileViewerState({ isEditing: false, hasChanges: false });
+              setTimeout(() => {
+                if (fileExplorerRef.current) {
+                  fileExplorerRef.current.focus();
+                }
+              }, 100);
+            }}
             onNewFileClick={() => setShowNewFileDialog(true)}
             onToggleFullPath={() => setShowFullPath(!showFullPath)}
             onResize={setExplorerWidth}
