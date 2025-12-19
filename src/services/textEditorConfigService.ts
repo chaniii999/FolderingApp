@@ -1,3 +1,5 @@
+import { getPathSeparator } from '../utils/pathUtils';
+
 export interface TextEditorConfig {
   horizontalPadding: number;
   fontSize: number;
@@ -15,7 +17,7 @@ async function getConfigPath(): Promise<string> {
     if (window.api?.filesystem) {
       const currentDir = await window.api.filesystem.getCurrentDirectory();
       // Windows 경로 구분자 처리
-      const separator = currentDir.includes('\\') ? '\\' : '/';
+      const separator = getPathSeparator(currentDir);
       return `${currentDir}${separator}config${separator}textEditor.json`;
     }
   } catch (error) {

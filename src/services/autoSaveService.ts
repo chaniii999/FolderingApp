@@ -1,3 +1,5 @@
+import { getPathSeparator } from '../utils/pathUtils';
+
 /**
  * 자동 저장 서비스
  * 편집 중인 파일의 내용을 임시 파일로 저장하여 저장 실패 시 복구 가능하게 함
@@ -241,7 +243,7 @@ class AutoSaveService {
 const path = {
   sep: window.navigator.platform.includes('Win') ? '\\' : '/',
   basename: (filePath: string) => {
-    const separator = filePath.includes('\\') ? '\\' : '/';
+    const separator = getPathSeparator(filePath);
     return filePath.split(separator).pop() || filePath;
   },
 };

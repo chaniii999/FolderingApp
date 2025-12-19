@@ -6,6 +6,8 @@ import { toastService } from '../services/toastService';
 import { autoSaveService } from '../services/autoSaveService';
 import { usePerformanceMeasure } from '../utils/usePerformanceMeasure';
 import { useScrollAcceleration } from '../hooks/useScrollAcceleration';
+import { getFileName } from '../utils/pathUtils';
+import { handleError, getErrorMessage } from '../utils/errorHandler';
 import RecoveryDialog from './RecoveryDialog';
 import MarkdownViewer from './MarkdownViewer';
 
@@ -111,7 +113,7 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
         setContent(fileContent);
         setOriginalContent(fileContent);
       } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : '파일을 읽는 중 오류가 발생했습니다.';
+        const errorMessage = getErrorMessage(err, '파일을 읽는 중 오류가 발생했습니다.');
         setError(errorMessage);
         setContent('');
         setOriginalContent('');
@@ -469,10 +471,8 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
       
       toastService.success('저장됨');
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : '파일 저장 중 오류가 발생했습니다.';
+      const errorMessage = handleError(err, '파일 저장 중 오류가 발생했습니다.');
       setError(errorMessage);
-      toastService.error(errorMessage);
-      console.error('Error saving file:', err);
       
       // 저장 실패 시 복구 가능한지 확인
       if (filePath) {
@@ -570,9 +570,7 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
         onFileDeleted();
       }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : '삭제 중 오류가 발생했습니다.';
-      toastService.error(errorMessage);
-      console.error('Error deleting file:', err);
+      handleError(err, '삭제 중 오류가 발생했습니다.');
       setShowDeleteDialog(false);
     }
   };
@@ -807,7 +805,7 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
           >
             <h3 className="text-lg font-semibold mb-4 dark:text-gray-200">삭제 확인</h3>
             <p className="text-gray-600 dark:text-gray-300 mb-6">
-              {filePath?.split(/[/\\]/).pop() || filePath}을(를) 삭제하시겠습니까?
+              {filePath ? getFileName(filePath) : filePath}을(를) 삭제하시겠습니까?
             </p>
             <div className="flex gap-2 justify-end">
               <button
@@ -829,7 +827,7 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
       
       {showRecoveryDialog && recoveryContent !== null && filePath && (
         <RecoveryDialog
-          fileName={filePath.split(/[/\\]/).pop() || filePath}
+          fileName={getFileName(filePath)}
           onRecover={async () => {
             setContent(recoveryContent);
             setHasChanges(true);

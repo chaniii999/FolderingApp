@@ -5,6 +5,8 @@ import { undoService } from '../services/undoService';
 import { isTextFile } from '../utils/fileUtils';
 import { toastService } from '../services/toastService';
 import { usePerformanceMeasure } from '../utils/usePerformanceMeasure';
+import { getFileName, joinPath } from '../utils/pathUtils';
+import { handleError } from '../utils/errorHandler';
 import ContextMenu from './ContextMenu';
 
 interface FileExplorerProps {
@@ -419,9 +421,7 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
       setRenamingPath(null);
       setRenamingName('');
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : '이름 변경 중 오류가 발생했습니다.';
-      toastService.error(errorMessage);
-      console.error('Error renaming file:', err);
+      handleError(err, '이름 변경 중 오류가 발생했습니다.');
     }
   };
 
@@ -505,9 +505,7 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
         return next;
       });
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : '삭제 중 오류가 발생했습니다.';
-      toastService.error(errorMessage);
-      console.error('Error deleting file:', err);
+      handleError(err, '삭제 중 오류가 발생했습니다.');
     }
   };
 
@@ -573,10 +571,8 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
 
     try {
       const sourcePath = clipboard.path;
-      const separator = sourcePath.includes('\\') ? '\\' : '/';
-      const sourceName = sourcePath.split(separator).pop() || '';
-      const pathSeparator = currentPath.includes('\\') ? '\\' : '/';
-      const destPath = `${currentPath}${pathSeparator}${sourceName}`;
+      const sourceName = getFileName(sourcePath);
+      const destPath = joinPath(currentPath, sourceName);
 
       if (sourcePath === destPath) {
         toastService.warning('같은 위치에는 붙여넣을 수 없습니다.');
@@ -612,9 +608,7 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
       initializeTree();
       toastService.success(clipboard.isCut ? '이동됨' : '복사됨');
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : '붙여넣기 중 오류가 발생했습니다.';
-      toastService.error(errorMessage);
-      console.error('Error pasting file:', err);
+      handleError(err, '붙여넣기 중 오류가 발생했습니다.');
     }
   };
 

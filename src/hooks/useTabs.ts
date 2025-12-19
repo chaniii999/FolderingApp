@@ -34,7 +34,7 @@ export function useTabs(
 
   // 탭 추가 또는 전환
   const addOrSwitchTab = useCallback((filePath: string) => {
-    const fileName = filePath.split(/[/\\]/).pop() || filePath;
+    const fileName = getFileName(filePath);
     const tabId = filePath;
     
     setTabs(prevTabs => {
@@ -146,7 +146,7 @@ export function useTabs(
         closeTabInternal(tabId);
         setPendingTabClose(null);
       } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : '파일 저장 중 오류가 발생했습니다.';
+        handleError(err, '파일 저장 중 오류가 발생했습니다.');
         toastService.error(errorMessage);
         console.error('Error saving file:', err);
         // 저장 실패 시 다이얼로그는 유지

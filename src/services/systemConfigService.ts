@@ -1,4 +1,5 @@
 import { type Theme, defaultTheme } from './themeService';
+import { getPathSeparator } from '../utils/pathUtils';
 
 export interface SystemConfig {
   hideNonTextFiles: boolean;
@@ -19,7 +20,7 @@ async function getConfigPath(): Promise<string> {
     if (window.api?.filesystem) {
       const currentDir = await window.api.filesystem.getCurrentDirectory();
       // Windows 경로 구분자 처리
-      const separator = currentDir.includes('\\') ? '\\' : '/';
+      const separator = getPathSeparator(currentDir);
       return `${currentDir}${separator}config${separator}SystemConfig.json`;
     }
   } catch (error) {

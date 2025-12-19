@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
+import { joinPath } from '../utils/pathUtils';
+import { getErrorMessage } from '../utils/errorHandler';
 
 export type FileType = 'folder' | 'file' | 'markdown';
 
@@ -115,9 +117,7 @@ function NewFileDialog({ currentPath, onClose, onCreated }: NewFileDialogProps) 
       }
 
       const selectedType = fileTypes[selectedTypeIndex];
-      // Windows 경로 구분자 처리
-      const separator = currentPath.includes('\\') ? '\\' : '/';
-      const fullPath = `${currentPath}${separator}${fileName.trim()}${selectedType.extension}`;
+      const fullPath = joinPath(currentPath, `${fileName.trim()}${selectedType.extension}`);
 
       if (selectedType.type === 'folder') {
         await window.api.filesystem.createDirectory(fullPath);
@@ -130,7 +130,7 @@ function NewFileDialog({ currentPath, onClose, onCreated }: NewFileDialogProps) 
 
       onClose();
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : '생성 중 오류가 발생했습니다.';
+      const errorMessage = getErrorMessage(err, '생성 중 오류가 발생했습니다.');
       setError(errorMessage);
       console.error('Error creating file/directory:', err);
     }

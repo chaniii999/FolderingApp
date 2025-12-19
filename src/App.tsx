@@ -15,6 +15,8 @@ import { undoService } from './services/undoService';
 import { type Theme } from './services/themeService';
 import { useHotkeys } from './hooks/useHotkeys';
 import { createAppHotkeys } from './config/appHotkeys';
+import { getFileName, getLastPathPart } from './utils/pathUtils';
+import { handleError } from './utils/errorHandler';
 import { useTabs } from './hooks/useTabs';
 import { useSettings } from './hooks/useSettings';
 import { usePerformanceMeasure } from './utils/usePerformanceMeasure';
@@ -250,7 +252,7 @@ function App() {
         case 'rename':
           // 이름 변경을 되돌리려면 원래 이름으로 다시 변경
           if (action.oldPath) {
-            const oldName = action.oldPath.split(/[/\\]/).pop() || '';
+            const oldName = getFileName(action.oldPath);
             await window.api.filesystem.renameFile(action.path, oldName);
           }
           break;
@@ -261,9 +263,7 @@ function App() {
         fileExplorerRef.current.refresh();
       }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : '되돌리기 중 오류가 발생했습니다.';
-      toastService.error(errorMessage);
-      console.error('Error undoing action:', err);
+      handleError(err, '되돌리기 중 오류가 발생했습니다.');
     }
   }, []);
 
@@ -481,15 +481,13 @@ function App() {
   // 선택된 파일 이름 추출
   const getSelectedFileName = useCallback((): string | null => {
     if (!selectedFilePath) return null;
-    const fileName = selectedFilePath.split(/[/\\]/).pop() || null;
-    return fileName;
+    return getFileName(selectedFilePath);
   }, [selectedFilePath]);
 
   // 현재 폴더 이름만 추출 (예: d:~~~/app -> app)
   const getCurrentFolderName = useCallback((): string => {
     if (!currentPath) return '';
-    const parts = currentPath.split(/[/\\]/).filter(part => part.length > 0);
-    return parts.length > 0 ? parts[parts.length - 1] : currentPath;
+    return getLastPathPart(currentPath);
   }, [currentPath]);
 
   return (
