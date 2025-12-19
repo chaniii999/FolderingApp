@@ -13,7 +13,8 @@ import { toastService } from './services/toastService';
 import type { Toast } from './components/Toast';
 import { undoService } from './services/undoService';
 import { type Theme } from './services/themeService';
-import { useHotkeys, type HotkeyConfig } from './hooks/useHotkeys';
+import { useHotkeys } from './hooks/useHotkeys';
+import { createAppHotkeys } from './config/appHotkeys';
 import { useTabs } from './hooks/useTabs';
 import { useSettings } from './hooks/useSettings';
 import { usePerformanceMeasure } from './utils/usePerformanceMeasure';
@@ -137,7 +138,9 @@ function App() {
     });
 
     // 개발 모드에서 성능 리포트 출력 (5초 후)
-    if (import.meta.env.DEV) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const isDev = (import.meta as any).env?.DEV || process.env.NODE_ENV === 'development';
+    if (isDev) {
       const timeoutId = setTimeout(() => {
         console.log('📊 초기 렌더링 성능 리포트:');
         performanceMonitor.printReport();
@@ -265,133 +268,18 @@ function App() {
   }, []);
 
   // 핫키 설정 배열
-  const hotkeys = useMemo<HotkeyConfig[]>(() => [
-    // n 핫키: 새로 만들기
-    {
-      key: 'n',
-      handler: () => {
-        if (currentPath) {
-          setShowNewFileDialog(true);
-        }
-      },
-    },
-    // b 핫키: 디렉토리 탭 토글
-    {
-      key: 'b',
-      handler: () => {
-        setIsExplorerVisible((prev) => !prev);
-      },
-    },
-    // Ctrl+Z: 되돌리기 (입력 요소에서는 기본 동작 허용)
-    {
-      key: 'z',
-      ctrl: true,
-      handler: () => {
-        handleUndo();
-      },
-    },
-    // Ctrl+F: 검색 다이얼로그 열기
-    {
-      key: 'f',
-      ctrl: true,
-      handler: () => {
-        setShowSearchDialog(true);
-      },
-    },
-    // /: 검색 다이얼로그 열기
-    {
-      key: '/',
-      handler: () => {
-        setShowSearchDialog(true);
-      },
-    },
-    // Ctrl+Tab: 다음 탭으로 전환
-    {
-      key: 'Tab',
-      ctrl: true,
-      handler: () => {
-        if (tabs.length > 1) {
-          const currentIndex = tabs.findIndex(t => t.id === activeTabId);
-          const nextIndex = (currentIndex + 1) % tabs.length;
-          handleTabClick(tabs[nextIndex].id);
-        }
-      },
-    },
-    // Ctrl+PageUp: 이전 탭으로 전환
-    {
-      key: 'PageUp',
-      ctrl: true,
-      handler: () => {
-        if (tabs.length > 1) {
-          const currentIndex = tabs.findIndex(t => t.id === activeTabId);
-          const prevIndex = currentIndex > 0 ? currentIndex - 1 : tabs.length - 1;
-          handleTabClick(tabs[prevIndex].id);
-        }
-      },
-    },
-    // Ctrl+PageDown: 다음 탭으로 전환
-    {
-      key: 'PageDown',
-      ctrl: true,
-      handler: () => {
-        if (tabs.length > 1) {
-          const currentIndex = tabs.findIndex(t => t.id === activeTabId);
-          const nextIndex = (currentIndex + 1) % tabs.length;
-          handleTabClick(tabs[nextIndex].id);
-        }
-      },
-    },
-    // Ctrl++: 글씨 크기 증가
-    {
-      key: '+',
-      ctrl: true,
-      handler: () => {
-        const fontSizeOptions = [10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 36, 40];
-        const currentIndex = fontSizeOptions.indexOf(textEditorConfig.fontSize);
-        if (currentIndex < fontSizeOptions.length - 1) {
-          const newFontSize = fontSizeOptions[currentIndex + 1];
-          handleConfigChange({ fontSize: newFontSize });
-        }
-      },
-    },
-    {
-      key: '=',
-      ctrl: true,
-      handler: () => {
-        const fontSizeOptions = [10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 36, 40];
-        const currentIndex = fontSizeOptions.indexOf(textEditorConfig.fontSize);
-        if (currentIndex < fontSizeOptions.length - 1) {
-          const newFontSize = fontSizeOptions[currentIndex + 1];
-          handleConfigChange({ fontSize: newFontSize });
-        }
-      },
-    },
-    // Ctrl+-: 글씨 크기 감소
-    {
-      key: '-',
-      ctrl: true,
-      handler: () => {
-        const fontSizeOptions = [10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 36, 40];
-        const currentIndex = fontSizeOptions.indexOf(textEditorConfig.fontSize);
-        if (currentIndex > 0) {
-          const newFontSize = fontSizeOptions[currentIndex - 1];
-          handleConfigChange({ fontSize: newFontSize });
-        }
-      },
-    },
-    {
-      key: '_',
-      ctrl: true,
-      handler: () => {
-        const fontSizeOptions = [10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 36, 40];
-        const currentIndex = fontSizeOptions.indexOf(textEditorConfig.fontSize);
-        if (currentIndex > 0) {
-          const newFontSize = fontSizeOptions[currentIndex - 1];
-          handleConfigChange({ fontSize: newFontSize });
-        }
-      },
-    },
-  ], [currentPath, tabs, activeTabId, handleTabClick, handleUndo, textEditorConfig, handleConfigChange]);
+  const hotkeys = useMemo(() => createAppHotkeys({
+    currentPath,
+    tabs,
+    activeTabId,
+    textEditorConfig,
+    setShowNewFileDialog,
+    setIsExplorerVisible,
+    setShowSearchDialog,
+    handleUndo,
+    handleTabClick,
+    handleConfigChange,
+  }), [currentPath, tabs, activeTabId, textEditorConfig, handleTabClick, handleUndo, handleConfigChange]);
 
   // 핫키 훅 사용
   useHotkeys(hotkeys, shouldBlockHotkey, isInputElement);

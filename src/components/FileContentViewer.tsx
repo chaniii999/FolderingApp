@@ -1,13 +1,13 @@
 import { useState, useEffect, useRef, useCallback, useImperativeHandle, forwardRef } from 'react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
 import { getHotkeys, isHotkey } from '../config/hotkeys';
 import { isTextFile } from '../utils/fileUtils';
 import { undoService } from '../services/undoService';
 import { toastService } from '../services/toastService';
 import { autoSaveService } from '../services/autoSaveService';
 import { usePerformanceMeasure } from '../utils/usePerformanceMeasure';
+import { useScrollAcceleration } from '../hooks/useScrollAcceleration';
 import RecoveryDialog from './RecoveryDialog';
+import MarkdownViewer from './MarkdownViewer';
 
 import type { TextEditorConfig } from '../services/textEditorConfigService';
 
@@ -56,10 +56,10 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const scrollIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const scrollDirectionRef = useRef<'up' | 'down' | null>(null);
-  const scrollSpeedRef = useRef<number>(1);
-  const scrollStartTimeRef = useRef<number>(0);
+  
+  const { startScrolling, stopScrolling } = useScrollAcceleration({
+    scrollContainerRef,
+  });
 
   const isMarkdownFile = (path: string | null): boolean => {
     if (!path) return false;
@@ -190,30 +190,6 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
   // 편집 모드가 아니면 FileExplorer에 포커스가 유지되어야 함
   // useEffect는 제거 - 편집 모드일 때만 textarea에 포커스가 가도록 함
 
-  const stopScrolling = useCallback(() => {
-    if (scrollIntervalRef.current) {
-      clearInterval(scrollIntervalRef.current);
-      scrollIntervalRef.current = null;
-    }
-    scrollDirectionRef.current = null;
-    scrollSpeedRef.current = 1;
-  }, []);
-
-  const performScroll = useCallback((direction: 'up' | 'down', speed: number) => {
-    if (!scrollContainerRef.current) return;
-    
-    const baseScrollAmount = 30; // 기본 스크롤 양
-    const scrollAmount = baseScrollAmount * speed;
-    const currentScroll = scrollContainerRef.current.scrollTop;
-    const newScroll = direction === 'up' 
-      ? currentScroll - scrollAmount 
-      : currentScroll + scrollAmount;
-    
-    scrollContainerRef.current.scrollTo({
-      top: newScroll,
-      behavior: 'auto' // 가속도를 위해 smooth 대신 auto 사용
-    });
-  }, []);
 
   const handleDeleteClick = useCallback(() => {
     if (filePath) {
@@ -260,41 +236,7 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
         e.preventDefault();
         e.stopPropagation();
         const direction = e.key === 'ArrowUp' ? 'up' : 'down';
-        
-        // 이미 스크롤 중이면 방향만 업데이트
-        if (scrollIntervalRef.current && scrollDirectionRef.current === direction) {
-          return;
-        }
-        
-        // 기존 스크롤 중지
-        if (scrollIntervalRef.current) {
-          clearInterval(scrollIntervalRef.current);
-        }
-        
-        scrollDirectionRef.current = direction;
-        scrollStartTimeRef.current = Date.now();
-        scrollSpeedRef.current = 1;
-        
-        // 첫 스크롤 즉시 실행
-        performScroll(direction, 1);
-        
-        // 연속 스크롤 시작
-        scrollIntervalRef.current = setInterval(() => {
-          const elapsed = Date.now() - scrollStartTimeRef.current;
-          // 시간에 따라 속도 증가 (크롬 브라우저 스타일)
-          // 0-500ms: 속도 1, 500-1000ms: 속도 2, 1000-2000ms: 속도 3, 이후: 속도 4 (최대)
-          if (elapsed < 500) {
-            scrollSpeedRef.current = 1;
-          } else if (elapsed < 1000) {
-            scrollSpeedRef.current = 2;
-          } else if (elapsed < 2000) {
-            scrollSpeedRef.current = 3;
-          } else {
-            scrollSpeedRef.current = 4;
-          }
-          performScroll(direction, scrollSpeedRef.current);
-        }, 50); // 50ms마다 스크롤 (크롬과 유사)
-        
+        startScrolling(direction);
         return;
       }
 
@@ -344,7 +286,7 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
       window.removeEventListener('keydown', handleGlobalKeyDown, true);
       window.removeEventListener('keyup', handleGlobalKeyUp, true);
     };
-  }, [filePath, loading, error, isEditing, showSaveDialog, isDialogOpen, stopScrolling, performScroll, onSelectPreviousFile, onSelectNextFile, onDeselectFile, originalContent, onEditModeChange]);
+  }, [filePath, loading, error, isEditing, showSaveDialog, isDialogOpen, stopScrolling, startScrolling, onSelectPreviousFile, onSelectNextFile, onDeselectFile, handleDeleteClick]);
 
   useEffect(() => {
     if (content !== originalContent) {
@@ -449,41 +391,7 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
         if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
           e.preventDefault();
           const direction = e.key === 'ArrowUp' ? 'up' : 'down';
-          
-          // 이미 스크롤 중이면 방향만 업데이트
-          if (scrollIntervalRef.current && scrollDirectionRef.current === direction) {
-            return;
-          }
-          
-          // 기존 스크롤 중지
-          if (scrollIntervalRef.current) {
-            clearInterval(scrollIntervalRef.current);
-          }
-          
-          scrollDirectionRef.current = direction;
-          scrollStartTimeRef.current = Date.now();
-          scrollSpeedRef.current = 1;
-          
-          // 첫 스크롤 즉시 실행
-          performScroll(direction, 1);
-          
-          // 연속 스크롤 시작
-          scrollIntervalRef.current = setInterval(() => {
-            const elapsed = Date.now() - scrollStartTimeRef.current;
-            // 시간에 따라 속도 증가 (크롬 브라우저 스타일)
-            // 0-500ms: 속도 1, 500-1000ms: 속도 2, 1000-2000ms: 속도 3, 이후: 속도 4 (최대)
-            if (elapsed < 500) {
-              scrollSpeedRef.current = 1;
-            } else if (elapsed < 1000) {
-              scrollSpeedRef.current = 2;
-            } else if (elapsed < 2000) {
-              scrollSpeedRef.current = 3;
-            } else {
-              scrollSpeedRef.current = 4;
-            }
-            performScroll(direction, scrollSpeedRef.current);
-          }, 50); // 50ms마다 스크롤 (크롬과 유사)
-          
+          startScrolling(direction);
           return;
         }
         
@@ -775,20 +683,7 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
             spellCheck={false}
           />
         ) : isMarkdownFile(filePath) ? (
-          <div 
-            className="prose prose-sm dark:prose-invert max-w-none"
-            style={{
-              paddingLeft: `${config.horizontalPadding}px`,
-              paddingRight: `${config.horizontalPadding}px`,
-              paddingTop: '1.5rem',
-              paddingBottom: '1.5rem',
-              fontSize: `${config.fontSize}px`,
-            }}
-          >
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
-              {content}
-            </ReactMarkdown>
-          </div>
+          <MarkdownViewer content={content} config={config} />
         ) : (
           <pre 
             className="font-mono whitespace-pre-wrap break-words text-gray-900 dark:text-gray-100"
