@@ -1,4 +1,4 @@
-# Foldering App v1.2.0
+# Foldering v1.3.1
 
 **키보드 중심의 빠른 파일 탐색 및 텍스트 편집 앱**
 
@@ -107,20 +107,20 @@
 
 ### Windows 사용자
 
-1. 최신 버전의 설치 파일(`Foldering App Setup 1.2.0.exe`)을 다운로드하세요
+1. 최신 버전의 설치 파일(`Foldering Setup 1.3.1.exe`)을 다운로드하세요
 2. 설치 파일을 실행하여 설치를 진행하세요
 3. 설치가 완료되면 바로 사용할 수 있습니다
 
 ### macOS 사용자 🍎
 
 **Intel Mac (x64) 사용자**:
-1. `Foldering App-1.2.0-x64.dmg` 파일을 다운로드하세요
+1. `Foldering-1.3.1-x64.dmg` 파일을 다운로드하세요
 2. DMG 파일을 더블 클릭하여 마운트하세요
 3. 앱 아이콘을 `Applications` 폴더로 드래그하세요
 4. `Applications` 폴더에서 앱을 실행하세요
 
 **Apple Silicon Mac (M1/M2/M3) 사용자**:
-1. `Foldering App-1.2.0-arm64.dmg` 파일을 다운로드하세요
+1. `Foldering-1.3.1-arm64.dmg` 파일을 다운로드하세요
 2. DMG 파일을 더블 클릭하여 마운트하세요
 3. 앱 아이콘을 `Applications` 폴더로 드래그하세요
 4. `Applications` 폴더에서 앱을 실행하세요
@@ -202,7 +202,7 @@ npm run build:app
 
 ### 🍎 macOS 지원 추가 (주요 기능)
 
-**이제 macOS에서도 Foldering App을 사용할 수 있습니다!**
+**이제 macOS에서도 Foldering을 사용할 수 있습니다!**
 
 - **Intel Mac (x64) 지원**: 2020년 이전 Intel 기반 Mac 지원
 - **Apple Silicon (arm64) 지원**: M1, M2, M3 칩 Mac 네이티브 지원

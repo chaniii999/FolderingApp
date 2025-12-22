@@ -224,9 +224,9 @@ export function createGuideFile(dirPath: string): string | null {
       return guidePath;
     }
 
-    const guideContent = `# Foldering App 사용 가이드
+    const guideContent = `# Foldering 사용 가이드
 
-안녕하세요! Foldering App을 사용해 주셔서 감사합니다. 이 가이드는 앱을 처음 사용하시는 분들을 위한 간단한 안내입니다.
+안녕하세요! Foldering을 사용해 주셔서 감사합니다. 이 가이드는 앱을 처음 사용하시는 분들을 위한 간단한 안내입니다.
 
 ## 🚀 빠른 시작
 
@@ -294,7 +294,7 @@ export function createGuideFile(dirPath: string): string | null {
 
 ---
 
-**Foldering App** - 키보드 중심의 빠른 파일 탐색 및 텍스트 편집 앱
+**Foldering** - 키보드 중심의 빠른 파일 탐색 및 텍스트 편집 앱
 `;
 
     createFile(guidePath, guideContent);

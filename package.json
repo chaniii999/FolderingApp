@@ -64,7 +64,7 @@
   },
   "build": {
     "appId": "com.foldering.app",
-    "productName": "Foldering App",
+    "productName": "Foldering",
     "icon": "foldering_icon.png",
     "directories": {
       "output": "release"

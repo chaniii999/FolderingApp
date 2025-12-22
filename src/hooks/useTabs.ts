@@ -2,6 +2,8 @@ import { useState, useRef, useCallback } from 'react';
 import type { Tab } from '../types/tabs';
 import type { FileContentViewerRef } from '../components/FileContentViewer';
 import { toastService } from '../services/toastService';
+import { getFileName } from '../utils/pathUtils';
+import { handleError } from '../utils/errorHandler';
 
 /**
  * 탭 관리 커스텀 훅
@@ -147,8 +149,6 @@ export function useTabs(
         setPendingTabClose(null);
       } catch (err) {
         handleError(err, '파일 저장 중 오류가 발생했습니다.');
-        toastService.error(errorMessage);
-        console.error('Error saving file:', err);
         // 저장 실패 시 다이얼로그는 유지
         return;
       }
