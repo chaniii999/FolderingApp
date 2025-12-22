@@ -215,7 +215,7 @@ class AutoSaveService {
       const items = await window.api.filesystem.listDirectory(tempDir);
       const autoSaveFiles = items
         .filter(item => !item.isDirectory && item.name.endsWith('.autosave'))
-        .sort((a, b) => {
+        .sort((_a, _b) => {
           // 파일 수정 시간으로 정렬 (최신이 먼저)
           return 0; // 간단히 이름으로 정렬
         });

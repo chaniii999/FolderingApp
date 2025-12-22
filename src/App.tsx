@@ -25,7 +25,6 @@ import { performanceMonitor } from './utils/performanceMonitor';
 function App() {
   usePerformanceMeasure('App');
   
-  const [error, setError] = useState<string | null>(null);
   const [currentPath, setCurrentPath] = useState<string>('');
   const [selectedFilePath, setSelectedFilePath] = useState<string | null>(null);
   const [explorerWidth, setExplorerWidth] = useState<number>(240);
@@ -373,45 +372,6 @@ function App() {
     }
   }, [getFileList, selectedFilePath, switchCurrentTab]);
 
-  const handleBackClick = useCallback(async () => {
-    // 다이얼로그가 열려있으면 뒤로가기 무시
-    if (showNewFileDialog) {
-      return;
-    }
-    
-    // 파일이 선택되어 있으면 파일 선택 해제 (탭은 유지)
-    if (selectedFilePath) {
-      setSelectedFilePath(null);
-      if (!showNewFileDialog) {
-        setTimeout(() => {
-          fileExplorerRef.current?.focus();
-        }, 100);
-      }
-      return;
-    }
-    
-    if (!currentPath) return;
-    
-    try {
-      if (!window.api?.filesystem) {
-        console.error('API가 로드되지 않았습니다.');
-        return;
-      }
-      
-      const parentPath = await window.api.filesystem.getParentDirectory(currentPath);
-      if (parentPath) {
-        setCurrentPath(parentPath);
-        if (!showNewFileDialog) {
-          setTimeout(() => {
-            fileExplorerRef.current?.focus();
-          }, 100);
-        }
-      }
-    } catch (err) {
-      console.error('Error going back:', err);
-    }
-  }, [showNewFileDialog, selectedFilePath, currentPath]);
-
   const handleToggleExplorer = useCallback(() => {
     setIsExplorerVisible(!isExplorerVisible);
   }, [isExplorerVisible]);
@@ -512,7 +472,7 @@ function App() {
             currentPath={currentPath}
             explorerWidth={explorerWidth}
             showFullPath={showFullPath}
-            error={error}
+            error={null}
             selectedFilePath={selectedFilePath}
             isDialogOpen={showNewFileDialog || showSearchDialog}
             hideNonTextFiles={systemConfig.hideNonTextFiles}
@@ -541,9 +501,7 @@ function App() {
           selectedFilePath={selectedFilePath}
           newlyCreatedFilePath={newlyCreatedFilePath}
           fileContentViewerRef={fileContentViewerRef}
-          fileExplorerRef={fileExplorerRef}
           textEditorConfig={textEditorConfig}
-          fileViewerState={fileViewerState}
           showNewFileDialog={showNewFileDialog}
           onTabClick={handleTabClick}
           onTabClose={handleTabClose}

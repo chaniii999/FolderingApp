@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { loadTextEditorConfig, saveTextEditorConfig, type TextEditorConfig } from '../services/textEditorConfigService';
 import { loadSystemConfig, saveSystemConfig, type SystemConfig } from '../services/systemConfigService';
-import { applyTheme, type Theme } from '../services/themeService';
+import { applyTheme } from '../services/themeService';
 import { isTextFile } from '../utils/fileUtils';
 import type { FileExplorerRef } from '../components/FileExplorer';
 

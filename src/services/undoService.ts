@@ -10,28 +10,32 @@ export interface UndoAction {
 }
 
 class UndoService {
-  private history: UndoAction[][] = []; // 각 디렉토리별 히스토리
+  private history: Map<string, UndoAction[]> = new Map(); // 각 디렉토리별 히스토리
   private currentPath: string = '';
 
   setCurrentPath(path: string) {
     if (this.currentPath !== path) {
       this.currentPath = path;
       // 새 디렉토리로 이동하면 해당 디렉토리의 히스토리가 없으면 생성
-      if (!this.history[path]) {
-        this.history[path] = [];
+      if (!this.history.has(path)) {
+        this.history.set(path, []);
       }
     }
   }
 
   addAction(action: UndoAction) {
-    if (!this.history[this.currentPath]) {
-      this.history[this.currentPath] = [];
+    const actions = this.history.get(this.currentPath);
+    if (!actions) {
+      this.history.set(this.currentPath, []);
     }
-    this.history[this.currentPath].push(action);
+    const currentActions = this.history.get(this.currentPath);
+    if (currentActions) {
+      currentActions.push(action);
+    }
   }
 
   getLastAction(): UndoAction | null {
-    const actions = this.history[this.currentPath];
+    const actions = this.history.get(this.currentPath);
     if (!actions || actions.length === 0) {
       return null;
     }
@@ -39,7 +43,7 @@ class UndoService {
   }
 
   popLastAction(): UndoAction | null {
-    const actions = this.history[this.currentPath];
+    const actions = this.history.get(this.currentPath);
     if (!actions || actions.length === 0) {
       return null;
     }
@@ -48,9 +52,9 @@ class UndoService {
 
   clearHistory(path?: string) {
     if (path) {
-      delete this.history[path];
+      this.history.delete(path);
     } else {
-      this.history = [];
+      this.history.clear();
     }
   }
 }

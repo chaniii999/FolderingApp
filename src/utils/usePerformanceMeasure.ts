@@ -5,10 +5,11 @@
  * 주의: 무한 루프를 방지하기 위해 성능 측정을 간소화했습니다.
  * 정확한 측정이 필요하면 React DevTools Profiler를 사용하세요.
  */
+/// <reference types="vite/client" />
 import { useEffect, useRef } from 'react';
 import { performanceMonitor } from './performanceMonitor';
 
-const isDev = import.meta.env.DEV;
+const isDev = import.meta.env.MODE === 'development';
 const ENABLE_PERFORMANCE_MEASURE = false; // 무한 루프 방지를 위해 임시 비활성화
 
 export function usePerformanceMeasure(componentName: string): void {

@@ -38,7 +38,7 @@ interface FileContentViewerProps {
   onFocusExplorer?: () => void;
 }
 
-const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProps>(({ filePath, onSelectPreviousFile, onSelectNextFile, onDeselectFile, textEditorConfig, autoEdit = false, onEditModeEntered, onRenameRequest, onEditModeChange, onEditStateChange, onFileDeleted, isDialogOpen = false, onFocusExplorer }, ref) => {
+const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProps>(({ filePath, onSelectPreviousFile, onSelectNextFile, onDeselectFile, textEditorConfig, autoEdit = false, onEditModeEntered, onRenameRequest: _onRenameRequest, onEditModeChange, onEditStateChange, onFileDeleted, isDialogOpen = false, onFocusExplorer }, ref) => {
   usePerformanceMeasure('FileContentViewer');
   const config = textEditorConfig || { horizontalPadding: 80, fontSize: 14 };
   const [content, setContent] = useState<string>('');
@@ -629,8 +629,12 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
         className={`flex-1 bg-white dark:bg-gray-800 relative ${isEditing ? 'overflow-hidden' : 'overflow-auto'}`}
       >
         {loading ? (
-          <div className="flex items-center justify-center h-full">
-            <div className="text-gray-500 dark:text-gray-400">로딩 중...</div>
+          <div className="flex flex-col items-center justify-center h-full gap-4">
+            <div className="relative w-12 h-12">
+              <div className="absolute inset-0 border-4 border-gray-200 dark:border-gray-700 rounded-full"></div>
+              <div className="absolute inset-0 border-4 border-blue-500 dark:border-blue-400 rounded-full border-t-transparent animate-spin"></div>
+            </div>
+            <div className="text-gray-500 dark:text-gray-400 text-sm font-medium">파일을 불러오는 중...</div>
           </div>
         ) : error ? (
           <div className="flex items-center justify-center h-full">

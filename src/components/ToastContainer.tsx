@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React from 'react';
 import ToastComponent, { type Toast } from './Toast';
 
 interface ToastContainerProps {
