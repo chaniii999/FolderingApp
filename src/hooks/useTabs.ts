@@ -183,12 +183,49 @@ export function useTabs(
     }
   }, [tabs, closeTabInternal]);
 
+  // 현재 활성 탭의 파일만 변경 (화살표 키로 이동할 때 사용)
+  const switchCurrentTab = useCallback((filePath: string) => {
+    const fileName = getFileName(filePath);
+    const tabId = filePath;
+    
+    // 활성 탭이 있으면 그 탭의 파일 경로만 변경
+    if (activeTabId && tabs.length > 0) {
+      const activeTab = tabs.find(t => t.id === activeTabId);
+      if (activeTab) {
+        // 활성 탭의 파일 경로 변경
+        setTabs(prevTabs => prevTabs.map(tab => 
+          tab.id === activeTabId
+            ? { ...tab, id: tabId, filePath, fileName }
+            : tab
+        ));
+        
+        // 기존 탭 상태를 새 탭 ID로 이동
+        const oldState = tabStateRef.current.get(activeTabId);
+        if (oldState) {
+          tabStateRef.current.set(tabId, oldState);
+          tabStateRef.current.delete(activeTabId);
+        } else {
+          tabStateRef.current.set(tabId, { isEditing: false, hasChanges: false });
+        }
+        
+        setActiveTabId(tabId);
+        setSelectedFilePath(filePath);
+        setFileViewerState({ isEditing: false, hasChanges: false });
+        return;
+      }
+    }
+    
+    // 활성 탭이 없으면 새 탭 추가
+    addOrSwitchTab(filePath);
+  }, [activeTabId, tabs, setSelectedFilePath, setFileViewerState, addOrSwitchTab]);
+
   return {
     tabs,
     activeTabId,
     pendingTabClose,
     updateTabState,
     addOrSwitchTab,
+    switchCurrentTab,
     handleTabClick,
     handleTabClose,
     handleSaveAndClose,

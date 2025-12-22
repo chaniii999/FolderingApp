@@ -45,6 +45,7 @@ function App() {
     pendingTabClose,
     updateTabState,
     addOrSwitchTab,
+    switchCurrentTab,
     handleTabClick,
     handleTabClose,
     handleSaveAndClose,
@@ -354,9 +355,11 @@ function App() {
     
     const currentIndex = files.indexOf(selectedFilePath);
     if (currentIndex > 0) {
-      setSelectedFilePath(files[currentIndex - 1]);
+      const previousFilePath = files[currentIndex - 1];
+      // 현재 탭의 파일만 변경 (탭 추가하지 않음)
+      switchCurrentTab(previousFilePath);
     }
-  }, [getFileList, selectedFilePath]);
+  }, [getFileList, selectedFilePath, switchCurrentTab]);
 
   const handleSelectNextFile = useCallback(async () => {
     const files = await getFileList();
@@ -364,9 +367,11 @@ function App() {
     
     const currentIndex = files.indexOf(selectedFilePath);
     if (currentIndex < files.length - 1) {
-      setSelectedFilePath(files[currentIndex + 1]);
+      const nextFilePath = files[currentIndex + 1];
+      // 현재 탭의 파일만 변경 (탭 추가하지 않음)
+      switchCurrentTab(nextFilePath);
     }
-  }, [getFileList, selectedFilePath]);
+  }, [getFileList, selectedFilePath, switchCurrentTab]);
 
   const handleBackClick = useCallback(async () => {
     // 다이얼로그가 열려있으면 뒤로가기 무시
