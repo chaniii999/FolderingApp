@@ -471,6 +471,7 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
       
       toastService.success('저장됨');
     } catch (err) {
+      // handleError는 토스트를 표시하고 에러 메시지를 반환함
       const errorMessage = handleError(err, '파일 저장 중 오류가 발생했습니다.');
       setError(errorMessage);
       

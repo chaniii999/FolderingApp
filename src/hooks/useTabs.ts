@@ -1,7 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
 import type { Tab } from '../types/tabs';
 import type { FileContentViewerRef } from '../components/FileContentViewer';
-import { toastService } from '../services/toastService';
 import { getFileName } from '../utils/pathUtils';
 import { handleError } from '../utils/errorHandler';
 
