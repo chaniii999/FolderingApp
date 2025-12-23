@@ -123,9 +123,10 @@ class AutoSaveService {
         if (window.api.filesystem.writeFile) {
           await window.api.filesystem.writeFile(tempFilePath, content);
         }
-      } catch (err: any) {
+      } catch (err) {
         // 파일이 없으면 createFile로 생성
-        if (err.message?.includes('존재하지 않습니다') && window.api.filesystem.createFile) {
+        const error = err as Error;
+        if (error.message?.includes('존재하지 않습니다') && window.api.filesystem.createFile) {
           await window.api.filesystem.createFile(tempFilePath, content);
         } else {
           throw err;

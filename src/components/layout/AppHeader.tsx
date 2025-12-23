@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { BackIcon } from '../icons/BackIcon';
 import { ForwardIcon } from '../icons/ForwardIcon';
 import { getHotkeys } from '../../config/hotkeys';
@@ -23,6 +23,23 @@ function AppHeader({
   fileContentViewerRef,
 }: AppHeaderProps) {
   usePerformanceMeasure('AppHeader');
+
+  const handleEditClick = useCallback(() => {
+    fileContentViewerRef.current?.handleEdit();
+  }, [fileContentViewerRef]);
+
+  const handleDeleteClick = useCallback(() => {
+    fileContentViewerRef.current?.handleDelete();
+  }, [fileContentViewerRef]);
+
+  const handleSaveClick = useCallback(() => {
+    fileContentViewerRef.current?.handleSave();
+  }, [fileContentViewerRef]);
+
+  const handleCancelClick = useCallback(() => {
+    fileContentViewerRef.current?.handleCancel();
+  }, [fileContentViewerRef]);
+
   return (
     <header className="flex flex-col gap-1 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
       <div className="flex items-center gap-4 px-6 py-2">
@@ -44,14 +61,14 @@ function AppHeader({
           {selectedFilePath && !fileViewerState.isEditing && (
             <>
               <button
-                onClick={() => fileContentViewerRef.current?.handleEdit()}
+                onClick={handleEditClick}
                 className="px-3 py-1.5 text-sm bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded hover:bg-gray-300 dark:hover:bg-gray-600"
                 title={`편집 (${getHotkeys().edit})`}
               >
                 Edit
               </button>
               <button
-                onClick={() => fileContentViewerRef.current?.handleDelete()}
+                onClick={handleDeleteClick}
                 className="px-3 py-1.5 text-sm bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded hover:bg-gray-300 dark:hover:bg-gray-600"
                 title="삭제"
               >
@@ -65,21 +82,21 @@ function AppHeader({
                 <span className="text-xs text-orange-600 dark:text-orange-400">변경됨</span>
               )}
               <button
-                onClick={() => fileContentViewerRef.current?.handleSave()}
+                onClick={handleSaveClick}
                 className="px-3 py-1.5 text-sm bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded hover:bg-gray-300 dark:hover:bg-gray-600"
                 title={`저장 (${getHotkeys().save})`}
               >
                 저장
               </button>
               <button
-                onClick={() => fileContentViewerRef.current?.handleCancel()}
+                onClick={handleCancelClick}
                 className="px-3 py-1.5 text-sm bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded hover:bg-gray-300 dark:hover:bg-gray-600"
                 title={`취소 (${getHotkeys().cancel})`}
               >
                 취소
               </button>
               <button
-                onClick={() => fileContentViewerRef.current?.handleDelete()}
+                onClick={handleDeleteClick}
                 className="px-3 py-1.5 text-sm bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded hover:bg-gray-300 dark:hover:bg-gray-600"
                 title="삭제"
               >

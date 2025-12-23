@@ -159,10 +159,85 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // 초기 마운트 시에만 실행
 
+  const handleSelectStartPath = useCallback(async () => {
+    try {
+      if (!window.api?.filesystem) {
+        console.error('API가 로드되지 않았습니다.');
+        return;
+      }
+
+      // 이전 시작 경로 확인 (처음 설정인지 확인)
+      const previousPath = await window.api.filesystem.getCurrentDirectory();
+      const isFirstTime = !previousPath || previousPath === (await window.api.filesystem.getHomeDirectory());
+
+      const selectedPath = await window.api.filesystem.selectStartPath();
+      if (selectedPath) {
+        // 선택된 경로를 저장하고 현재 경로 업데이트
+        await window.api.filesystem.saveStartPath(selectedPath);
+        setCurrentPath(selectedPath);
+        setSelectedFilePath(null);
+        undoService.setCurrentPath(selectedPath);
+        
+        // 처음 시작 위치 설정 시 가이드.md 생성 및 자동 선택 및 탭 추가
+        if (isFirstTime) {
+          try {
+            const guidePath = await window.api.filesystem.createGuideFile(selectedPath);
+            if (guidePath) {
+              // FileExplorer 새로고침 후 가이드.md 자동 선택 및 탭 추가
+              if (fileExplorerRef.current) {
+                fileExplorerRef.current.refresh();
+                // 새로고침 후 파일 목록이 로드된 후 가이드.md 선택 및 탭 추가 (이미 열려있지 않은 경우만)
+                setTimeout(() => {
+                  const isAlreadyOpen = tabsRef.current.some(tab => tab.filePath === guidePath);
+                  if (!isAlreadyOpen) {
+                    addOrSwitchTab(guidePath);
+                  }
+                }, 300);
+              }
+            }
+          } catch (guideErr) {
+            console.error('Error creating guide file:', guideErr);
+            // 가이드 파일 생성 실패해도 계속 진행
+            if (fileExplorerRef.current) {
+              fileExplorerRef.current.refresh();
+            }
+          }
+        } else {
+          // FileExplorer 새로고침
+          if (fileExplorerRef.current) {
+            fileExplorerRef.current.refresh();
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Error selecting start path:', err);
+    }
+  }, [addOrSwitchTab]);
+
+  const handleOpenCurrentFolder = useCallback(async () => {
+    try {
+      if (!currentPath) return;
+      
+      if (!window.api?.filesystem) {
+        console.error('API가 로드되지 않았습니다.');
+        return;
+      }
+
+      await window.api.filesystem.openFolder(currentPath);
+    } catch (err) {
+      console.error('Error opening folder:', err);
+    }
+  }, [currentPath]);
+
   useEffect(() => {
     // 개발 모드에서 성능 리포트 출력 (5초 후)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const isDev = (import.meta as any).env?.DEV || process.env.NODE_ENV === 'development';
+    interface ImportMeta {
+      env?: {
+        DEV?: boolean;
+      };
+    }
+    const importMeta = import.meta as ImportMeta;
+    const isDev = importMeta.env?.DEV || process.env.NODE_ENV === 'development';
     if (isDev) {
       const timeoutId = setTimeout(() => {
         console.log('📊 초기 렌더링 성능 리포트:');
@@ -172,8 +247,12 @@ function App() {
       }, 5000);
 
       // 개발자 도구에서 사용할 수 있는 유틸리티 함수 추가
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (window as any).deleteStartPath = async () => {
+      interface WindowWithDeleteStartPath extends Window {
+        deleteStartPath?: () => Promise<void>;
+      }
+      const windowWithUtil = window as WindowWithDeleteStartPath;
+      
+      windowWithUtil.deleteStartPath = async (): Promise<void> => {
         try {
           if (!window.api) {
             console.error('❌ window.api가 없습니다. 앱을 재시작해주세요.');
@@ -184,7 +263,7 @@ function App() {
             return;
           }
           // 타입 단언을 사용하여 직접 호출 시도
-          const filesystem = window.api.filesystem as any;
+          const filesystem = window.api.filesystem as { deleteStartPath?: () => Promise<void> };
           if (filesystem.deleteStartPath) {
             await filesystem.deleteStartPath();
             console.log('✅ 시작 경로가 삭제되었습니다. 앱을 재시작하면 첫 실행처럼 동작합니다.');
@@ -200,8 +279,7 @@ function App() {
 
       return () => {
         clearTimeout(timeoutId);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        delete (window as any).deleteStartPath;
+        delete windowWithUtil.deleteStartPath;
       };
     }
     
@@ -251,7 +329,7 @@ function App() {
       window.removeEventListener('menu:changeHorizontalPadding', handleMenuChangeHorizontalPadding as unknown as EventListener);
       window.removeEventListener('menu:changeFontSize', handleMenuChangeFontSize as unknown as EventListener);
     };
-  }, [handleSystemConfigChange, handleConfigChange]);
+  }, [handleSystemConfigChange, handleConfigChange, handleSelectStartPath, handleOpenCurrentFolder]);
 
   // 핫키가 작동하지 않아야 할 상황 체크
   const shouldBlockHotkey = useCallback(() => {
@@ -429,76 +507,6 @@ function App() {
     setIsExplorerVisible(!isExplorerVisible);
   }, [isExplorerVisible]);
 
-  const handleSelectStartPath = useCallback(async () => {
-    try {
-      if (!window.api?.filesystem) {
-        console.error('API가 로드되지 않았습니다.');
-        return;
-      }
-
-      // 이전 시작 경로 확인 (처음 설정인지 확인)
-      const previousPath = await window.api.filesystem.getCurrentDirectory();
-      const isFirstTime = !previousPath || previousPath === (await window.api.filesystem.getHomeDirectory());
-
-      const selectedPath = await window.api.filesystem.selectStartPath();
-      if (selectedPath) {
-        // 선택된 경로를 저장하고 현재 경로 업데이트
-        await window.api.filesystem.saveStartPath(selectedPath);
-        setCurrentPath(selectedPath);
-        setSelectedFilePath(null);
-        undoService.setCurrentPath(selectedPath);
-        
-        // 처음 시작 위치 설정 시 가이드.md 생성 및 자동 선택 및 탭 추가
-        if (isFirstTime) {
-          try {
-            const guidePath = await window.api.filesystem.createGuideFile(selectedPath);
-            if (guidePath) {
-              // FileExplorer 새로고침 후 가이드.md 자동 선택 및 탭 추가
-              if (fileExplorerRef.current) {
-                fileExplorerRef.current.refresh();
-                // 새로고침 후 파일 목록이 로드된 후 가이드.md 선택 및 탭 추가 (이미 열려있지 않은 경우만)
-                setTimeout(() => {
-                  const isAlreadyOpen = tabsRef.current.some(tab => tab.filePath === guidePath);
-                  if (!isAlreadyOpen) {
-                    addOrSwitchTab(guidePath);
-                  }
-                }, 300);
-              }
-            }
-          } catch (guideErr) {
-            console.error('Error creating guide file:', guideErr);
-            // 가이드 파일 생성 실패해도 계속 진행
-            if (fileExplorerRef.current) {
-              fileExplorerRef.current.refresh();
-            }
-          }
-        } else {
-          // FileExplorer 새로고침
-          if (fileExplorerRef.current) {
-            fileExplorerRef.current.refresh();
-          }
-        }
-      }
-    } catch (err) {
-      console.error('Error selecting start path:', err);
-    }
-  }, [addOrSwitchTab]);
-
-  const handleOpenCurrentFolder = useCallback(async () => {
-    try {
-      if (!currentPath) return;
-      
-      if (!window.api?.filesystem) {
-        console.error('API가 로드되지 않았습니다.');
-        return;
-      }
-
-      await window.api.filesystem.openFolder(currentPath);
-    } catch (err) {
-      console.error('Error opening folder:', err);
-    }
-  }, [currentPath]);
-
   // 선택된 파일 이름 추출
   const getSelectedFileName = useCallback((): string | null => {
     if (!selectedFilePath) return null;
@@ -510,6 +518,88 @@ function App() {
     if (!currentPath) return '';
     return getLastPathPart(currentPath);
   }, [currentPath]);
+
+  // 파일 삭제 핸들러
+  const handleFileDeleted = useCallback((filePath: string) => {
+    closeTabByFilePath(filePath);
+    setSelectedFilePath(null);
+    setFileViewerState({ isEditing: false, hasChanges: false });
+    setTimeout(() => {
+      if (fileExplorerRef.current) {
+        fileExplorerRef.current.focus();
+      }
+    }, 100);
+  }, [closeTabByFilePath]);
+
+  // 새 파일 버튼 클릭 핸들러
+  const handleNewFileClick = useCallback(() => {
+    setShowNewFileDialog(true);
+  }, []);
+
+  // 전체 경로 토글 핸들러
+  const handleToggleFullPath = useCallback(() => {
+    setShowFullPath(!showFullPath);
+  }, [showFullPath]);
+
+  // 파일 선택 해제 핸들러
+  const handleDeselectFile = useCallback(() => {
+    setSelectedFilePath(null);
+    setNewlyCreatedFilePath(null);
+    setFileViewerState({ isEditing: false, hasChanges: false });
+  }, []);
+
+  // 편집 모드 진입 핸들러
+  const handleEditModeEntered = useCallback(() => {
+    setNewlyCreatedFilePath(null);
+  }, []);
+
+  // 파일 이름 변경 요청 핸들러
+  const handleRenameRequest = useCallback((filePath: string) => {
+    if (fileExplorerRef.current && !showNewFileDialog) {
+      fileExplorerRef.current.startRenameForPath(filePath);
+      setTimeout(() => {
+        fileExplorerRef.current?.focus();
+      }, 100);
+    }
+  }, [showNewFileDialog]);
+
+  // 콘텐츠 뷰어에서 파일 삭제 핸들러
+  const handleContentViewerFileDeleted = useCallback(() => {
+    setFileViewerState({ isEditing: false, hasChanges: false });
+    if (fileExplorerRef.current) {
+      fileExplorerRef.current.refresh();
+    }
+  }, []);
+
+  // FileExplorer 포커스 핸들러
+  const handleFocusExplorer = useCallback(() => {
+    if (fileExplorerRef.current) {
+      fileExplorerRef.current.focus();
+    }
+  }, []);
+
+  // 새 파일 다이얼로그 닫기 핸들러
+  const handleNewFileDialogClose = useCallback(() => {
+    setShowNewFileDialog(false);
+    // 다이얼로그가 닫힐 때 FileExplorer에 포커스 복귀
+    setTimeout(() => {
+      fileExplorerRef.current?.focus();
+    }, 100);
+  }, []);
+
+  // 검색 다이얼로그 닫기 핸들러
+  const handleSearchDialogClose = useCallback(() => {
+    setShowSearchDialog(false);
+    // 다이얼로그가 닫힐 때 FileExplorer에 포커스 복귀
+    setTimeout(() => {
+      fileExplorerRef.current?.focus();
+    }, 100);
+  }, []);
+
+  // 토스트 닫기 핸들러
+  const handleToastClose = useCallback((id: string) => {
+    toastService.close(id);
+  }, []);
 
   return (
     <div className="flex flex-col h-screen w-screen">
@@ -535,18 +625,9 @@ function App() {
             isEditing={fileViewerState.isEditing}
             onPathChange={handlePathChange}
             onFileSelect={handleFileSelect}
-            onFileDeleted={(filePath) => {
-              closeTabByFilePath(filePath);
-              setSelectedFilePath(null);
-              setFileViewerState({ isEditing: false, hasChanges: false });
-              setTimeout(() => {
-                if (fileExplorerRef.current) {
-                  fileExplorerRef.current.focus();
-                }
-              }, 100);
-            }}
-            onNewFileClick={() => setShowNewFileDialog(true)}
-            onToggleFullPath={() => setShowFullPath(!showFullPath)}
+            onFileDeleted={handleFileDeleted}
+            onNewFileClick={handleNewFileClick}
+            onToggleFullPath={handleToggleFullPath}
             onResize={setExplorerWidth}
             getCurrentFolderName={getCurrentFolderName}
           />
@@ -563,58 +644,26 @@ function App() {
           onTabClose={handleTabClose}
           onSelectPreviousFile={handleSelectPreviousFile}
           onSelectNextFile={handleSelectNextFile}
-          onDeselectFile={() => {
-            setSelectedFilePath(null);
-            setNewlyCreatedFilePath(null);
-            setFileViewerState({ isEditing: false, hasChanges: false });
-          }}
+          onDeselectFile={handleDeselectFile}
           onEditStateChange={handleEditStateChange}
-          onEditModeEntered={() => setNewlyCreatedFilePath(null)}
-          onRenameRequest={(filePath) => {
-            if (fileExplorerRef.current && !showNewFileDialog) {
-              fileExplorerRef.current.startRenameForPath(filePath);
-              setTimeout(() => {
-                fileExplorerRef.current?.focus();
-              }, 100);
-            }
-          }}
-          onFileDeleted={() => {
-            setFileViewerState({ isEditing: false, hasChanges: false });
-            if (fileExplorerRef.current) {
-              fileExplorerRef.current.refresh();
-            }
-          }}
-          onFocusExplorer={() => {
-            if (fileExplorerRef.current) {
-              fileExplorerRef.current.focus();
-            }
-          }}
+          onEditModeEntered={handleEditModeEntered}
+          onRenameRequest={handleRenameRequest}
+          onFileDeleted={handleContentViewerFileDeleted}
+          onFocusExplorer={handleFocusExplorer}
         />
         {systemConfig.showHelp && <HelpPanel />}
       </main>
       {showNewFileDialog && (
         <NewFileDialog
           currentPath={currentPath}
-          onClose={() => {
-            setShowNewFileDialog(false);
-            // 다이얼로그가 닫힐 때 FileExplorer에 포커스 복귀
-            setTimeout(() => {
-              fileExplorerRef.current?.focus();
-            }, 100);
-          }}
+          onClose={handleNewFileDialogClose}
           onCreated={handleNewFileCreated}
         />
       )}
       {showSearchDialog && (
         <SearchDialog
           currentPath={currentPath}
-          onClose={() => {
-            setShowSearchDialog(false);
-            // 다이얼로그가 닫힐 때 FileExplorer에 포커스 복귀
-            setTimeout(() => {
-              fileExplorerRef.current?.focus();
-            }, 100);
-          }}
+          onClose={handleSearchDialogClose}
           onFileSelect={handleFileSelect}
           onPathChange={handlePathChange}
         />
@@ -629,7 +678,7 @@ function App() {
       )}
       <ToastContainer
         toasts={toasts}
-        onClose={(id) => toastService.close(id)}
+        onClose={handleToastClose}
       />
     </div>
   );
