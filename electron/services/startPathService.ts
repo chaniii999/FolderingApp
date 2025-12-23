@@ -91,3 +91,16 @@ export function getStartPathOrHome(): string {
   return os.homedir();
 }
 
+export function deleteStartPath(): void {
+  try {
+    const configPath = getConfigPath();
+    if (fs.existsSync(configPath)) {
+      fs.unlinkSync(configPath);
+    }
+    cachedStartPath = null;
+  } catch (error) {
+    console.error('Error deleting start path:', error);
+    throw error;
+  }
+}
+

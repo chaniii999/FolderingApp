@@ -36,6 +36,7 @@ function App() {
   const [fileViewerState, setFileViewerState] = useState<{ isEditing: boolean; hasChanges: boolean }>({ isEditing: false, hasChanges: false });
   const [showFullPath, setShowFullPath] = useState<boolean>(false);
   const [showSearchDialog, setShowSearchDialog] = useState<boolean>(false);
+  const hasInitializedGuideRef = useRef<boolean>(false);
   
   // 탭 관리
   const {
@@ -56,6 +57,12 @@ function App() {
     setFileViewerState,
     fileContentViewerRef
   );
+  
+  // 최신 tabs 참조를 위한 ref
+  const tabsRef = useRef(tabs);
+  useEffect(() => {
+    tabsRef.current = tabs;
+  }, [tabs]);
   
   // 설정 관리
   const {
@@ -79,7 +86,7 @@ function App() {
     return unsubscribe;
   }, []);
 
-  const initializeCurrentPath = async () => {
+  const initializeCurrentPath = useCallback(async () => {
     try {
       if (!window.api || !window.api.filesystem) {
         console.warn('API가 로드되지 않았습니다.');
@@ -89,19 +96,29 @@ function App() {
       const path = await window.api.filesystem.getCurrentDirectory();
       setCurrentPath(path);
       
-      // 가이드.md가 있으면 자동으로 선택 및 탭 추가
-      try {
-        const files = await window.api.filesystem.listDirectory(path);
-        const guideFile = files.find(file => file.name === '가이드.md' && !file.isDirectory);
-        if (guideFile) {
-          // 약간의 지연 후 선택 및 탭 추가 (FileExplorer가 로드된 후)
-          setTimeout(() => {
-            addOrSwitchTab(guideFile.path);
-          }, 500);
+      // 가이드.md가 있으면 자동으로 선택 및 탭 추가 (초기 마운트 시에만, 이미 열려있지 않은 경우만)
+      if (!hasInitializedGuideRef.current) {
+        try {
+          const files = await window.api.filesystem.listDirectory(path);
+          const guideFile = files.find(file => file.name === '가이드.md' && !file.isDirectory);
+          if (guideFile) {
+            // 약간의 지연 후 선택 및 탭 추가 (FileExplorer가 로드된 후)
+            setTimeout(() => {
+              // 최신 tabs 참조 사용
+              const isAlreadyOpen = tabsRef.current.some(tab => tab.filePath === guideFile.path);
+              if (!isAlreadyOpen) {
+                addOrSwitchTab(guideFile.path);
+              }
+              hasInitializedGuideRef.current = true;
+            }, 500);
+          } else {
+            hasInitializedGuideRef.current = true;
+          }
+        } catch (guideErr) {
+          // 가이드.md 확인 실패해도 계속 진행
+          console.log('Guide file check skipped:', guideErr);
+          hasInitializedGuideRef.current = true;
         }
-      } catch (guideErr) {
-        // 가이드.md 확인 실패해도 계속 진행
-        console.log('Guide file check skipped:', guideErr);
       }
     } catch (err) {
       console.error('Error getting current directory:', err);
@@ -114,7 +131,7 @@ function App() {
         console.error('Error getting home directory:', homeErr);
       }
     }
-  };
+  }, [addOrSwitchTab]);
 
   // FileContentViewer 상태 변경 핸들러
   const handleEditStateChange = useCallback((state: { isEditing: boolean; hasChanges: boolean }) => {
@@ -132,13 +149,17 @@ function App() {
     }
   }, [currentPath, selectedFilePath]);
 
+  // 초기 경로 설정 (마운트 시 한 번만 실행)
   useEffect(() => {
     initializeCurrentPath().then(() => {
       if (currentPath) {
         undoService.setCurrentPath(currentPath);
       }
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // 초기 마운트 시에만 실행
 
+  useEffect(() => {
     // 개발 모드에서 성능 리포트 출력 (5초 후)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const isDev = (import.meta as any).env?.DEV || process.env.NODE_ENV === 'development';
@@ -147,9 +168,41 @@ function App() {
         console.log('📊 초기 렌더링 성능 리포트:');
         performanceMonitor.printReport();
         console.log('\n💡 성능 리포트를 다시 보려면: window.showPerformanceReport()');
+        console.log('💡 시작 경로를 삭제하려면: window.deleteStartPath()');
       }, 5000);
 
-      return () => clearTimeout(timeoutId);
+      // 개발자 도구에서 사용할 수 있는 유틸리티 함수 추가
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (window as any).deleteStartPath = async () => {
+        try {
+          if (!window.api) {
+            console.error('❌ window.api가 없습니다. 앱을 재시작해주세요.');
+            return;
+          }
+          if (!window.api.filesystem) {
+            console.error('❌ window.api.filesystem이 없습니다. 앱을 재시작해주세요.');
+            return;
+          }
+          // 타입 단언을 사용하여 직접 호출 시도
+          const filesystem = window.api.filesystem as any;
+          if (filesystem.deleteStartPath) {
+            await filesystem.deleteStartPath();
+            console.log('✅ 시작 경로가 삭제되었습니다. 앱을 재시작하면 첫 실행처럼 동작합니다.');
+          } else {
+            console.error('❌ deleteStartPath가 없습니다. 앱을 재시작해주세요.');
+            console.log('사용 가능한 filesystem 메서드:', Object.keys(filesystem));
+            console.log('💡 앱을 재시작하면 새로운 API가 로드됩니다.');
+          }
+        } catch (error) {
+          console.error('❌ 시작 경로 삭제 중 오류:', error);
+        }
+      };
+
+      return () => {
+        clearTimeout(timeoutId);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        delete (window as any).deleteStartPath;
+      };
     }
     
     // 메뉴바 이벤트 리스너
@@ -403,9 +456,12 @@ function App() {
               // FileExplorer 새로고침 후 가이드.md 자동 선택 및 탭 추가
               if (fileExplorerRef.current) {
                 fileExplorerRef.current.refresh();
-                // 새로고침 후 파일 목록이 로드된 후 가이드.md 선택 및 탭 추가
+                // 새로고침 후 파일 목록이 로드된 후 가이드.md 선택 및 탭 추가 (이미 열려있지 않은 경우만)
                 setTimeout(() => {
-                  addOrSwitchTab(guidePath);
+                  const isAlreadyOpen = tabsRef.current.some(tab => tab.filePath === guidePath);
+                  if (!isAlreadyOpen) {
+                    addOrSwitchTab(guidePath);
+                  }
                 }, 300);
               }
             }

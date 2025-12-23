@@ -1,6 +1,6 @@
 import { IpcMain, shell } from 'electron';
 import * as fileSystemService from '../services/fileSystemService';
-import { saveStartPath, selectStartPath } from '../services/startPathService';
+import { saveStartPath, selectStartPath, deleteStartPath } from '../services/startPathService';
 import os from 'os';
 import { app } from 'electron';
 
@@ -182,6 +182,15 @@ export function fileSystemHandlers(ipcMain: IpcMain): void {
       return app.getPath('userData');
     } catch (error) {
       console.error('Error getting user data path:', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('filesystem:deleteStartPath', async () => {
+    try {
+      deleteStartPath();
+    } catch (error) {
+      console.error('Error deleting start path:', error);
       throw error;
     }
   });

@@ -56,6 +56,7 @@ export interface ElectronAPI {
     searchFiles: (dirPath: string, query: string, recursive: boolean) => Promise<SearchResult[]>;
     selectStartPath: () => Promise<string | null>;
     saveStartPath: (startPath: string) => Promise<void>;
+    deleteStartPath: () => Promise<void>;
     openFolder: (folderPath: string) => Promise<void>;
     createGuideFile: (dirPath: string) => Promise<string | null>;
     getUserDataPath: () => Promise<string>;
