@@ -113,6 +113,35 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
     initializeTree();
   }, [initializeTree]);
 
+  // hideNonTextFiles 변경 시 전체 트리 재로드 (확장된 노드 포함)
+  useEffect(() => {
+    const reloadTree = async (): Promise<void> => {
+      try {
+        setLoading(true);
+        const rootPath = await getRootPath();
+        if (!rootPath) return;
+
+        const items = await loadDirectory(rootPath);
+        const rootNodes: TreeNode[] = items.map(item => ({
+          ...item,
+          isExpanded: false,
+          isLoading: false,
+        }));
+
+        setTreeData(rootNodes);
+        setLoadedPaths(new Set([rootPath]));
+        setExpandedPaths(new Set()); // 확장된 경로도 초기화
+      } catch (error) {
+        console.error('Error reloading tree:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    reloadTree();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hideNonTextFiles]);
+
   // 특정 경로의 하위 항목 로드
   const loadChildren = useCallback(async (parentPath: string): Promise<TreeNode[]> => {
     const items = await loadDirectory(parentPath);

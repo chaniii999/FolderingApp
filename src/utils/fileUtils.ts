@@ -1,7 +1,19 @@
+import { getFileName } from './pathUtils';
+
 export function isTextFile(filePath: string | null): boolean {
   if (!filePath) return false;
-  const extension = filePath.toLowerCase().split('.').pop();
-  if (!extension) return true; // 확장자가 없으면 텍스트로 간주
+  
+  // 파일명만 추출 (경로에서 마지막 부분)
+  const fileName = getFileName(filePath);
+  if (!fileName) return true; // 파일명이 없으면 텍스트로 간주
+  
+  // 파일명에서 확장자 추출
+  const lastDotIndex = fileName.lastIndexOf('.');
+  if (lastDotIndex === -1 || lastDotIndex === fileName.length - 1) {
+    return true; // 확장자가 없으면 텍스트로 간주
+  }
+  
+  const extension = fileName.substring(lastDotIndex + 1).toLowerCase();
   
   // 텍스트 파일이 아닌 확장자 목록
   const nonTextExtensions = [
