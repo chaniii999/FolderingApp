@@ -398,6 +398,11 @@ function App() {
     }
   }, []);
 
+  // PDF 내보내기 핸들러
+  const handleExportPdf = useCallback(async (): Promise<void> => {
+    fileContentViewerRef.current?.handleExportPdf();
+  }, []);
+
   // 핫키 설정 배열
   const hotkeys = useMemo(() => createAppHotkeys({
     currentPath,
@@ -410,7 +415,8 @@ function App() {
     handleUndo,
     handleTabClick,
     handleConfigChange,
-  }), [currentPath, tabs, activeTabId, textEditorConfig, handleTabClick, handleUndo, handleConfigChange]);
+    handleExportPdf,
+  }), [currentPath, tabs, activeTabId, textEditorConfig, handleTabClick, handleUndo, handleConfigChange, handleExportPdf]);
 
   // 핫키 훅 사용
   useHotkeys(hotkeys, shouldBlockHotkey, isInputElement);

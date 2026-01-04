@@ -73,10 +73,18 @@ function AppHeader({
               </button>
               <button
                 onClick={handleExportPdfClick}
-                className="px-3 py-1.5 text-sm bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded hover:bg-gray-300 dark:hover:bg-gray-600"
+                disabled={fileContentViewerRef.current?.isExportingPdf}
+                className="px-3 py-1.5 text-sm bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                 title="PDF로 내보내기"
               >
-                PDF
+                {fileContentViewerRef.current?.isExportingPdf ? (
+                  <>
+                    <span className="inline-block w-3 h-3 border-2 border-gray-600 dark:border-gray-300 border-t-transparent rounded-full animate-spin"></span>
+                    <span>PDF</span>
+                  </>
+                ) : (
+                  'PDF'
+                )}
               </button>
               <button
                 onClick={handleDeleteClick}

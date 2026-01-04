@@ -17,6 +17,7 @@ import type { TextEditorConfig } from '../services/textEditorConfigService';
 export interface FileContentViewerRef {
   isEditing: boolean;
   hasChanges: boolean;
+  isExportingPdf: boolean;
   handleEdit: () => void;
   handleSave: () => Promise<void>;
   handleCancel: () => void;
@@ -57,6 +58,7 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
   const saveDialogRef = useRef<HTMLDivElement>(null);
   const [showRecoveryDialog, setShowRecoveryDialog] = useState(false);
   const [recoveryContent, setRecoveryContent] = useState<string | null>(null);
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -683,39 +685,52 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
       return;
     }
 
+    if (isExportingPdf) {
+      return; // 이미 내보내기 중이면 무시
+    }
+
+    setIsExportingPdf(true);
     try {
       const fileName = getFileName(filePath);
       const defaultFileName = `${fileName.replace(/\.[^/.]+$/, '')}.pdf`;
       const isMarkdown = isMarkdownFile(filePath);
 
+      // HTML 변환 (마크다운은 비동기 처리)
       let htmlContent: string;
-
-      if (isMarkdown) {
-        // 마크다운의 경우 렌더링된 HTML을 가져와야 함
-        // 현재는 기본 텍스트로 변환 (나중에 마크다운 렌더링 추가 가능)
-        htmlContent = pdfExportService.convertTextToHtml(content, config, true);
-      } else {
-        // 일반 텍스트
-        htmlContent = pdfExportService.convertTextToHtml(content, config, false);
+      try {
+        htmlContent = await pdfExportService.convertTextToHtml(content, config, isMarkdown);
+      } catch (convertError) {
+        const err = convertError as Error;
+        toastService.error(`콘텐츠 변환 실패: ${err.message}`);
+        return;
       }
 
-      await pdfExportService.exportToPDF(htmlContent, defaultFileName);
+      const success = await pdfExportService.exportToPDF(htmlContent, defaultFileName);
+      if (!success) {
+        // 사용자가 취소한 경우는 에러로 표시하지 않음 (이미 서비스에서 처리됨)
+        return;
+      }
     } catch (error) {
       console.error('Error exporting to PDF:', error);
-      handleError(error, 'PDF 내보내기 중 오류가 발생했습니다.');
+      const err = error as Error;
+      const errorMessage = err.message || 'PDF 내보내기 중 오류가 발생했습니다.';
+      toastService.error(errorMessage);
+    } finally {
+      setIsExportingPdf(false);
     }
-  }, [filePath, content, config]);
+  }, [filePath, content, config, isExportingPdf]);
 
   // ref를 통해 외부에 노출 (모든 핸들러가 선언된 후)
   useImperativeHandle(ref, () => ({
     isEditing,
     hasChanges,
+    isExportingPdf,
     handleEdit: handleEditClick,
     handleSave,
     handleCancel,
     handleDelete: handleDeleteClick,
     handleExportPdf,
-  }), [isEditing, hasChanges, handleEditClick, handleSave, handleCancel, handleDeleteClick, handleExportPdf]);
+  }), [isEditing, hasChanges, isExportingPdf, handleEditClick, handleSave, handleCancel, handleDeleteClick, handleExportPdf]);
 
   const handleDeleteConfirm = async () => {
     if (!filePath) return;

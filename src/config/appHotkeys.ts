@@ -14,6 +14,7 @@ interface AppHotkeysDependencies {
   handleUndo: () => Promise<void>;
   handleTabClick: (tabId: string) => void;
   handleConfigChange: (config: Partial<TextEditorConfig>) => Promise<void>;
+  handleExportPdf?: () => Promise<void>;
 }
 
 /**
@@ -31,6 +32,7 @@ export function createAppHotkeys(deps: AppHotkeysDependencies): HotkeyConfig[] {
     handleUndo,
     handleTabClick,
     handleConfigChange,
+    handleExportPdf,
   } = deps;
 
   return [
@@ -64,6 +66,16 @@ export function createAppHotkeys(deps: AppHotkeysDependencies): HotkeyConfig[] {
       ctrl: true,
       handler: () => {
         setShowSearchDialog(true);
+      },
+    },
+    // Ctrl+P: PDF 내보내기
+    {
+      key: 'p',
+      ctrl: true,
+      handler: () => {
+        if (handleExportPdf) {
+          handleExportPdf();
+        }
       },
     },
     // /: 검색 다이얼로그 열기
