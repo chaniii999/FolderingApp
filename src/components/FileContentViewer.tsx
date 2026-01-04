@@ -58,6 +58,10 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const editHistoryRef = useRef<string[]>([]);
+  const historyIndexRef = useRef<number>(-1);
+  const lastContentRef = useRef<string>('');
+  const cursorPositionMapRef = useRef<Map<string, number>>(new Map());
   
   const { startScrolling, stopScrolling } = useScrollAcceleration({
     scrollContainerRef,
@@ -136,6 +140,28 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
       }, 0);
     }
   }, [isEditing]);
+
+  // 편집 모드 진입 시 히스토리 초기화 및 커서 위치 복원
+  useEffect(() => {
+    if (isEditing && content && filePath) {
+      editHistoryRef.current = [content];
+      historyIndexRef.current = 0;
+      lastContentRef.current = content;
+      
+      // 저장된 커서 위치 복원
+      const savedCursorPosition = cursorPositionMapRef.current.get(filePath);
+      if (savedCursorPosition !== undefined && textareaRef.current) {
+        setTimeout(() => {
+          if (textareaRef.current) {
+            // 저장된 위치가 내용 길이를 초과하지 않도록 제한
+            const cursorPosition = Math.min(savedCursorPosition, content.length);
+            textareaRef.current.setSelectionRange(cursorPosition, cursorPosition);
+            textareaRef.current.focus();
+          }
+        }, 0);
+      }
+    }
+  }, [isEditing, filePath]); // content는 의존성에서 제외 (편집 모드 진입 시에만 초기화)
 
   // 새로 생성된 파일인 경우 자동으로 편집 모드 진입
   useEffect(() => {
@@ -440,12 +466,121 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
 
   const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newContent = e.target.value;
+    const oldContent = lastContentRef.current;
+    
+    // 내용이 실제로 변경된 경우에만 히스토리에 추가
+    if (newContent !== oldContent && isEditing) {
+      // 현재 인덱스 이후의 히스토리 제거 (새로운 분기)
+      if (historyIndexRef.current < editHistoryRef.current.length - 1) {
+        editHistoryRef.current = editHistoryRef.current.slice(0, historyIndexRef.current + 1);
+      }
+      // 이전 내용을 히스토리에 추가
+      editHistoryRef.current.push(oldContent);
+      // 히스토리 크기 제한 (최대 50개)
+      if (editHistoryRef.current.length > 50) {
+        editHistoryRef.current.shift();
+      } else {
+        historyIndexRef.current = editHistoryRef.current.length - 1;
+      }
+      lastContentRef.current = newContent;
+    }
+    
     setContent(newContent);
     // 내용 변경 시 자동 저장 업데이트
     if (filePath && isEditing) {
       autoSaveService.updateContent(filePath, newContent);
     }
   };
+
+  /**
+   * Shift + Enter: 다음 줄로 줄바꿈(커서 이동)
+   */
+  const handleShiftEnter = useCallback((textarea: HTMLTextAreaElement): void => {
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const currentContent = textarea.value;
+    
+    // 현재 커서 위치에 줄바꿈 삽입
+    const newContent = currentContent.slice(0, start) + '\n' + currentContent.slice(end);
+    setContent(newContent);
+    
+    // 커서를 다음 줄로 이동
+    setTimeout(() => {
+      if (textareaRef.current) {
+        const newPosition = start + 1;
+        textareaRef.current.setSelectionRange(newPosition, newPosition);
+      }
+    }, 0);
+    
+    // 자동 저장 업데이트
+    if (filePath && isEditing) {
+      autoSaveService.updateContent(filePath, newContent);
+    }
+  }, [filePath, isEditing]);
+
+  /**
+   * Ctrl + Enter: 현재 줄의 가장 끝 부분으로 커서 이동
+   */
+  const handleCtrlEnter = useCallback((textarea: HTMLTextAreaElement): void => {
+    const currentPosition = textarea.selectionStart;
+    const currentContent = textarea.value;
+    
+    // 현재 줄의 끝 위치 찾기
+    let lineEnd = currentPosition;
+    
+    // 현재 위치부터 줄 끝까지 검색
+    while (lineEnd < currentContent.length && currentContent[lineEnd] !== '\n') {
+      lineEnd++;
+    }
+    
+    // 커서를 줄 끝으로 이동
+    textarea.setSelectionRange(lineEnd, lineEnd);
+  }, []);
+
+  /**
+   * Ctrl + Z: 되돌리기
+   */
+  const handleUndo = useCallback((textarea: HTMLTextAreaElement): void => {
+    if (editHistoryRef.current.length === 0 || historyIndexRef.current < 0) {
+      return;
+    }
+    
+    // 현재 내용을 히스토리에 저장 (되돌리기 후 다시 되돌릴 수 있도록)
+    const currentContent = textarea.value;
+    if (currentContent !== lastContentRef.current) {
+      // 현재 인덱스 이후의 히스토리 제거
+      if (historyIndexRef.current < editHistoryRef.current.length - 1) {
+        editHistoryRef.current = editHistoryRef.current.slice(0, historyIndexRef.current + 1);
+      }
+      editHistoryRef.current.push(currentContent);
+      if (editHistoryRef.current.length > 50) {
+        editHistoryRef.current.shift();
+      } else {
+        historyIndexRef.current = editHistoryRef.current.length - 1;
+      }
+    }
+    
+    // 이전 상태로 되돌리기
+    if (historyIndexRef.current > 0) {
+      historyIndexRef.current--;
+      const previousContent = editHistoryRef.current[historyIndexRef.current];
+      setContent(previousContent);
+      lastContentRef.current = previousContent;
+      
+      // 자동 저장 업데이트
+      if (filePath && isEditing) {
+        autoSaveService.updateContent(filePath, previousContent);
+      }
+      
+      // 커서 위치 유지
+      setTimeout(() => {
+        if (textareaRef.current) {
+          const cursorPos = Math.min(textarea.selectionStart, previousContent.length);
+          textareaRef.current.setSelectionRange(cursorPos, cursorPos);
+        }
+      }, 0);
+    }
+  }, [filePath, isEditing]);
 
   const handleSave = useCallback(async () => {
     if (!filePath || !hasChanges) return;
@@ -460,6 +595,13 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
       }
 
       await window.api.filesystem.writeFile(filePath, content);
+      
+      // 저장 시 커서 위치 저장
+      if (textareaRef.current && filePath) {
+        const cursorPosition = textareaRef.current.selectionStart;
+        cursorPositionMapRef.current.set(filePath, cursorPosition);
+      }
+      
       setOriginalContent(content);
       setHasChanges(false);
       setIsEditing(false);
@@ -491,6 +633,12 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
   }, [filePath, hasChanges, content]);
 
   const handleCancel = useCallback(() => {
+    // 취소 시 커서 위치 저장
+    if (textareaRef.current && filePath) {
+      const cursorPosition = textareaRef.current.selectionStart;
+      cursorPositionMapRef.current.set(filePath, cursorPosition);
+    }
+    
     if (hasChanges) {
       setShowSaveDialog(true);
       setDialogSelectedOption('save');
@@ -513,6 +661,11 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
   };
 
   const handleSaveDialogCancel = () => {
+    // 취소 시 커서 위치 저장 (다이얼로그가 열리기 전에 저장된 위치 사용)
+    if (filePath && cursorPositionMapRef.current.has(filePath)) {
+      // 이미 저장된 위치가 있으면 유지
+    }
+    
     setContent(originalContent);
     setHasChanges(false);
     setIsEditing(false);
@@ -581,6 +734,14 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
       deleteDialogRef.current.focus();
     }
   }, [showDeleteDialog]);
+
+  // 저장 다이얼로그가 열리기 전에 커서 위치 저장
+  useEffect(() => {
+    if (showSaveDialog && textareaRef.current && filePath) {
+      const cursorPosition = textareaRef.current.selectionStart;
+      cursorPositionMapRef.current.set(filePath, cursorPosition);
+    }
+  }, [showSaveDialog, filePath]);
 
   useEffect(() => {
     if (showSaveDialog && saveDialogRef.current) {
@@ -652,6 +813,36 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
               if (showSaveDialog) {
                 e.preventDefault();
                 e.stopPropagation();
+                return;
+              }
+              
+              // Shift + Enter: 다음 줄로 줄바꿈(커서 이동)
+              if (e.key === 'Enter' && e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (textareaRef.current) {
+                  handleShiftEnter(textareaRef.current);
+                }
+                return;
+              }
+              
+              // Ctrl + Enter: 현재 줄의 가장 끝 부분으로 커서 이동
+              if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (textareaRef.current) {
+                  handleCtrlEnter(textareaRef.current);
+                }
+                return;
+              }
+              
+              // Ctrl + Z: 되돌리기
+              if ((e.key === 'z' || e.key === 'Z') && (e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (textareaRef.current) {
+                  handleUndo(textareaRef.current);
+                }
                 return;
               }
               
