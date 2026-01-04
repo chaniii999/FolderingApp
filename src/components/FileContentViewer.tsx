@@ -10,6 +10,7 @@ import { getFileName } from '../utils/pathUtils';
 import { handleError, getErrorMessage } from '../utils/errorHandler';
 import RecoveryDialog from './RecoveryDialog';
 import MarkdownViewer from './MarkdownViewer';
+import { pdfExportService } from '../services/pdfExportService';
 
 import type { TextEditorConfig } from '../services/textEditorConfigService';
 
@@ -20,6 +21,7 @@ export interface FileContentViewerRef {
   handleSave: () => Promise<void>;
   handleCancel: () => void;
   handleDelete: () => void;
+  handleExportPdf: () => Promise<void>;
 }
 
 interface FileContentViewerProps {
@@ -672,6 +674,38 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
     setShowSaveDialog(false);
   };
 
+  /**
+   * PDF로 내보내기
+   */
+  const handleExportPdf = useCallback(async (): Promise<void> => {
+    if (!filePath || !content) {
+      toastService.error('내보낼 내용이 없습니다.');
+      return;
+    }
+
+    try {
+      const fileName = getFileName(filePath);
+      const defaultFileName = `${fileName.replace(/\.[^/.]+$/, '')}.pdf`;
+      const isMarkdown = isMarkdownFile(filePath);
+
+      let htmlContent: string;
+
+      if (isMarkdown) {
+        // 마크다운의 경우 렌더링된 HTML을 가져와야 함
+        // 현재는 기본 텍스트로 변환 (나중에 마크다운 렌더링 추가 가능)
+        htmlContent = pdfExportService.convertTextToHtml(content, config, true);
+      } else {
+        // 일반 텍스트
+        htmlContent = pdfExportService.convertTextToHtml(content, config, false);
+      }
+
+      await pdfExportService.exportToPDF(htmlContent, defaultFileName);
+    } catch (error) {
+      console.error('Error exporting to PDF:', error);
+      handleError(error, 'PDF 내보내기 중 오류가 발생했습니다.');
+    }
+  }, [filePath, content, config]);
+
   // ref를 통해 외부에 노출 (모든 핸들러가 선언된 후)
   useImperativeHandle(ref, () => ({
     isEditing,
@@ -680,7 +714,8 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
     handleSave,
     handleCancel,
     handleDelete: handleDeleteClick,
-  }), [isEditing, hasChanges, handleEditClick, handleSave, handleCancel, handleDeleteClick]);
+    handleExportPdf,
+  }), [isEditing, hasChanges, handleEditClick, handleSave, handleCancel, handleDeleteClick, handleExportPdf]);
 
   const handleDeleteConfirm = async () => {
     if (!filePath) return;

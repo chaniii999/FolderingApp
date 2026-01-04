@@ -40,6 +40,10 @@ function AppHeader({
     fileContentViewerRef.current?.handleCancel();
   }, [fileContentViewerRef]);
 
+  const handleExportPdfClick = useCallback(() => {
+    fileContentViewerRef.current?.handleExportPdf();
+  }, [fileContentViewerRef]);
+
   return (
     <header className="flex flex-col gap-1 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
       <div className="flex items-center gap-4 px-6 py-2">
@@ -66,6 +70,13 @@ function AppHeader({
                 title={`편집 (${getHotkeys().edit})`}
               >
                 Edit
+              </button>
+              <button
+                onClick={handleExportPdfClick}
+                className="px-3 py-1.5 text-sm bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded hover:bg-gray-300 dark:hover:bg-gray-600"
+                title="PDF로 내보내기"
+              >
+                PDF
               </button>
               <button
                 onClick={handleDeleteClick}

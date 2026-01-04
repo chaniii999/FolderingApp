@@ -24,6 +24,18 @@ export interface SearchResult extends FileSystemItem {
   relativePath: string;
 }
 
+export interface PdfExportOptions {
+  pageSize?: 'A4' | 'Letter' | 'Legal';
+  margins?: {
+    top?: number;
+    right?: number;
+    bottom?: number;
+    left?: number;
+  };
+  printBackground?: boolean;
+  landscape?: boolean;
+}
+
 export interface ElectronAPI {
   folder: {
     list: () => Promise<Folder[]>;
@@ -60,6 +72,7 @@ export interface ElectronAPI {
     openFolder: (folderPath: string) => Promise<void>;
     createGuideFile: (dirPath: string) => Promise<string | null>;
     getUserDataPath: () => Promise<string>;
+    exportToPDF: (htmlContent: string, defaultFileName: string, options?: PdfExportOptions) => Promise<string | null>;
   };
   menu: {
     updateCheckbox: (id: string, checked: boolean) => Promise<void>;

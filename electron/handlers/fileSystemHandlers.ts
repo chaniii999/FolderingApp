@@ -1,6 +1,8 @@
 import { IpcMain, shell } from 'electron';
 import * as fileSystemService from '../services/fileSystemService';
 import { saveStartPath, selectStartPath, deleteStartPath } from '../services/startPathService';
+import { pdfService } from '../services/pdfService';
+import type { PdfExportOptions } from '../services/pdfService';
 import os from 'os';
 import { app } from 'electron';
 
@@ -191,6 +193,20 @@ export function fileSystemHandlers(ipcMain: IpcMain): void {
       deleteStartPath();
     } catch (error) {
       console.error('Error deleting start path:', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('filesystem:exportToPDF', async (
+    _event,
+    htmlContent: string,
+    defaultFileName: string,
+    options?: PdfExportOptions
+  ) => {
+    try {
+      return await pdfService.exportHtmlToPdf(htmlContent, defaultFileName, options);
+    } catch (error) {
+      console.error('Error exporting to PDF:', error);
       throw error;
     }
   });

@@ -58,6 +58,8 @@ const api = {
     openFolder: (folderPath: string): Promise<void> => ipcRenderer.invoke('filesystem:openFolder', folderPath),
     createGuideFile: (dirPath: string): Promise<string | null> => ipcRenderer.invoke('filesystem:createGuideFile', dirPath),
     getUserDataPath: (): Promise<string> => ipcRenderer.invoke('filesystem:getUserDataPath'),
+    exportToPDF: (htmlContent: string, defaultFileName: string, options?: PdfExportOptions) =>
+      ipcRenderer.invoke('filesystem:exportToPDF', htmlContent, defaultFileName, options),
   },
   menu: {
     updateCheckbox: (id: string, checked: boolean): Promise<void> => ipcRenderer.invoke('menu:updateCheckbox', id, checked),
@@ -70,6 +72,18 @@ export interface FileSystemItem {
   path: string;
   isDirectory: boolean;
   size?: number;
+}
+
+export interface PdfExportOptions {
+  pageSize?: 'A4' | 'Letter' | 'Legal';
+  margins?: {
+    top?: number;
+    right?: number;
+    bottom?: number;
+    left?: number;
+  };
+  printBackground?: boolean;
+  landscape?: boolean;
 }
 
 // 메뉴 이벤트 리스너

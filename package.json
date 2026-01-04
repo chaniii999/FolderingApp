@@ -4,8 +4,9 @@
   "description": "폴더링 + 텍스트 메모 로컬 데스크톱 앱",
   "main": "dist-electron/main.js",
   "scripts": {
-    "dev": "concurrently \"npm run dev:vite\" \"npm run dev:electron\"",
+    "dev": "concurrently \"npm run dev:vite\" \"npm run dev:electron:build\" \"npm run dev:electron\"",
     "dev:vite": "vite",
+    "dev:electron:build": "tsc -p electron --watch",
     "dev:electron": "wait-on http://localhost:5173 && electron .",
     "build": "npm run build:vite && npm run build:electron",
     "build:vite": "vite build",
