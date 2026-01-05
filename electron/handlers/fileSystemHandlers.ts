@@ -1,10 +1,11 @@
-import { IpcMain, shell } from 'electron';
+import { IpcMain, shell, clipboard } from 'electron';
 import * as fileSystemService from '../services/fileSystemService';
 import { saveStartPath, selectStartPath, deleteStartPath } from '../services/startPathService';
 import { pdfService } from '../services/pdfService';
 import type { PdfExportOptions } from '../services/pdfService';
 import os from 'os';
 import { app } from 'electron';
+import fs from 'fs';
 
 export function fileSystemHandlers(ipcMain: IpcMain): void {
   ipcMain.handle('filesystem:getCurrentDirectory', async () => {
@@ -57,6 +58,15 @@ export function fileSystemHandlers(ipcMain: IpcMain): void {
       return fileSystemService.readFile(filePath);
     } catch (error) {
       console.error('Error reading file:', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('filesystem:readFileAsBase64', async (_event, filePath: string) => {
+    try {
+      return fileSystemService.readFileAsBase64(filePath);
+    } catch (error) {
+      console.error('Error reading file as base64:', error);
       throw error;
     }
   });
@@ -208,6 +218,19 @@ export function fileSystemHandlers(ipcMain: IpcMain): void {
     } catch (error) {
       console.error('Error exporting to PDF:', error);
       throw error;
+    }
+  });
+
+  ipcMain.handle('filesystem:getClipboardFiles', async () => {
+    try {
+      // Windows에서는 clipboard.readBuffer를 사용하여 파일 경로를 읽을 수 있습니다
+      // 하지만 더 간단한 방법은 드래그 앤 드롭 이벤트를 사용하는 것입니다
+      // 클립보드에서 파일 경로를 직접 읽는 것은 플랫폼별로 다르므로
+      // 빈 배열을 반환하고 드래그 앤 드롭 이벤트를 통해 처리합니다
+      return [];
+    } catch (error) {
+      console.error('Error getting clipboard files:', error);
+      return [];
     }
   });
 }

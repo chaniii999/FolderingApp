@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useImperativeHandle, forwardRef } from 'react';
 import { getHotkeys, isHotkey } from '../config/hotkeys';
-import { isTextFile } from '../utils/fileUtils';
+import { isTextFile, isPdfFile } from '../utils/fileUtils';
 import { undoService } from '../services/undoService';
 import { toastService } from '../services/toastService';
 import { autoSaveService } from '../services/autoSaveService';
@@ -10,6 +10,7 @@ import { getFileName } from '../utils/pathUtils';
 import { handleError, getErrorMessage } from '../utils/errorHandler';
 import RecoveryDialog from './RecoveryDialog';
 import MarkdownViewer from './MarkdownViewer';
+import PdfViewer from './PdfViewer';
 import { pdfExportService } from '../services/pdfExportService';
 
 import type { TextEditorConfig } from '../services/textEditorConfigService';
@@ -97,6 +98,14 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
 
         if (!window.api?.filesystem) {
           throw new Error('API가 로드되지 않았습니다.');
+        }
+
+        // PDF 파일인 경우 별도 처리하지 않고 뷰어에서 처리
+        if (isPdfFile(filePath)) {
+          setContent('');
+          setOriginalContent('');
+          setLoading(false);
+          return;
         }
 
         // 텍스트 파일이 아닌 경우 에러 표시하고 데이터 로드하지 않음
@@ -926,6 +935,8 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
             }}
             spellCheck={false}
           />
+        ) : isPdfFile(filePath) ? (
+          <PdfViewer filePath={filePath} />
         ) : isMarkdownFile(filePath) ? (
           <MarkdownViewer content={content} config={config} />
         ) : (

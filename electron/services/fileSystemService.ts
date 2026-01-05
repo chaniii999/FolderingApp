@@ -179,6 +179,32 @@ export function readFile(filePath: string): string | null {
   }
 }
 
+export function readFileAsBase64(filePath: string): string | null {
+  try {
+    if (!fs.existsSync(filePath)) {
+      return null;
+    }
+
+    const stats = fs.statSync(filePath);
+    if (stats.isDirectory()) {
+      return null;
+    }
+
+    // PDF 파일 크기 제한 (50MB)
+    const maxSize = 50 * 1024 * 1024; // 50MB
+    if (stats.size > maxSize) {
+      throw new Error('PDF 파일이 너무 큽니다 (최대 50MB)');
+    }
+
+    const buffer = fs.readFileSync(filePath);
+    const base64 = buffer.toString('base64');
+    return base64;
+  } catch (error) {
+    console.error('Error reading file as base64:', error);
+    throw error;
+  }
+}
+
 export function writeFile(filePath: string, content: string): void {
   try {
     if (!fs.existsSync(filePath)) {

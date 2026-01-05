@@ -410,6 +410,9 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
           setShowDeleteDialog({ item: node, path: node.path });
         }
       }
+    } else if ((e.key === 'v' || e.key === 'V') && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      handlePasteFromClipboard();
     }
   };
 
@@ -595,7 +598,7 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
     setContextMenu(null);
   };
 
-  const handlePaste = async () => {
+  const handlePaste = useCallback(async () => {
     if (!clipboard || !window.api?.filesystem) return;
 
     try {
@@ -639,7 +642,7 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
     } catch (err) {
       handleError(err, '붙여넣기 중 오류가 발생했습니다.');
     }
-  };
+  }, [clipboard, currentPath, onFileSelect, selectedFilePath, initializeTree]);
 
   const handleContextMenuDelete = () => {
     if (!contextMenu || !contextMenu.item || !contextMenu.path) return;
@@ -647,6 +650,80 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
     setShowDeleteDialog({ item, path });
     setContextMenu(null);
   };
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = 'copy';
+  }, []);
+
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!window.api?.filesystem) {
+      toastService.error('API가 로드되지 않았습니다.');
+      return;
+    }
+
+    try {
+      const files = Array.from(e.dataTransfer.files);
+      if (files.length === 0) {
+        return;
+      }
+
+      const rootPath = await getRootPath();
+      if (!rootPath) {
+        toastService.error('대상 경로를 찾을 수 없습니다.');
+        return;
+      }
+
+      for (const file of files) {
+        const sourcePath = file.path;
+        const fileName = getFileName(sourcePath);
+        const destPath = joinPath(rootPath, fileName);
+
+        // 같은 위치에 붙여넣으려는 경우 스킵
+        if (sourcePath === destPath) {
+          continue;
+        }
+
+        // 이미 존재하는 파일인지 확인
+        const items = await window.api.filesystem.listDirectory(rootPath);
+        const exists = items.some(item => item.name === fileName);
+        
+        if (exists) {
+          toastService.warning(`${fileName}은(는) 이미 존재합니다.`);
+          continue;
+        }
+
+        // 파일 복사
+        await window.api.filesystem.copyFile(sourcePath, destPath);
+      }
+
+      initializeTree();
+      toastService.success('파일이 복사되었습니다.');
+    } catch (err) {
+      handleError(err, '파일 붙여넣기 중 오류가 발생했습니다.');
+    }
+  }, [getRootPath, initializeTree]);
+
+  const handlePasteFromClipboard = useCallback(async () => {
+    if (!window.api?.filesystem) {
+      toastService.error('API가 로드되지 않았습니다.');
+      return;
+    }
+
+    // 내부 클립보드가 있으면 기존 붙여넣기 로직 사용
+    if (clipboard) {
+      await handlePaste();
+      return;
+    }
+
+    // 외부에서 복사한 파일은 드래그 앤 드롭으로만 처리 가능
+    // Ctrl+V는 내부 클립보드가 있을 때만 작동
+    toastService.info('붙여넣을 파일이 없습니다. 파일을 드래그 앤 드롭하거나 컨텍스트 메뉴에서 복사한 후 붙여넣으세요.');
+  }, [clipboard, handlePaste]);
 
   if (loading) {
     return (
@@ -668,6 +745,8 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
         ref={scrollContainerRef}
         className="flex flex-col gap-1 overflow-y-auto flex-1"
         onContextMenu={handleBlankSpaceContextMenu}
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}
       >
         {treeData.length === 0 ? (
           <div className="flex items-center justify-center h-full text-gray-500 dark:text-gray-400">

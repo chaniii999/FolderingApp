@@ -35,3 +35,18 @@ export function isTextFile(filePath: string | null): boolean {
   return !nonTextExtensions.includes(extension);
 }
 
+export function isPdfFile(filePath: string | null): boolean {
+  if (!filePath) return false;
+  
+  const fileName = getFileName(filePath);
+  if (!fileName) return false;
+  
+  const lastDotIndex = fileName.lastIndexOf('.');
+  if (lastDotIndex === -1 || lastDotIndex === fileName.length - 1) {
+    return false;
+  }
+  
+  const extension = fileName.substring(lastDotIndex + 1).toLowerCase();
+  return extension === 'pdf';
+}
+
