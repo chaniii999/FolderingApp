@@ -81,17 +81,23 @@ function updateFontMenu() {
 import { createMenuTemplate } from './menu/createMenuTemplate';
 
 function setupMenuBar(showMenuBar: boolean, window: BrowserWindow) {
+  console.log('[Main] setupMenuBar called, showMenuBar:', showMenuBar);
   mainWindow = window;
+  console.log('[Main] mainWindow set:', mainWindow ? 'yes' : 'no');
   
   // 메뉴바는 항상 표시 (Option, Help 메뉴를 위해)
   if (showMenuBar !== false) {
+    console.log('[Main] Creating menu template...');
     const template = createMenuTemplate({
       loadTextEditorConfig,
       mainWindow,
     });
+    console.log('[Main] Menu template created, items count:', template.length);
 
     applicationMenu = Menu.buildFromTemplate(template);
+    console.log('[Main] Menu built from template');
     Menu.setApplicationMenu(applicationMenu);
+    console.log('[Main] Application menu set');
     
     // 메뉴바 업데이트를 위한 IPC 핸들러
     ipcMain.handle('menu:updateCheckbox', (_event, id: string, checked: boolean) => {

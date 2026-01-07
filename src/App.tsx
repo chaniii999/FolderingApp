@@ -282,54 +282,86 @@ function App() {
         delete windowWithUtil.deleteStartPath;
       };
     }
+  }, []);
+
+  // 메뉴바 이벤트 리스너 - useRef로 함수 참조 유지
+  const handleSystemConfigChangeRef = useRef(handleSystemConfigChange);
+  const handleConfigChangeRef = useRef(handleConfigChange);
+  const handleSelectStartPathRef = useRef(handleSelectStartPath);
+  const handleOpenCurrentFolderRef = useRef(handleOpenCurrentFolder);
+
+  useEffect(() => {
+    handleSystemConfigChangeRef.current = handleSystemConfigChange;
+    handleConfigChangeRef.current = handleConfigChange;
+    handleSelectStartPathRef.current = handleSelectStartPath;
+    handleOpenCurrentFolderRef.current = handleOpenCurrentFolder;
+  }, [handleSystemConfigChange, handleConfigChange, handleSelectStartPath, handleOpenCurrentFolder]);
+
+  useEffect(() => {
+    console.log('[App] Setting up menu event listeners...');
     
-    // 메뉴바 이벤트 리스너
-    const handleMenuToggleHideNonTextFiles = (e: CustomEvent<boolean>) => {
-      handleSystemConfigChange({ hideNonTextFiles: e.detail });
+    // 메뉴바 이벤트 리스너 - ref를 통해 최신 함수 참조
+    const handleMenuToggleHideNonTextFiles = (e: Event) => {
+      const customEvent = e as CustomEvent<boolean>;
+      console.log('[App] handleMenuToggleHideNonTextFiles called, detail:', customEvent.detail);
+      handleSystemConfigChangeRef.current({ hideNonTextFiles: customEvent.detail });
     };
     
-    const handleMenuToggleShowHelp = (e: CustomEvent<boolean>) => {
-      handleSystemConfigChange({ showHelp: e.detail });
+    const handleMenuToggleShowHelp = (e: Event) => {
+      const customEvent = e as CustomEvent<boolean>;
+      console.log('[App] handleMenuToggleShowHelp called, detail:', customEvent.detail);
+      handleSystemConfigChangeRef.current({ showHelp: customEvent.detail });
     };
     
-    const handleMenuChangeTheme = (e: CustomEvent<Theme>) => {
-      handleSystemConfigChange({ theme: e.detail });
+    const handleMenuChangeTheme = (e: Event) => {
+      const customEvent = e as CustomEvent<Theme>;
+      console.log('[App] handleMenuChangeTheme called, detail:', customEvent.detail);
+      handleSystemConfigChangeRef.current({ theme: customEvent.detail });
     };
     
     const handleMenuSelectPath = () => {
-      handleSelectStartPath();
+      console.log('[App] handleMenuSelectPath called');
+      handleSelectStartPathRef.current();
     };
     
     const handleMenuOpenFolder = () => {
-      handleOpenCurrentFolder();
+      console.log('[App] handleMenuOpenFolder called');
+      handleOpenCurrentFolderRef.current();
     };
     
-    const handleMenuChangeHorizontalPadding = async (e: CustomEvent<number>) => {
-      await handleConfigChange({ horizontalPadding: e.detail });
+    const handleMenuChangeHorizontalPadding = async (e: Event) => {
+      const customEvent = e as CustomEvent<number>;
+      console.log('[App] handleMenuChangeHorizontalPadding called, detail:', customEvent.detail);
+      await handleConfigChangeRef.current({ horizontalPadding: customEvent.detail });
     };
     
-    const handleMenuChangeFontSize = async (e: CustomEvent<number>) => {
-      await handleConfigChange({ fontSize: e.detail });
+    const handleMenuChangeFontSize = async (e: Event) => {
+      const customEvent = e as CustomEvent<number>;
+      console.log('[App] handleMenuChangeFontSize called, detail:', customEvent.detail);
+      await handleConfigChangeRef.current({ fontSize: customEvent.detail });
     };
     
-    window.addEventListener('menu:toggleHideNonTextFiles', handleMenuToggleHideNonTextFiles as unknown as EventListener);
-    window.addEventListener('menu:toggleShowHelp', handleMenuToggleShowHelp as unknown as EventListener);
-    window.addEventListener('menu:changeTheme', handleMenuChangeTheme as unknown as EventListener);
-    window.addEventListener('menu:selectPath', handleMenuSelectPath as unknown as EventListener);
-    window.addEventListener('menu:openFolder', handleMenuOpenFolder as unknown as EventListener);
-    window.addEventListener('menu:changeHorizontalPadding', handleMenuChangeHorizontalPadding as unknown as EventListener);
-    window.addEventListener('menu:changeFontSize', handleMenuChangeFontSize as unknown as EventListener);
+    console.log('[App] Registering menu event listeners');
+    window.addEventListener('menu:toggleHideNonTextFiles', handleMenuToggleHideNonTextFiles);
+    window.addEventListener('menu:toggleShowHelp', handleMenuToggleShowHelp);
+    window.addEventListener('menu:changeTheme', handleMenuChangeTheme);
+    window.addEventListener('menu:selectPath', handleMenuSelectPath);
+    window.addEventListener('menu:openFolder', handleMenuOpenFolder);
+    window.addEventListener('menu:changeHorizontalPadding', handleMenuChangeHorizontalPadding);
+    window.addEventListener('menu:changeFontSize', handleMenuChangeFontSize);
+    console.log('[App] Menu event listeners registered');
     
     return () => {
-      window.removeEventListener('menu:toggleHideNonTextFiles', handleMenuToggleHideNonTextFiles as unknown as EventListener);
-      window.removeEventListener('menu:toggleShowHelp', handleMenuToggleShowHelp as unknown as EventListener);
-      window.removeEventListener('menu:changeTheme', handleMenuChangeTheme as unknown as EventListener);
-      window.removeEventListener('menu:selectPath', handleMenuSelectPath as unknown as EventListener);
-      window.removeEventListener('menu:openFolder', handleMenuOpenFolder as unknown as EventListener);
-      window.removeEventListener('menu:changeHorizontalPadding', handleMenuChangeHorizontalPadding as unknown as EventListener);
-      window.removeEventListener('menu:changeFontSize', handleMenuChangeFontSize as unknown as EventListener);
+      console.log('[App] Removing menu event listeners');
+      window.removeEventListener('menu:toggleHideNonTextFiles', handleMenuToggleHideNonTextFiles);
+      window.removeEventListener('menu:toggleShowHelp', handleMenuToggleShowHelp);
+      window.removeEventListener('menu:changeTheme', handleMenuChangeTheme);
+      window.removeEventListener('menu:selectPath', handleMenuSelectPath);
+      window.removeEventListener('menu:openFolder', handleMenuOpenFolder);
+      window.removeEventListener('menu:changeHorizontalPadding', handleMenuChangeHorizontalPadding);
+      window.removeEventListener('menu:changeFontSize', handleMenuChangeFontSize);
     };
-  }, [handleSystemConfigChange, handleConfigChange, handleSelectStartPath, handleOpenCurrentFolder]);
+  }, []); // 빈 dependency 배열 - 한 번만 등록
 
   // 핫키가 작동하지 않아야 할 상황 체크
   const shouldBlockHotkey = useCallback(() => {

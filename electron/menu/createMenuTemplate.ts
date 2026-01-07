@@ -1,4 +1,4 @@
-import { app } from 'electron';
+import { app, BrowserWindow } from 'electron';
 import type { MenuItemConstructorOptions } from 'electron';
 
 interface TextEditorConfig {
@@ -27,16 +27,23 @@ export function createMenuTemplate({
         {
           label: 'Select Path',
           click: () => {
-            if (mainWindow) {
-              mainWindow.webContents.send('menu:selectPath');
+            console.log('[Menu] Select Path clicked');
+            const window = BrowserWindow.getAllWindows()[0];
+            console.log('[Menu] Window found:', window ? 'yes' : 'no', window && !window.isDestroyed() ? 'not destroyed' : 'destroyed or null');
+            if (window && !window.isDestroyed()) {
+              console.log('[Menu] Sending menu:selectPath event');
+              window.webContents.send('menu:selectPath');
+            } else {
+              console.error('[Menu] Cannot send menu:selectPath - window is null or destroyed');
             }
           },
         },
         {
           label: 'Open Folder',
           click: () => {
-            if (mainWindow) {
-              mainWindow.webContents.send('menu:openFolder');
+            const window = BrowserWindow.getAllWindows()[0];
+            if (window && !window.isDestroyed()) {
+              window.webContents.send('menu:openFolder');
             }
           },
         },
@@ -58,8 +65,14 @@ export function createMenuTemplate({
           type: 'checkbox',
           id: 'hideNonTextFiles',
           click: (menuItem) => {
-            if (mainWindow) {
-              mainWindow.webContents.send('menu:toggleHideNonTextFiles', menuItem.checked);
+            console.log('[Menu] Toggle Hide Non Text Files clicked, checked:', menuItem.checked);
+            const window = BrowserWindow.getAllWindows()[0];
+            console.log('[Menu] Window found:', window ? 'yes' : 'no', window && !window.isDestroyed() ? 'not destroyed' : 'destroyed or null');
+            if (window && !window.isDestroyed()) {
+              console.log('[Menu] Sending menu:toggleHideNonTextFiles event');
+              window.webContents.send('menu:toggleHideNonTextFiles', menuItem.checked);
+            } else {
+              console.error('[Menu] Cannot send menu:toggleHideNonTextFiles - window is null or destroyed');
             }
           },
         },
@@ -74,8 +87,13 @@ export function createMenuTemplate({
           id: 'theme-light',
           checked: true,
           click: () => {
-            if (mainWindow) {
-              mainWindow.webContents.send('menu:changeTheme', 'light');
+            console.log('[Menu] Theme Light clicked');
+            const window = BrowserWindow.getAllWindows()[0];
+            if (window && !window.isDestroyed()) {
+              console.log('[Menu] Sending menu:changeTheme event: light');
+              window.webContents.send('menu:changeTheme', 'light');
+            } else {
+              console.error('[Menu] Cannot send menu:changeTheme - window is null or destroyed');
             }
           },
         },
@@ -85,8 +103,13 @@ export function createMenuTemplate({
           id: 'theme-dark',
           checked: false,
           click: () => {
-            if (mainWindow) {
-              mainWindow.webContents.send('menu:changeTheme', 'dark');
+            console.log('[Menu] Theme Dark clicked');
+            const window = BrowserWindow.getAllWindows()[0];
+            if (window && !window.isDestroyed()) {
+              console.log('[Menu] Sending menu:changeTheme event: dark');
+              window.webContents.send('menu:changeTheme', 'dark');
+            } else {
+              console.error('[Menu] Cannot send menu:changeTheme - window is null or destroyed');
             }
           },
         },
@@ -106,8 +129,13 @@ export function createMenuTemplate({
               id: `padding-${padding}`,
               checked: config.horizontalPadding === padding,
               click: () => {
-                if (mainWindow) {
-                  mainWindow.webContents.send('menu:changeHorizontalPadding', padding);
+                console.log('[Menu] Change Horizontal Padding clicked:', padding);
+                const window = BrowserWindow.getAllWindows()[0];
+                if (window && !window.isDestroyed()) {
+                  console.log('[Menu] Sending menu:changeHorizontalPadding event:', padding);
+                  window.webContents.send('menu:changeHorizontalPadding', padding);
+                } else {
+                  console.error('[Menu] Cannot send menu:changeHorizontalPadding - window is null or destroyed');
                 }
               },
             }));
@@ -124,8 +152,13 @@ export function createMenuTemplate({
               id: `fontsize-${fontSize}`,
               checked: config.fontSize === fontSize,
               click: () => {
-                if (mainWindow) {
-                  mainWindow.webContents.send('menu:changeFontSize', fontSize);
+                console.log('[Menu] Change Font Size clicked:', fontSize);
+                const window = BrowserWindow.getAllWindows()[0];
+                if (window && !window.isDestroyed()) {
+                  console.log('[Menu] Sending menu:changeFontSize event:', fontSize);
+                  window.webContents.send('menu:changeFontSize', fontSize);
+                } else {
+                  console.error('[Menu] Cannot send menu:changeFontSize - window is null or destroyed');
                 }
               },
             }));
@@ -141,8 +174,9 @@ export function createMenuTemplate({
           type: 'checkbox',
           id: 'showHelp',
           click: (menuItem) => {
-            if (mainWindow) {
-              mainWindow.webContents.send('menu:toggleShowHelp', menuItem.checked);
+            const window = BrowserWindow.getAllWindows()[0];
+            if (window && !window.isDestroyed()) {
+              window.webContents.send('menu:toggleShowHelp', menuItem.checked);
             }
           },
         },

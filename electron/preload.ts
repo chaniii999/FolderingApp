@@ -89,12 +89,16 @@ export interface PdfExportOptions {
 
 // 메뉴 이벤트 리스너
 ipcRenderer.on('menu:toggleHideNonTextFiles', (_event, checked: boolean) => {
+  console.log('[Preload] Received menu:toggleHideNonTextFiles, checked:', checked);
   // DOM이 로드된 후 이벤트 전달
   const customEvent = new CustomEvent('menu:toggleHideNonTextFiles', { detail: checked });
   if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    console.log('[Preload] Dispatching menu:toggleHideNonTextFiles event (ready)');
     window.dispatchEvent(customEvent);
   } else {
+    console.log('[Preload] Waiting for DOMContentLoaded to dispatch menu:toggleHideNonTextFiles');
     document.addEventListener('DOMContentLoaded', () => {
+      console.log('[Preload] Dispatching menu:toggleHideNonTextFiles event (after load)');
       window.dispatchEvent(customEvent);
     });
   }
@@ -125,11 +129,15 @@ ipcRenderer.on('menu:changeTheme', (_event, theme: string) => {
 });
 
 ipcRenderer.on('menu:selectPath', () => {
+  console.log('[Preload] Received menu:selectPath');
   const customEvent = new CustomEvent('menu:selectPath');
   if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    console.log('[Preload] Dispatching menu:selectPath event (ready)');
     window.dispatchEvent(customEvent);
   } else {
+    console.log('[Preload] Waiting for DOMContentLoaded to dispatch menu:selectPath');
     document.addEventListener('DOMContentLoaded', () => {
+      console.log('[Preload] Dispatching menu:selectPath event (after load)');
       window.dispatchEvent(customEvent);
     });
   }
@@ -147,22 +155,30 @@ ipcRenderer.on('menu:openFolder', () => {
 });
 
 ipcRenderer.on('menu:changeHorizontalPadding', (_event, padding: number) => {
+  console.log('[Preload] Received menu:changeHorizontalPadding, padding:', padding);
   const customEvent = new CustomEvent('menu:changeHorizontalPadding', { detail: padding });
   if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    console.log('[Preload] Dispatching menu:changeHorizontalPadding event (ready)');
     window.dispatchEvent(customEvent);
   } else {
+    console.log('[Preload] Waiting for DOMContentLoaded to dispatch menu:changeHorizontalPadding');
     document.addEventListener('DOMContentLoaded', () => {
+      console.log('[Preload] Dispatching menu:changeHorizontalPadding event (after load)');
       window.dispatchEvent(customEvent);
     });
   }
 });
 
 ipcRenderer.on('menu:changeFontSize', (_event, fontSize: number) => {
+  console.log('[Preload] Received menu:changeFontSize, fontSize:', fontSize);
   const customEvent = new CustomEvent('menu:changeFontSize', { detail: fontSize });
   if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    console.log('[Preload] Dispatching menu:changeFontSize event (ready)');
     window.dispatchEvent(customEvent);
   } else {
+    console.log('[Preload] Waiting for DOMContentLoaded to dispatch menu:changeFontSize');
     document.addEventListener('DOMContentLoaded', () => {
+      console.log('[Preload] Dispatching menu:changeFontSize event (after load)');
       window.dispatchEvent(customEvent);
     });
   }
