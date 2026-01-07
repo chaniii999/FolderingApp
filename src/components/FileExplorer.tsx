@@ -16,6 +16,7 @@ interface FileExplorerProps {
   selectedFilePath?: string | null;
   onFileCreated?: (filePath: string, isDirectory: boolean) => void;
   onFileDeleted?: (filePath: string) => void;
+  onNewFileClick?: () => void;
   isDialogOpen?: boolean;
   hideNonTextFiles?: boolean;
   isEditing?: boolean;
@@ -25,6 +26,8 @@ export interface FileExplorerRef {
   focus: () => void;
   refresh: () => void;
   startRenameForPath: (filePath: string) => void;
+  getDraggedFolderPath: () => string | null;
+  getSelectedFolderPath: () => string | null;
 }
 
 interface TreeNode extends FileSystemItem {
@@ -34,7 +37,7 @@ interface TreeNode extends FileSystemItem {
 }
 
 const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
-  ({ currentPath, onFileSelect, selectedFilePath, onFileDeleted, isDialogOpen = false, hideNonTextFiles = false, isEditing = false }, ref) => {
+  ({ currentPath, onFileSelect, selectedFilePath, onFileDeleted, onNewFileClick, isDialogOpen = false, hideNonTextFiles = false, isEditing = false }, ref) => {
   usePerformanceMeasure('FileExplorer');
   const [treeData, setTreeData] = useState<TreeNode[]>([]);
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
@@ -46,6 +49,7 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
   const [showDeleteDialog, setShowDeleteDialog] = useState<{ item: FileSystemItem; path: string } | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; item: FileSystemItem | null; path: string | null; isBlankSpace?: boolean } | null>(null);
   const [clipboard, setClipboard] = useState<{ path: string; isDirectory: boolean; isCut: boolean } | null>(null);
+  const [draggedFolderPath, setDraggedFolderPath] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -230,7 +234,16 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
         setRenamingName(node.name);
       }
     },
-  }), [initializeTree, findNodeInTree, treeData]);
+    getDraggedFolderPath: () => draggedFolderPath,
+    getSelectedFolderPath: () => {
+      if (!cursorPath) return null;
+      const node = findNodeInTree(treeData, cursorPath);
+      if (node && node.isDirectory) {
+        return node.path;
+      }
+      return null;
+    },
+  }), [initializeTree, findNodeInTree, treeData, draggedFolderPath, cursorPath]);
 
   // 트리 노드 렌더링 (재귀)
   const renderTreeNode = useCallback((node: TreeNode, depth: number = 0, flatIndex: { current: number } = { current: 0 }): JSX.Element | null => {
@@ -256,6 +269,28 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
       setContextMenu({ x: e.clientX, y: e.clientY, item: node, path: node.path, isBlankSpace: false });
     };
 
+    const handleDragEnter = (e: React.DragEvent) => {
+      if (node.isDirectory) {
+        e.preventDefault();
+        e.stopPropagation();
+        setDraggedFolderPath(node.path);
+      }
+    };
+
+    const handleDragLeave = (e: React.DragEvent) => {
+      if (node.isDirectory) {
+        e.preventDefault();
+        e.stopPropagation();
+        // 드래그가 실제로 떠났는지 확인 (자식 요소로 이동한 경우 방지)
+        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+        const x = e.clientX;
+        const y = e.clientY;
+        if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
+          setDraggedFolderPath(null);
+        }
+      }
+    };
+
     return (
       <div key={node.path}>
         <div
@@ -266,20 +301,26 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
               itemRefs.current.delete(node.path);
             }
           }}
-          className={`flex items-center gap-2 px-2 py-1 cursor-pointer ${
+          className={`flex items-center gap-2 py-1 cursor-pointer text-left ${
             isSelected
               ? 'bg-blue-500 text-white'
               : 'hover:bg-gray-100 dark:hover:bg-gray-700'
           }`}
-          style={{ paddingLeft: `${8 + depth * 16}px` }}
+          style={{ 
+            paddingLeft: `${8 + depth * 16}px` 
+          }}
           onClick={handleNodeClick}
           onContextMenu={handleContextMenu}
+          onDragEnter={node.isDirectory ? handleDragEnter : undefined}
+          onDragLeave={node.isDirectory ? handleDragLeave : undefined}
         >
-          <div className="w-4 flex items-center justify-center">
-            {isSelected && <span className="text-sm">▶</span>}
+          <div className="w-4 flex items-center justify-center flex-shrink-0">
+            {(isSelected || (node.isDirectory && isExpanded)) && (
+              <span className="text-sm">▶</span>
+            )}
           </div>
           {node.isDirectory && (
-            <div className="w-4 flex items-center justify-center">
+            <div className="w-4 flex items-center justify-center flex-shrink-0">
               {node.isLoading ? (
                 <span className="text-xs">⏳</span>
               ) : isExpanded ? (
@@ -289,9 +330,9 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
               )}
             </div>
           )}
-          {!node.isDirectory && <div className="w-4" />}
-          <div className="flex-1 flex items-center gap-2">
-            <span className="text-sm">{node.isDirectory ? '📁' : '📄'}</span>
+          {!node.isDirectory && <div className="w-4 flex-shrink-0" />}
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-sm flex-shrink-0">{node.isDirectory ? '📁' : '📄'}</span>
             {isRenaming ? (
               <input
                 ref={renamingPath === node.path ? renameInputRef : null}
@@ -497,6 +538,26 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
 
       setShowDeleteDialog(null);
       
+      // 삭제 전에 현재 평면화된 노드 리스트 생성 (다음 항목 찾기용)
+      const currentFlatNodes = flattenTree(treeData);
+      const deletedIndex = currentFlatNodes.findIndex(n => n.path === item.path);
+      const wasSelected = cursorPath === item.path;
+      
+      // 다음 항목 경로 미리 계산
+      let nextItemPath: string | null = null;
+      if (wasSelected && deletedIndex >= 0) {
+        // 삭제될 항목을 제외한 리스트에서 다음 항목 찾기
+        const remainingNodes = currentFlatNodes.filter((_, index) => index !== deletedIndex);
+        if (remainingNodes.length > 0) {
+          // 삭제된 항목의 인덱스가 리스트 범위 내에 있으면 그 위치의 항목으로 이동
+          // 삭제된 항목이 마지막이었으면 이전 항목으로 이동
+          const nextIndex = deletedIndex < remainingNodes.length ? deletedIndex : remainingNodes.length - 1;
+          if (nextIndex >= 0) {
+            nextItemPath = remainingNodes[nextIndex].path;
+          }
+        }
+      }
+      
       // 파일 삭제 시 탭 제거 및 선택 해제
       if (!item.isDirectory) {
         if (onFileDeleted) {
@@ -505,16 +566,6 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
         if (onFileSelect && selectedFilePath === item.path) {
           onFileSelect('');
         }
-        // 커서 경로도 해제
-        if (cursorPath === item.path) {
-          setCursorPath(null);
-        }
-        // 포커스 복귀
-        setTimeout(() => {
-          if (listRef.current) {
-            listRef.current.focus();
-          }
-        }, 100);
       }
       
       // 트리에서 노드 제거
@@ -536,6 +587,24 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
         next.delete(item.path);
         return next;
       });
+      
+      // 삭제된 항목이 선택되어 있었고, 다음 항목이 있으면 커서 이동
+      if (wasSelected) {
+        setTimeout(() => {
+          if (nextItemPath) {
+            setCursorPath(nextItemPath);
+          } else {
+            setCursorPath(null);
+          }
+          
+          // 포커스 복귀
+          setTimeout(() => {
+            if (listRef.current) {
+              listRef.current.focus();
+            }
+          }, 50);
+        }, 100);
+      }
     } catch (err) {
       handleError(err, '삭제 중 오류가 발생했습니다.');
     }
@@ -547,6 +616,12 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
       renameInputRef.current.select();
     }
   }, [renamingPath]);
+
+  useEffect(() => {
+    if (showDeleteDialog && deleteDialogRef.current) {
+      deleteDialogRef.current.focus();
+    }
+  }, [showDeleteDialog]);
 
   useEffect(() => {
     if (selectedFilePath) {
@@ -703,8 +778,10 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
 
       initializeTree();
       toastService.success('파일이 복사되었습니다.');
+      setDraggedFolderPath(null);
     } catch (err) {
       handleError(err, '파일 붙여넣기 중 오류가 발생했습니다.');
+      setDraggedFolderPath(null);
     }
   }, [getRootPath, initializeTree]);
 
@@ -725,6 +802,10 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
     toastService.info('붙여넣을 파일이 없습니다. 파일을 드래그 앤 드롭하거나 컨텍스트 메뉴에서 복사한 후 붙여넣으세요.');
   }, [clipboard, handlePaste]);
 
+  const handleDragEnd = useCallback(() => {
+    setDraggedFolderPath(null);
+  }, []);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -740,6 +821,7 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
       tabIndex={0}
       onKeyDown={handleKeyDown}
       ref={listRef}
+      onDragEnd={handleDragEnd}
     >
       <div 
         ref={scrollContainerRef}
@@ -765,6 +847,7 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
           onCopy={handleCopy}
           onPaste={handlePaste}
           onDelete={handleContextMenuDelete}
+          onNewFile={onNewFileClick}
           canCopy={contextMenu.item ? !contextMenu.item.isDirectory : false}
           canPaste={clipboard !== null}
           isBlankSpace={contextMenu.isBlankSpace || false}

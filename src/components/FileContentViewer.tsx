@@ -506,35 +506,9 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
   };
 
   /**
-   * Shift + Enter: 다음 줄로 줄바꿈(커서 이동)
+   * Shift + Enter: 현재 줄의 가장 끝 부분으로 커서 이동 후 개행문자 삽입
    */
   const handleShiftEnter = useCallback((textarea: HTMLTextAreaElement): void => {
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const currentContent = textarea.value;
-    
-    // 현재 커서 위치에 줄바꿈 삽입
-    const newContent = currentContent.slice(0, start) + '\n' + currentContent.slice(end);
-    setContent(newContent);
-    
-    // 커서를 다음 줄로 이동
-    setTimeout(() => {
-      if (textareaRef.current) {
-        const newPosition = start + 1;
-        textareaRef.current.setSelectionRange(newPosition, newPosition);
-      }
-    }, 0);
-    
-    // 자동 저장 업데이트
-    if (filePath && isEditing) {
-      autoSaveService.updateContent(filePath, newContent);
-    }
-  }, [filePath, isEditing]);
-
-  /**
-   * Ctrl + Enter: 현재 줄의 가장 끝 부분으로 커서 이동
-   */
-  const handleCtrlEnter = useCallback((textarea: HTMLTextAreaElement): void => {
     const currentPosition = textarea.selectionStart;
     const currentContent = textarea.value;
     
@@ -546,8 +520,40 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
       lineEnd++;
     }
     
-    // 커서를 줄 끝으로 이동
-    textarea.setSelectionRange(lineEnd, lineEnd);
+    // 줄 끝에 개행문자 삽입
+    const newContent = currentContent.slice(0, lineEnd) + '\n' + currentContent.slice(lineEnd);
+    setContent(newContent);
+    
+    // 커서를 개행문자 다음 위치(다음 줄 시작)로 이동
+    setTimeout(() => {
+      if (textareaRef.current) {
+        const newPosition = lineEnd + 1;
+        textareaRef.current.setSelectionRange(newPosition, newPosition);
+      }
+    }, 0);
+    
+    // 자동 저장 업데이트
+    if (filePath && isEditing) {
+      autoSaveService.updateContent(filePath, newContent);
+    }
+  }, [filePath, isEditing]);
+
+  /**
+   * Ctrl + Enter: 텍스트 맨 뒤로 이동 (개행문자를 만나면 그 전 위치로)
+   */
+  const handleCtrlEnter = useCallback((textarea: HTMLTextAreaElement): void => {
+    const currentContent = textarea.value;
+    
+    // 텍스트 끝 위치
+    let endPosition = currentContent.length;
+    
+    // 마지막 문자가 개행문자면 그 전 위치로 이동
+    if (endPosition > 0 && currentContent[endPosition - 1] === '\n') {
+      endPosition--;
+    }
+    
+    // 커서를 텍스트 끝(또는 개행문자 전)으로 이동
+    textarea.setSelectionRange(endPosition, endPosition);
   }, []);
 
   /**

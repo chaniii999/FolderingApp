@@ -367,7 +367,8 @@ export function renameFile(oldPath: string, newName: string): void {
 export function deleteFile(filePath: string): void {
   try {
     if (!fs.existsSync(filePath)) {
-      throw new Error('파일이 존재하지 않습니다.');
+      // 파일이 존재하지 않으면 조용히 성공 (이미 삭제된 것으로 간주)
+      return;
     }
 
     const stats = fs.statSync(filePath);
@@ -385,7 +386,8 @@ export function deleteFile(filePath: string): void {
 export function deleteDirectory(dirPath: string): void {
   try {
     if (!fs.existsSync(dirPath)) {
-      throw new Error('디렉토리가 존재하지 않습니다.');
+      // 디렉토리가 존재하지 않으면 조용히 성공 (이미 삭제된 것으로 간주)
+      return;
     }
 
     const stats = fs.statSync(dirPath);

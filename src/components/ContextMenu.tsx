@@ -8,12 +8,13 @@ interface ContextMenuProps {
   onCopy: () => void;
   onPaste: () => void;
   onDelete: () => void;
+  onNewFile?: () => void;
   canCopy: boolean;
   canPaste: boolean;
   isBlankSpace?: boolean;
 }
 
-function ContextMenu({ x, y, onClose, onCut, onCopy, onPaste, onDelete, canCopy, canPaste, isBlankSpace = false }: ContextMenuProps) {
+function ContextMenu({ x, y, onClose, onCut, onCopy, onPaste, onDelete, onNewFile, canCopy, canPaste, isBlankSpace = false }: ContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -79,6 +80,13 @@ function ContextMenu({ x, y, onClose, onCut, onCopy, onPaste, onDelete, canCopy,
     onClose();
   };
 
+  const handleNewFileClick = () => {
+    if (onNewFile) {
+      onNewFile();
+    }
+    onClose();
+  };
+
   return (
     <div
       ref={menuRef}
@@ -86,6 +94,17 @@ function ContextMenu({ x, y, onClose, onCut, onCopy, onPaste, onDelete, canCopy,
       style={{ left: `${x}px`, top: `${y}px` }}
     >
       <div className="flex flex-col gap-1 p-1">
+        {onNewFile && (
+          <button
+            onClick={handleNewFileClick}
+            className="px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-gray-700 dark:text-gray-200"
+          >
+            새로 만들기
+          </button>
+        )}
+        {onNewFile && (!isBlankSpace || canPaste) && (
+          <div className="h-px bg-gray-200 dark:bg-gray-700 my-1" />
+        )}
         {!isBlankSpace && (
           <>
             <button

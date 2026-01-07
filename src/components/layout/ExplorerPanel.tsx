@@ -79,6 +79,7 @@ function ExplorerPanel({
               onFileSelect={onFileSelect}
               selectedFilePath={selectedFilePath}
               onFileDeleted={onFileDeleted}
+              onNewFileClick={onNewFileClick}
               isDialogOpen={isDialogOpen}
               hideNonTextFiles={hideNonTextFiles}
               isEditing={isEditing}

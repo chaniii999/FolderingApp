@@ -29,6 +29,7 @@ function App() {
   const [selectedFilePath, setSelectedFilePath] = useState<string | null>(null);
   const [explorerWidth, setExplorerWidth] = useState<number>(240);
   const [showNewFileDialog, setShowNewFileDialog] = useState(false);
+  const [newFileDialogPath, setNewFileDialogPath] = useState<string>('');
   const [newlyCreatedFilePath, setNewlyCreatedFilePath] = useState<string | null>(null);
   const [isExplorerVisible, setIsExplorerVisible] = useState<boolean>(true);
   const fileExplorerRef = useRef<FileExplorerRef>(null);
@@ -571,8 +572,13 @@ function App() {
 
   // 새 파일 버튼 클릭 핸들러
   const handleNewFileClick = useCallback(() => {
+    // 우선순위: 드래그 중인 폴더 > 선택된 폴더 > currentPath
+    const draggedFolderPath = fileExplorerRef.current?.getDraggedFolderPath();
+    const selectedFolderPath = fileExplorerRef.current?.getSelectedFolderPath();
+    const targetPath = draggedFolderPath || selectedFolderPath || currentPath;
+    setNewFileDialogPath(targetPath);
     setShowNewFileDialog(true);
-  }, []);
+  }, [currentPath]);
 
   // 전체 경로 토글 핸들러
   const handleToggleFullPath = useCallback(() => {
@@ -693,7 +699,7 @@ function App() {
       </main>
       {showNewFileDialog && (
         <NewFileDialog
-          currentPath={currentPath}
+          currentPath={newFileDialogPath}
           onClose={handleNewFileDialogClose}
           onCreated={handleNewFileCreated}
         />
