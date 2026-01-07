@@ -50,6 +50,7 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; item: FileSystemItem | null; path: string | null; isBlankSpace?: boolean } | null>(null);
   const [clipboard, setClipboard] = useState<{ path: string; isDirectory: boolean; isCut: boolean } | null>(null);
   const [draggedFolderPath, setDraggedFolderPath] = useState<string | null>(null);
+  const [draggedItem, setDraggedItem] = useState<{ path: string; isDirectory: boolean } | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -269,6 +270,12 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
       setContextMenu({ x: e.clientX, y: e.clientY, item: node, path: node.path, isBlankSpace: false });
     };
 
+    const handleDragStart = (e: React.DragEvent) => {
+      e.stopPropagation();
+      setDraggedItem({ path: node.path, isDirectory: node.isDirectory });
+      e.dataTransfer.effectAllowed = 'move';
+    };
+
     const handleDragEnter = (e: React.DragEvent) => {
       if (node.isDirectory) {
         e.preventDefault();
@@ -288,6 +295,62 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
         if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
           setDraggedFolderPath(null);
         }
+      }
+    };
+
+    const handleDrop = async (e: React.DragEvent) => {
+      if (!node.isDirectory || !draggedItem) return;
+      
+      e.preventDefault();
+      e.stopPropagation();
+      
+      // 자기 자신이나 자식 폴더로 이동하려는 경우 방지
+      if (draggedItem.path === node.path || node.path.startsWith(draggedItem.path + '\\') || node.path.startsWith(draggedItem.path + '/')) {
+        toastService.warning('자기 자신이나 하위 폴더로는 이동할 수 없습니다.');
+        setDraggedItem(null);
+        setDraggedFolderPath(null);
+        return;
+      }
+
+      try {
+        if (!window.api?.filesystem) {
+          toastService.error('API가 로드되지 않았습니다.');
+          return;
+        }
+
+        const sourcePath = draggedItem.path;
+        const fileName = getFileName(sourcePath);
+        const destPath = joinPath(node.path, fileName);
+
+        // 같은 위치에 이동하려는 경우 스킵
+        if (sourcePath === destPath) {
+          setDraggedItem(null);
+          setDraggedFolderPath(null);
+          return;
+        }
+
+        // 이미 존재하는 파일인지 확인
+        const items = await window.api.filesystem.listDirectory(node.path);
+        const exists = items.some(item => item.name === fileName);
+        
+        if (exists) {
+          toastService.warning(`${fileName}은(는) 이미 존재합니다.`);
+          setDraggedItem(null);
+          setDraggedFolderPath(null);
+          return;
+        }
+
+        // 파일/폴더 이동
+        await window.api.filesystem.moveFile(sourcePath, destPath);
+
+        // 트리 새로고침
+        initializeTree();
+        toastService.success('이동됨');
+      } catch (err) {
+        handleError(err, '이동 중 오류가 발생했습니다.');
+      } finally {
+        setDraggedItem(null);
+        setDraggedFolderPath(null);
       }
     };
 
@@ -311,8 +374,18 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
           }}
           onClick={handleNodeClick}
           onContextMenu={handleContextMenu}
+          draggable={!isRenaming}
+          onDragStart={!isRenaming ? handleDragStart : undefined}
           onDragEnter={node.isDirectory ? handleDragEnter : undefined}
           onDragLeave={node.isDirectory ? handleDragLeave : undefined}
+          onDrop={node.isDirectory ? handleDrop : undefined}
+          onDragOver={node.isDirectory ? (e: React.DragEvent) => {
+            if (draggedItem) {
+              e.preventDefault();
+              e.stopPropagation();
+              e.dataTransfer.dropEffect = 'move';
+            }
+          } : undefined}
         >
           <div className="w-4 flex items-center justify-center flex-shrink-0">
             {(isSelected || (node.isDirectory && isExpanded)) && (
@@ -365,7 +438,7 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
         )}
       </div>
     );
-  }, [expandedPaths, cursorPath, renamingPath, renamingName, toggleExpand, onFileSelect]);
+  }, [expandedPaths, cursorPath, renamingPath, renamingName, toggleExpand, onFileSelect, draggedItem, initializeTree]);
 
   // 평면화된 노드 리스트 생성 (키보드 네비게이션용)
   const flattenTree = useCallback((nodes: TreeNode[], result: TreeNode[] = []): TreeNode[] => {
@@ -729,13 +802,66 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    e.dataTransfer.dropEffect = 'copy';
-  }, []);
+    // 내부 파일/폴더 드래그인 경우 move, 외부 파일 드래그인 경우 copy
+    e.dataTransfer.dropEffect = draggedItem ? 'move' : 'copy';
+  }, [draggedItem]);
 
   const handleDrop = useCallback(async (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
 
+    // 내부 파일/폴더 드래그인 경우 루트 폴더로 이동 처리
+    if (draggedItem) {
+      try {
+        if (!window.api?.filesystem) {
+          toastService.error('API가 로드되지 않았습니다.');
+          return;
+        }
+
+        const rootPath = await getRootPath();
+        if (!rootPath) {
+          toastService.error('대상 경로를 찾을 수 없습니다.');
+          return;
+        }
+
+        const sourcePath = draggedItem.path;
+        const fileName = getFileName(sourcePath);
+        const destPath = joinPath(rootPath, fileName);
+
+        // 같은 위치에 이동하려는 경우 스킵
+        if (sourcePath === destPath) {
+          setDraggedItem(null);
+          setDraggedFolderPath(null);
+          return;
+        }
+
+        // 이미 존재하는 파일인지 확인
+        const items = await window.api.filesystem.listDirectory(rootPath);
+        const exists = items.some(item => item.name === fileName);
+        
+        if (exists) {
+          toastService.warning(`${fileName}은(는) 이미 존재합니다.`);
+          setDraggedItem(null);
+          setDraggedFolderPath(null);
+          return;
+        }
+
+        // 파일/폴더 이동
+        await window.api.filesystem.moveFile(sourcePath, destPath);
+
+        // 트리 새로고침
+        initializeTree();
+        toastService.success('이동됨');
+      } catch (err) {
+        handleError(err, '이동 중 오류가 발생했습니다.');
+      } finally {
+        setDraggedItem(null);
+        setDraggedFolderPath(null);
+      }
+      return;
+    }
+
+    // 외부 파일 드롭 처리
     if (!window.api?.filesystem) {
       toastService.error('API가 로드되지 않았습니다.');
       return;
@@ -783,7 +909,7 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
       handleError(err, '파일 붙여넣기 중 오류가 발생했습니다.');
       setDraggedFolderPath(null);
     }
-  }, [getRootPath, initializeTree]);
+  }, [draggedItem, getRootPath, initializeTree]);
 
   const handlePasteFromClipboard = useCallback(async () => {
     if (!window.api?.filesystem) {
@@ -804,6 +930,7 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
 
   const handleDragEnd = useCallback(() => {
     setDraggedFolderPath(null);
+    setDraggedItem(null);
   }, []);
 
   if (loading) {
