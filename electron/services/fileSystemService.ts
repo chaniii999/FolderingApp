@@ -333,24 +333,12 @@ export function createGuideFile(dirPath: string): string | null {
 
 export function createDirectory(dirPath: string): void {
   try {
-    // 디렉토리가 이미 존재하면 조용히 성공 처리
     if (fs.existsSync(dirPath)) {
-      // 이미 존재하는 디렉토리인지 확인
-      const stats = fs.statSync(dirPath);
-      if (!stats.isDirectory()) {
-        throw new Error('같은 이름의 파일이 이미 존재합니다.');
-      }
-      // 디렉토리가 이미 존재하면 성공으로 처리
-      return;
+      throw new Error('디렉토리가 이미 존재합니다.');
     }
 
     fs.mkdirSync(dirPath, { recursive: true });
   } catch (error) {
-    // EEXIST 에러는 이미 존재하는 경우이므로 무시
-    const nodeError = error as NodeJS.ErrnoException;
-    if (nodeError.code === 'EEXIST') {
-      return;
-    }
     console.error('Error creating directory:', error);
     throw error;
   }
