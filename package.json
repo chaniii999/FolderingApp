@@ -1,6 +1,6 @@
 {
   "name": "Foldering",
-  "version": "1.3.3",
+  "version": "1.3.4",
   "description": "폴더링 + 텍스트 메모 로컬 데스크톱 앱",
   "main": "dist-electron/main.js",
   "scripts": {
