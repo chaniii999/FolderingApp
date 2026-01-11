@@ -343,7 +343,30 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
         // 파일/폴더 이동
         await window.api.filesystem.moveFile(sourcePath, destPath);
 
-        // 트리 새로고침
+        // 대상 폴더가 확장되어 있으면 children 업데이트
+        if (isExpanded && node.children) {
+          const newChildren = await loadChildren(node.path);
+          setTreeData(prev => updateTreeNode(prev, node.path, n => ({
+            ...n,
+            children: newChildren,
+          })));
+        }
+
+        // 원본 폴더 찾아서 업데이트 (파일이 빠졌으므로)
+        const separator = sourcePath.includes('\\') ? '\\' : '/';
+        const sourceParentPath = sourcePath.substring(0, sourcePath.lastIndexOf(separator));
+        if (sourceParentPath && expandedPaths.has(sourceParentPath)) {
+          const sourceParentNode = findNodeInTree(treeData, sourceParentPath);
+          if (sourceParentNode && sourceParentNode.children) {
+            const newSourceChildren = await loadChildren(sourceParentPath);
+            setTreeData(prev => updateTreeNode(prev, sourceParentPath, n => ({
+              ...n,
+              children: newSourceChildren,
+            })));
+          }
+        }
+
+        // 트리 새로고침 (전체 업데이트)
         initializeTree();
         toastService.success('이동됨');
       } catch (err) {
@@ -438,7 +461,7 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
         )}
       </div>
     );
-  }, [expandedPaths, cursorPath, renamingPath, renamingName, toggleExpand, onFileSelect, draggedItem, initializeTree]);
+  }, [expandedPaths, cursorPath, renamingPath, renamingName, toggleExpand, onFileSelect, draggedItem, initializeTree, loadChildren, updateTreeNode, findNodeInTree, treeData]);
 
   // 평면화된 노드 리스트 생성 (키보드 네비게이션용)
   const flattenTree = useCallback((nodes: TreeNode[], result: TreeNode[] = []): TreeNode[] => {
@@ -849,7 +872,33 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
         // 파일/폴더 이동
         await window.api.filesystem.moveFile(sourcePath, destPath);
 
-        // 트리 새로고침
+        // 원본 폴더 찾아서 업데이트 (파일이 빠졌으므로)
+        const separator = sourcePath.includes('\\') ? '\\' : '/';
+        const sourceParentPath = sourcePath.substring(0, sourcePath.lastIndexOf(separator));
+        if (sourceParentPath && expandedPaths.has(sourceParentPath)) {
+          const sourceParentNode = findNodeInTree(treeData, sourceParentPath);
+          if (sourceParentNode && sourceParentNode.children) {
+            const newSourceChildren = await loadChildren(sourceParentPath);
+            setTreeData(prev => updateTreeNode(prev, sourceParentPath, n => ({
+              ...n,
+              children: newSourceChildren,
+            })));
+          }
+        }
+
+        // 루트 폴더가 확장되어 있으면 업데이트
+        if (rootPath && expandedPaths.has(rootPath)) {
+          const rootNode = findNodeInTree(treeData, rootPath);
+          if (rootNode && rootNode.children) {
+            const newRootChildren = await loadChildren(rootPath);
+            setTreeData(prev => updateTreeNode(prev, rootPath, n => ({
+              ...n,
+              children: newRootChildren,
+            })));
+          }
+        }
+
+        // 트리 새로고침 (전체 업데이트)
         initializeTree();
         toastService.success('이동됨');
       } catch (err) {
@@ -909,7 +958,7 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
       handleError(err, '파일 붙여넣기 중 오류가 발생했습니다.');
       setDraggedFolderPath(null);
     }
-  }, [draggedItem, getRootPath, initializeTree]);
+  }, [draggedItem, getRootPath, initializeTree, expandedPaths, loadChildren, updateTreeNode, findNodeInTree, treeData]);
 
   const handlePasteFromClipboard = useCallback(async () => {
     if (!window.api?.filesystem) {
