@@ -333,12 +333,39 @@ export function createGuideFile(dirPath: string): string | null {
 
 export function createDirectory(dirPath: string): void {
   try {
-    if (fs.existsSync(dirPath)) {
-      throw new Error('디렉토리가 이미 존재합니다.');
+    // 경로 정규화 (상대 경로, 중복된 경로 분리자 등 처리)
+    const normalizedPath = path.normalize(dirPath);
+    
+    // 디렉토리 생성 시도 (recursive: true로 상위 디렉토리도 자동 생성)
+    // existsSync 체크를 먼저 하지 않고 바로 mkdirSync를 호출하여 Race Condition 방지
+    fs.mkdirSync(normalizedPath, { recursive: true });
+    
+    // 생성 후 디렉토리인지 확인
+    const stats = fs.statSync(normalizedPath);
+    if (!stats.isDirectory()) {
+      throw new Error('같은 이름의 파일이 이미 존재합니다.');
     }
-
-    fs.mkdirSync(dirPath, { recursive: true });
-  } catch (error) {
+  } catch (error: any) {
+    // EEXIST 에러는 이미 존재하는 경우이므로 디렉토리인지 확인 후 성공으로 처리
+    if (error.code === 'EEXIST') {
+      try {
+        const stats = fs.statSync(path.normalize(dirPath));
+        if (stats.isDirectory()) {
+          return; // 이미 존재하는 디렉토리면 성공으로 처리
+        }
+        throw new Error('같은 이름의 파일이 이미 존재합니다.');
+      } catch (statError: any) {
+        // statSync 실패 시 원래 에러를 다시 throw
+        console.error('Error checking directory existence:', statError);
+        throw new Error('디렉토리 생성 중 오류가 발생했습니다.');
+      }
+    }
+    
+    // 권한 오류 처리
+    if (error.code === 'EACCES' || error.code === 'EPERM') {
+      throw new Error('디렉토리 생성 권한이 없습니다.');
+    }
+    
     console.error('Error creating directory:', error);
     throw error;
   }
