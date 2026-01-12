@@ -167,8 +167,22 @@ function TemplateEditDialog({ template, templatePath: initialTemplatePath, onClo
   const handleAddPart = useCallback(() => {
     if (!templateData) return;
 
+    // 기존 파트들의 ID에서 숫자 추출하여 최대값 찾기
+    let maxPartNumber = 0;
+    for (const part of templateData.parts) {
+      const match = part.id.match(/^part-(\d+)$/);
+      if (match) {
+        const partNumber = parseInt(match[1], 10);
+        if (partNumber > maxPartNumber) {
+          maxPartNumber = partNumber;
+        }
+      }
+    }
+
+    // 다음 순차 번호 생성
+    const nextPartNumber = maxPartNumber + 1;
     const newPart: TemplatePart = {
-      id: `part-${Date.now()}`,
+      id: `part-${nextPartNumber}`,
       title: '새 파트',
       type: 'textarea',
       default: '',
