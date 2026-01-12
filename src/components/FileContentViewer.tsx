@@ -8,10 +8,12 @@ import { usePerformanceMeasure } from '../utils/usePerformanceMeasure';
 import { useScrollAcceleration } from '../hooks/useScrollAcceleration';
 import { getFileName } from '../utils/pathUtils';
 import { handleError, getErrorMessage } from '../utils/errorHandler';
+import { isMyMemoPath } from '../services/myMemoService';
 import RecoveryDialog from './RecoveryDialog';
 import MarkdownViewer from './MarkdownViewer';
 import PdfViewer from './PdfViewer';
 import TemplateEditor from './MyMemo/TemplateEditor';
+import TemplateViewer from './MyMemo/TemplateViewer';
 import { pdfExportService } from '../services/pdfExportService';
 
 import type { TextEditorConfig } from '../services/textEditorConfigService';
@@ -62,6 +64,7 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
   const [recoveryContent, setRecoveryContent] = useState<string | null>(null);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [isTemplate, setIsTemplate] = useState(false);
+  const [isMyMemoMode, setIsMyMemoMode] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -111,9 +114,13 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
           return;
         }
 
-        // 템플릿 파일인지 확인
+        // 템플릿 파일인지 확인 (나만의 메모 영역에 존재하는 .json 파일)
         const templateFile = await isTemplateFile(filePath);
         setIsTemplate(templateFile);
+
+        // 나만의 메모 모드인지 확인
+        const myMemoMode = await isMyMemoPath(filePath);
+        setIsMyMemoMode(myMemoMode);
 
         // 텍스트 파일이 아닌 경우 에러 표시하고 데이터 로드하지 않음
         if (!isTextFile(filePath)) {
@@ -961,13 +968,9 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
         ) : isPdfFile(filePath) ? (
           <PdfViewer filePath={filePath} />
         ) : isTemplate ? (
-          <TemplateEditor
+          <TemplateViewer
             filePath={filePath!}
             content={content}
-            onSave={async (newContent: string) => {
-              await handleSave(newContent);
-            }}
-            onCancel={handleCancel}
             config={config}
           />
         ) : isMarkdownFile(filePath) ? (

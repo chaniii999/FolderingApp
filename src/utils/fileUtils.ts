@@ -51,7 +51,7 @@ export function isPdfFile(filePath: string | null): boolean {
 }
 
 /**
- * 템플릿 파일인지 확인 (템플릿 경로 내의 .json 파일)
+ * 템플릿 파일인지 확인 (나만의 메모 영역에 존재하는 .json 파일)
  */
 export async function isTemplateFile(filePath: string | null): Promise<boolean> {
   if (!filePath) return false;
@@ -69,10 +69,64 @@ export async function isTemplateFile(filePath: string | null): Promise<boolean> 
     return false;
   }
   
-  // 템플릿 경로인지 확인
+  // 나만의 메모 영역에 존재하는지 확인
   if (window.api?.mymemo) {
     try {
-      return await window.api.mymemo.isTemplatePath(filePath);
+      return await window.api.mymemo.isMyMemoPath(filePath);
+    } catch {
+      return false;
+    }
+  }
+  
+  return false;
+}
+
+/**
+ * 템플릿 인스턴스 파일인지 확인 (나만의 메모 경로 내의 .json 파일 중 TemplateInstance 형식)
+ */
+export async function isTemplateInstanceFile(filePath: string | null): Promise<boolean> {
+  if (!filePath) return false;
+  
+  const fileName = getFileName(filePath);
+  if (!fileName) return false;
+  
+  const lastDotIndex = fileName.lastIndexOf('.');
+  if (lastDotIndex === -1 || lastDotIndex === fileName.length - 1) {
+    return false;
+  }
+  
+  const extension = fileName.substring(lastDotIndex + 1).toLowerCase();
+  if (extension !== 'json') {
+    return false;
+  }
+  
+  // 템플릿 파일이면 인스턴스가 아님
+  const isTemplate = await isTemplateFile(filePath);
+  if (isTemplate) {
+    return false;
+  }
+  
+  // 나만의 메모 경로인지 확인
+  if (window.api?.mymemo) {
+    try {
+      const isMyMemo = await window.api.mymemo.isMyMemoPath(filePath);
+      if (!isMyMemo) {
+        return false;
+      }
+      
+      // 파일 내용을 읽어서 TemplateInstance 형식인지 확인
+      if (window.api?.filesystem?.readFile) {
+        try {
+          const content = await window.api.filesystem.readFile(filePath);
+          if (content) {
+            const parsed = JSON.parse(content);
+            // TemplateInstance 형식인지 확인 (templateId, data 필드가 있는지)
+            return !!(parsed.templateId && typeof parsed.data === 'object');
+          }
+        } catch {
+          return false;
+        }
+      }
     } catch {
       return false;
     }
