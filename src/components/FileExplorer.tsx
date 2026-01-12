@@ -232,61 +232,66 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
   }, [expandedPaths, loadedPaths, loadChildren, updateTreeNode]);
 
   // 특정 폴더만 새로고침 (확장 상태 유지)
+  // 열린 폴더 상태를 기억하고 전체 새로고침 후 다시 열어줌
   const refreshFolder = useCallback(async (folderPath: string): Promise<void> => {
     try {
       const rootPath = await getRootPath();
       if (!rootPath) return;
       
-      // 루트 폴더인 경우 확장 상태를 유지하면서 루트 노드만 업데이트
-      if (rootPath === folderPath) {
-        const items = await loadDirectory(rootPath);
-        const rootNodes: TreeNode[] = items.map(item => ({
-          ...item,
-          isExpanded: false,
-          isLoading: false,
-        }));
-        
-        // 확장된 폴더의 children 복원
-        const restoredNodes = await Promise.all(rootNodes.map(async (node) => {
-          if (node.isDirectory && expandedPaths.has(node.path)) {
+      // 현재 열린 폴더들의 경로를 저장
+      const savedExpandedPaths = new Set(expandedPaths);
+      
+      // 전체 트리 새로고침
+      const items = await loadDirectory(rootPath);
+      const rootNodes: TreeNode[] = items.map(item => ({
+        ...item,
+        isExpanded: false,
+        isLoading: false,
+      }));
+      
+      setTreeData(rootNodes);
+      setLoadedPaths(new Set([rootPath]));
+      
+      // 저장된 확장 상태를 복원하면서 children 로드 (재귀)
+      const restoreExpandedFolders = async (nodes: TreeNode[]): Promise<TreeNode[]> => {
+        return Promise.all(nodes.map(async (node) => {
+          if (node.isDirectory && savedExpandedPaths.has(node.path)) {
             const children = await loadChildren(node.path);
+            const restoredChildren = await restoreExpandedFolders(children);
             return {
               ...node,
-              children,
+              children: restoredChildren,
               isExpanded: true,
             };
           }
           return node;
         }));
-        
-        setTreeData(restoredNodes);
-        setLoadedPaths(prev => {
-          const next = new Set(prev);
-          next.add(rootPath);
-          // 확장된 폴더들을 loadedPaths에 추가
-          restoredNodes.forEach(node => {
-            if (node.isDirectory && expandedPaths.has(node.path)) {
-              next.add(node.path);
+      };
+      
+      const restoredNodes = await restoreExpandedFolders(rootNodes);
+      setTreeData(restoredNodes);
+      
+      // loadedPaths 업데이트 (모든 확장된 폴더 포함)
+      const newLoadedPaths = new Set([rootPath]);
+      const addLoadedPaths = (nodes: TreeNode[]): void => {
+        nodes.forEach(node => {
+          if (node.isDirectory && savedExpandedPaths.has(node.path)) {
+            newLoadedPaths.add(node.path);
+            if (node.children) {
+              addLoadedPaths(node.children);
             }
-          });
-          return next;
+          }
         });
-      } else {
-        // 하위 폴더인 경우 children만 업데이트
-        if (expandedPaths.has(folderPath)) {
-          const children = await loadChildren(folderPath);
-          setTreeData(prev => updateTreeNode(prev, folderPath, node => ({
-            ...node,
-            children,
-            isLoading: false,
-          })));
-          setLoadedPaths(prev => new Set(prev).add(folderPath));
-        }
-      }
+      };
+      addLoadedPaths(restoredNodes);
+      setLoadedPaths(newLoadedPaths);
+      
+      // 확장 상태 복원
+      setExpandedPaths(savedExpandedPaths);
     } catch (error) {
       console.error('Error refreshing folder:', error);
     }
-  }, [expandedPaths, loadChildren, updateTreeNode, getRootPath, loadDirectory]);
+  }, [expandedPaths, loadChildren, getRootPath, loadDirectory]);
 
   useImperativeHandle(ref, () => ({
     focus: () => {
@@ -415,31 +420,15 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
         // 파일/폴더 이동
         await window.api.filesystem.moveFile(sourcePath, destPath);
 
-        // 대상 폴더가 확장되어 있으면 children 업데이트
-        if (isExpanded && node.children) {
-          const newChildren = await loadChildren(node.path);
-          setTreeData(prev => updateTreeNode(prev, node.path, n => ({
-            ...n,
-            children: newChildren,
-          })));
-        }
-
-        // 원본 폴더 찾아서 업데이트 (파일이 빠졌으므로)
+        // 대상 폴더와 원본 폴더만 새로고침 (확장 상태 유지)
+        // 폴더가 확장되어 있지 않아도 children을 업데이트해야 함
+        await refreshFolder(node.path);
         const separator = sourcePath.includes('\\') ? '\\' : '/';
         const sourceParentPath = sourcePath.substring(0, sourcePath.lastIndexOf(separator));
-        if (sourceParentPath && expandedPaths.has(sourceParentPath)) {
-          const sourceParentNode = findNodeInTree(treeData, sourceParentPath);
-          if (sourceParentNode && sourceParentNode.children) {
-            const newSourceChildren = await loadChildren(sourceParentPath);
-            setTreeData(prev => updateTreeNode(prev, sourceParentPath, n => ({
-              ...n,
-              children: newSourceChildren,
-            })));
-          }
+        if (sourceParentPath) {
+          await refreshFolder(sourceParentPath);
         }
-
-        // 트리 새로고침 (전체 업데이트)
-        initializeTree();
+        
         toastService.success('이동됨');
       } catch (err) {
         handleError(err, '이동 중 오류가 발생했습니다.');
@@ -773,6 +762,19 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
           }, 50);
         }, 100);
       }
+      
+      // 삭제된 항목의 부모 폴더만 새로고침 (확장 상태 유지)
+      const separator = item.path.includes('\\') ? '\\' : '/';
+      const parentPath = item.path.substring(0, item.path.lastIndexOf(separator));
+      if (parentPath) {
+        await refreshFolder(parentPath);
+      } else {
+        // 루트 경로인 경우 루트 폴더만 새로고침
+        const rootPath = await getRootPath();
+        if (rootPath) {
+          await refreshFolder(rootPath);
+        }
+      }
     } catch (err) {
       handleError(err, '삭제 중 오류가 발생했습니다.');
     }
@@ -880,12 +882,21 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
         setClipboard(null);
       }
 
-      initializeTree();
+      // 현재 폴더와 원본 폴더만 새로고침 (확장 상태 유지)
+      await refreshFolder(currentPath);
+      if (clipboard.isCut) {
+        const separator = sourcePath.includes('\\') ? '\\' : '/';
+        const sourceParentPath = sourcePath.substring(0, sourcePath.lastIndexOf(separator));
+        if (sourceParentPath && sourceParentPath !== currentPath) {
+          await refreshFolder(sourceParentPath);
+        }
+      }
+      
       toastService.success(clipboard.isCut ? '이동됨' : '복사됨');
     } catch (err) {
       handleError(err, '붙여넣기 중 오류가 발생했습니다.');
     }
-  }, [clipboard, currentPath, onFileSelect, selectedFilePath, initializeTree]);
+  }, [clipboard, currentPath, onFileSelect, selectedFilePath, refreshFolder]);
 
   const handleContextMenuDelete = () => {
     if (!contextMenu || !contextMenu.item || !contextMenu.path) return;
@@ -944,34 +955,16 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
         // 파일/폴더 이동
         await window.api.filesystem.moveFile(sourcePath, destPath);
 
-        // 원본 폴더 찾아서 업데이트 (파일이 빠졌으므로)
+        // 루트 폴더와 원본 폴더만 새로고침 (확장 상태 유지)
+        if (rootPath) {
+          await refreshFolder(rootPath);
+        }
         const separator = sourcePath.includes('\\') ? '\\' : '/';
         const sourceParentPath = sourcePath.substring(0, sourcePath.lastIndexOf(separator));
-        if (sourceParentPath && expandedPaths.has(sourceParentPath)) {
-          const sourceParentNode = findNodeInTree(treeData, sourceParentPath);
-          if (sourceParentNode && sourceParentNode.children) {
-            const newSourceChildren = await loadChildren(sourceParentPath);
-            setTreeData(prev => updateTreeNode(prev, sourceParentPath, n => ({
-              ...n,
-              children: newSourceChildren,
-            })));
-          }
+        if (sourceParentPath && sourceParentPath !== rootPath) {
+          await refreshFolder(sourceParentPath);
         }
-
-        // 루트 폴더가 확장되어 있으면 업데이트
-        if (rootPath && expandedPaths.has(rootPath)) {
-          const rootNode = findNodeInTree(treeData, rootPath);
-          if (rootNode && rootNode.children) {
-            const newRootChildren = await loadChildren(rootPath);
-            setTreeData(prev => updateTreeNode(prev, rootPath, n => ({
-              ...n,
-              children: newRootChildren,
-            })));
-          }
-        }
-
-        // 트리 새로고침 (전체 업데이트)
-        initializeTree();
+        
         toastService.success('이동됨');
       } catch (err) {
         handleError(err, '이동 중 오류가 발생했습니다.');
@@ -1001,7 +994,8 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
       }
 
       for (const file of files) {
-        const sourcePath = file.path;
+        // Electron의 File 객체는 path 속성을 가지고 있음
+        const sourcePath = (file as File & { path?: string }).path || file.name;
         const fileName = getFileName(sourcePath);
         const destPath = joinPath(rootPath, fileName);
 
@@ -1023,14 +1017,18 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
         await window.api.filesystem.copyFile(sourcePath, destPath);
       }
 
-      initializeTree();
+      // 루트 폴더만 새로고침 (확장 상태 유지)
+      if (rootPath) {
+        await refreshFolder(rootPath);
+      }
+      
       toastService.success('파일이 복사되었습니다.');
       setDraggedFolderPath(null);
     } catch (err) {
       handleError(err, '파일 붙여넣기 중 오류가 발생했습니다.');
       setDraggedFolderPath(null);
     }
-  }, [draggedItem, getRootPath, initializeTree, expandedPaths, loadChildren, updateTreeNode, findNodeInTree, treeData]);
+  }, [draggedItem, getRootPath, refreshFolder]);
 
   const handlePasteFromClipboard = useCallback(async () => {
     if (!window.api?.filesystem) {
