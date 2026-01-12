@@ -436,6 +436,16 @@ function App() {
     fileContentViewerRef.current?.handleExportPdf();
   }, []);
 
+  // 새 파일 버튼 클릭 핸들러
+  const handleNewFileClick = useCallback(() => {
+    // 우선순위: 드래그 중인 폴더 > 선택된 폴더 > currentPath
+    const draggedFolderPath = fileExplorerRef.current?.getDraggedFolderPath();
+    const selectedFolderPath = fileExplorerRef.current?.getSelectedFolderPath();
+    const targetPath = draggedFolderPath || selectedFolderPath || currentPath;
+    setNewFileDialogPath(targetPath);
+    setShowNewFileDialog(true);
+  }, [currentPath]);
+
   // 핫키 설정 배열
   const hotkeys = useMemo(() => createAppHotkeys({
     currentPath,
@@ -449,7 +459,8 @@ function App() {
     handleTabClick,
     handleConfigChange,
     handleExportPdf,
-  }), [currentPath, tabs, activeTabId, textEditorConfig, handleTabClick, handleUndo, handleConfigChange, handleExportPdf]);
+    handleNewFileClick,
+  }), [currentPath, tabs, activeTabId, textEditorConfig, handleTabClick, handleUndo, handleConfigChange, handleExportPdf, handleNewFileClick]);
 
   // 핫키 훅 사용
   useHotkeys(hotkeys, shouldBlockHotkey, isInputElement);
@@ -569,16 +580,6 @@ function App() {
       }
     }, 100);
   }, [closeTabByFilePath]);
-
-  // 새 파일 버튼 클릭 핸들러
-  const handleNewFileClick = useCallback(() => {
-    // 우선순위: 드래그 중인 폴더 > 선택된 폴더 > currentPath
-    const draggedFolderPath = fileExplorerRef.current?.getDraggedFolderPath();
-    const selectedFolderPath = fileExplorerRef.current?.getSelectedFolderPath();
-    const targetPath = draggedFolderPath || selectedFolderPath || currentPath;
-    setNewFileDialogPath(targetPath);
-    setShowNewFileDialog(true);
-  }, [currentPath]);
 
   // 전체 경로 토글 핸들러
   const handleToggleFullPath = useCallback(() => {

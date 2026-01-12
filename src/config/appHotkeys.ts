@@ -15,6 +15,7 @@ interface AppHotkeysDependencies {
   handleTabClick: (tabId: string) => void;
   handleConfigChange: (config: Partial<TextEditorConfig>) => Promise<void>;
   handleExportPdf?: () => Promise<void>;
+  handleNewFileClick?: () => void;
 }
 
 /**
@@ -33,6 +34,7 @@ export function createAppHotkeys(deps: AppHotkeysDependencies): HotkeyConfig[] {
     handleTabClick,
     handleConfigChange,
     handleExportPdf,
+    handleNewFileClick,
   } = deps;
 
   return [
@@ -40,7 +42,11 @@ export function createAppHotkeys(deps: AppHotkeysDependencies): HotkeyConfig[] {
     {
       key: 'n',
       handler: () => {
-        if (currentPath) {
+        // handleNewFileClick이 있으면 사용 (버튼 클릭과 동일한 로직)
+        if (handleNewFileClick) {
+          handleNewFileClick();
+        } else if (currentPath) {
+          // fallback: 기본 동작
           setShowNewFileDialog(true);
         }
       },
