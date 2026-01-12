@@ -42,6 +42,8 @@ function App() {
   const [showTemplateManageDialog, setShowTemplateManageDialog] = useState<boolean>(false);
   const [showTemplateListInNewFile, setShowTemplateListInNewFile] = useState<boolean>(false);
   const [isMyMemoModeActive, setIsMyMemoModeActive] = useState<boolean>(false);
+  const [showMyMemoToggleConfirmDialog, setShowMyMemoToggleConfirmDialog] = useState<boolean>(false);
+  const pendingMyMemoToggleRef = useRef<(() => void) | null>(null);
   const [templateInstanceFileName, setTemplateInstanceFileName] = useState<string>('');
   const [selectedTemplate, setSelectedTemplate] = useState<{ id: string; name: string } | null>(null);
   const previousPathRef = useRef<string>(''); // 나만의 메모 모드 진입 전 경로 저장
@@ -520,8 +522,8 @@ function App() {
     void checkMyMemoMode();
   }, [currentPath]);
 
-  // 나만의 Memo 버튼 클릭 핸들러 (토글)
-  const handleMyMemoClick = useCallback(async () => {
+  // 나만의 Memo 모드 전환 실행 함수
+  const executeMyMemoToggle = useCallback(async () => {
     try {
       if (!window.api?.mymemo) {
         toastService.error('MyMemo API가 로드되지 않았습니다.');
@@ -565,6 +567,33 @@ function App() {
       toastService.error('나만의 Memo 전환에 실패했습니다.');
     }
   }, [currentPath, handlePathChange]);
+
+  // 나만의 Memo 버튼 클릭 핸들러 (토글)
+  const handleMyMemoClick = useCallback(async () => {
+    // 저장되지 않은 변경사항이 있으면 경고 팝업 표시
+    if (fileViewerState.hasChanges) {
+      pendingMyMemoToggleRef.current = executeMyMemoToggle;
+      setShowMyMemoToggleConfirmDialog(true);
+      return;
+    }
+    
+    // 변경사항이 없으면 바로 전환
+    await executeMyMemoToggle();
+  }, [fileViewerState.hasChanges, executeMyMemoToggle]);
+
+  // 나만의 Memo 토글 확인 다이얼로그 핸들러
+  const handleMyMemoToggleConfirm = useCallback(async () => {
+    setShowMyMemoToggleConfirmDialog(false);
+    if (pendingMyMemoToggleRef.current) {
+      await pendingMyMemoToggleRef.current();
+      pendingMyMemoToggleRef.current = null;
+    }
+  }, []);
+
+  const handleMyMemoToggleCancel = useCallback(() => {
+    setShowMyMemoToggleConfirmDialog(false);
+    pendingMyMemoToggleRef.current = null;
+  }, []);
 
   // 핫키 설정 배열
   const hotkeys = useMemo(() => createAppHotkeys({
@@ -1002,6 +1031,59 @@ function App() {
           onDiscard={handleDiscardAndClose}
           onCancel={handleCancelClose}
         />
+      )}
+      {showMyMemoToggleConfirmDialog && (
+        <div
+          className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 dark:bg-opacity-70 z-50"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              handleMyMemoToggleCancel();
+            }
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape' || e.key === 'Esc') {
+              e.preventDefault();
+              handleMyMemoToggleCancel();
+            }
+          }}
+        >
+          <div
+            className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4 shadow-lg"
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => {
+              e.stopPropagation();
+              if (e.key === 'Escape' || e.key === 'Esc') {
+                e.preventDefault();
+                handleMyMemoToggleCancel();
+              } else if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                void handleMyMemoToggleConfirm();
+              }
+            }}
+            tabIndex={0}
+          >
+            <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-200">
+              나만의 메모 모드 전환
+            </h3>
+            <p className="text-gray-600 dark:text-gray-300 mb-6">
+              저장되지 않은 변경사항이 있습니다. 모드를 전환하면 변경사항이 저장되지 않을 수 있습니다. 계속하시겠습니까?
+            </p>
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={handleMyMemoToggleCancel}
+                className="px-4 py-2 rounded bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600"
+              >
+                취소 (Esc)
+              </button>
+              <button
+                onClick={handleMyMemoToggleConfirm}
+                className="px-4 py-2 rounded bg-blue-500 text-white hover:bg-blue-600"
+              >
+                계속 (Enter)
+              </button>
+            </div>
+          </div>
+        </div>
       )}
       <ToastContainer
         toasts={toasts}

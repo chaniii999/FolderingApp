@@ -52,6 +52,7 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
   const [clipboard, setClipboard] = useState<{ path: string; isDirectory: boolean; isCut: boolean } | null>(null);
   const [draggedFolderPath, setDraggedFolderPath] = useState<string | null>(null);
   const [draggedItem, setDraggedItem] = useState<{ path: string; isDirectory: boolean } | null>(null);
+  const [isMyMemoPath, setIsMyMemoPath] = useState<boolean>(false);
   const listRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -78,6 +79,23 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
     } catch {
       return currentPath || null;
     }
+  }, [currentPath]);
+
+  // 나만의 메모 경로인지 확인
+  useEffect(() => {
+    const checkMyMemoPath = async (): Promise<void> => {
+      if (window.api?.mymemo && currentPath) {
+        try {
+          const isMyMemo = await window.api.mymemo.isMyMemoPath(currentPath);
+          setIsMyMemoPath(isMyMemo);
+        } catch {
+          setIsMyMemoPath(false);
+        }
+      } else {
+        setIsMyMemoPath(false);
+      }
+    };
+    void checkMyMemoPath();
   }, [currentPath]);
 
   // 디렉토리 로드
@@ -572,7 +590,26 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
           })()}
           {!node.isDirectory && <div className="w-4 flex-shrink-0" />}
           <div className="flex items-center gap-2 min-w-0">
-            <span className="text-sm flex-shrink-0">{node.isDirectory ? '📁' : '📄'}</span>
+            {(() => {
+              if (node.isDirectory) {
+                return <span className="text-sm flex-shrink-0">📁</span>;
+              }
+              
+              // 템플릿 인스턴스 파일인지 확인 (나만의 메모 경로이고 .json 파일)
+              const isTemplateInstance = isMyMemoPath && node.name.toLowerCase().endsWith('.json');
+              if (isTemplateInstance) {
+                return <span className="text-sm flex-shrink-0">✨</span>;
+              }
+              
+              // 마크다운 파일인지 확인
+              const isMarkdown = node.name.toLowerCase().endsWith('.md') || node.name.toLowerCase().endsWith('.markdown');
+              if (isMarkdown) {
+                return <span className="text-sm flex-shrink-0">📖</span>;
+              }
+              
+              // 일반 파일
+              return <span className="text-sm flex-shrink-0">📄</span>;
+            })()}
             {isRenaming ? (
               <input
                 ref={renamingPath === node.path ? renameInputRef : null}
@@ -593,9 +630,15 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
                 className="flex-1 px-1 border border-blue-500 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm"
                 onClick={(e) => e.stopPropagation()}
               />
-            ) : (
-              <span className="truncate text-sm">{node.name}</span>
-            )}
+            ) : (() => {
+              // 템플릿 인스턴스 파일이면 확장자 제거
+              const isTemplateInstance = isMyMemoPath && !node.isDirectory && node.name.toLowerCase().endsWith('.json');
+              const displayName = isTemplateInstance 
+                ? node.name.replace(/\.json$/i, '')
+                : node.name;
+              
+              return <span className="truncate text-sm">{displayName}</span>;
+            })()}
           </div>
         </div>
         {node.isDirectory && isExpanded && node.children && (
