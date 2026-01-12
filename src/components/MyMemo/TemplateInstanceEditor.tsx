@@ -22,12 +22,31 @@ function TemplateInstanceEditor({ filePath, content, config, onContentChange, on
   const fileName = getFileName(filePath);
   const inputRefs = useRef<Map<string, HTMLInputElement | HTMLTextAreaElement>>(new Map());
   const isComposingRef = useRef<Map<string, boolean>>(new Map());
+  const instanceRef = useRef<TemplateInstance | null>(null);
+  const contentRef = useRef<string>('');
+  const isUpdatingFromContentRef = useRef<boolean>(false);
+  const updateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isInitialMountRef = useRef<boolean>(true);
 
   // JSON 파싱 및 템플릿 인스턴스 로드
   useEffect(() => {
+    // 초기 마운트 시에는 항상 실행
+    if (isInitialMountRef.current) {
+      isInitialMountRef.current = false;
+      contentRef.current = content;
+    } else {
+      // IME 조합 중이거나 사용자가 입력 중일 때는 content 변경을 무시
+      const isAnyComposing = Array.from(isComposingRef.current.values()).some(v => v);
+      if (isAnyComposing || contentRef.current === content) {
+        return;
+      }
+    }
+
     if (!content || content.trim() === '') {
       setError('템플릿 내용이 비어있습니다.');
       setInstance(null);
+      instanceRef.current = null;
+      contentRef.current = content;
       return;
     }
 
@@ -47,7 +66,10 @@ function TemplateInstanceEditor({ filePath, content, config, onContentChange, on
         };
         
         setInstance(templateInstance);
+        instanceRef.current = templateInstance;
+        isUpdatingFromContentRef.current = true;
         setPartValues(parsed.data || {});
+        contentRef.current = content;
         setError(null);
         
         // 템플릿 정보 가져오기
@@ -73,7 +95,9 @@ function TemplateInstanceEditor({ filePath, content, config, onContentChange, on
                           newPartValues[part.id] = part.default || '';
                         }
                       });
+                      isUpdatingFromContentRef.current = true;
                       setPartValues(newPartValues);
+                      isUpdatingFromContentRef.current = false;
                       break;
                     }
                   }
@@ -86,36 +110,64 @@ function TemplateInstanceEditor({ filePath, content, config, onContentChange, on
             }
           })();
         }
+        isUpdatingFromContentRef.current = false;
         return;
       }
 
       setError('템플릿 인스턴스 형식이 올바르지 않습니다.');
       setInstance(null);
+      instanceRef.current = null;
+      contentRef.current = content;
     } catch (err) {
       console.error('TemplateInstanceEditor - Error parsing template:', err);
       setError('JSON 파싱 오류가 발생했습니다.');
       setInstance(null);
+      instanceRef.current = null;
+      contentRef.current = content;
     }
   }, [content, filePath, fileName]);
 
+  // cleanup: 컴포넌트 언마운트 시 timeout 정리
+  useEffect(() => {
+    return () => {
+      if (updateTimeoutRef.current) {
+        clearTimeout(updateTimeoutRef.current);
+      }
+    };
+  }, []);
+
   // 파트 값 변경 핸들러
   const handlePartValueChange = useCallback((partId: string, value: string) => {
+    // content에서 업데이트 중일 때는 무시
+    if (isUpdatingFromContentRef.current) {
+      return;
+    }
+
     setPartValues(prev => {
       const newValues = { ...prev, [partId]: value };
       
-      // IME 입력 중이 아닐 때만 content 변경
-      if (instance && !isComposingRef.current.get(partId)) {
-        const updatedInstance: TemplateInstance = {
-          ...instance,
-          data: newValues,
-        };
-        const newContent = JSON.stringify(updatedInstance, null, 2);
-        onContentChange(newContent);
+      // IME 입력 중이 아닐 때만 content 변경 (debounce)
+      if (instanceRef.current && !isComposingRef.current.get(partId)) {
+        // 기존 timeout 취소
+        if (updateTimeoutRef.current) {
+          clearTimeout(updateTimeoutRef.current);
+        }
+        
+        // debounce: 100ms 후에 업데이트
+        updateTimeoutRef.current = setTimeout(() => {
+          const updatedInstance: TemplateInstance = {
+            ...instanceRef.current!,
+            data: newValues,
+          };
+          const newContent = JSON.stringify(updatedInstance, null, 2);
+          contentRef.current = newContent;
+          onContentChange(newContent);
+        }, 100);
       }
       
       return newValues;
     });
-  }, [instance, onContentChange]);
+  }, [onContentChange]);
 
   // 날짜 포맷팅 함수
   const formatDate = (dateString: string): string => {
@@ -145,9 +197,22 @@ function TemplateInstanceEditor({ filePath, content, config, onContentChange, on
         isComposingRef.current.set(part.id, true);
       },
       onCompositionEnd: (e: React.CompositionEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        const finalValue = e.currentTarget.value;
         isComposingRef.current.set(part.id, false);
-        // IME 입력 종료 후 최종 값으로 업데이트
-        handlePartValueChange(part.id, e.currentTarget.value);
+        // IME 입력 종료 후 최종 값으로 즉시 업데이트 (debounce 없이)
+        setPartValues(prev => {
+          const newValues = { ...prev, [part.id]: finalValue };
+          if (instanceRef.current) {
+            const updatedInstance: TemplateInstance = {
+              ...instanceRef.current,
+              data: newValues,
+            };
+            const newContent = JSON.stringify(updatedInstance, null, 2);
+            contentRef.current = newContent;
+            onContentChange(newContent);
+          }
+          return newValues;
+        });
       },
       placeholder: part.placeholder || '',
       className: 'w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400',
