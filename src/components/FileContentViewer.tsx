@@ -778,11 +778,18 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
       const fileName = getFileName(filePath);
       const defaultFileName = `${fileName.replace(/\.[^/.]+$/, '')}.pdf`;
       const isMarkdown = isMarkdownFile(filePath);
+      const templateInstanceFile = await isTemplateInstanceFile(filePath);
 
       // HTML 변환 (마크다운은 비동기 처리)
       let htmlContent: string;
       try {
-        htmlContent = await pdfExportService.convertTextToHtml(content, config, isMarkdown);
+        htmlContent = await pdfExportService.convertTextToHtml(
+          content,
+          config,
+          isMarkdown,
+          templateInstanceFile,
+          templateInstanceFile ? filePath : undefined
+        );
       } catch (convertError) {
         const err = convertError as Error;
         toastService.error(`콘텐츠 변환 실패: ${err.message}`);

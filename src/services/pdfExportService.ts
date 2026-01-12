@@ -1,9 +1,11 @@
 import type { PdfExportOptions } from '../types/electron';
+import type { TemplateInstance, CustomTemplate } from '../types/myMemo';
 import { toastService } from './toastService';
 import { handleError } from '../utils/errorHandler';
 import { remark } from 'remark';
 import remarkGfm from 'remark-gfm';
 import remarkHtml from 'remark-html';
+import { getFileName } from '../utils/pathUtils';
 
 /**
  * PDF 내보내기 서비스
@@ -110,13 +112,20 @@ class PdfExportService {
    * @param content 텍스트 콘텐츠
    * @param config 텍스트 에디터 설정
    * @param isMarkdown 마크다운 파일 여부
+   * @param isTemplateInstance 템플릿 인스턴스 파일 여부
+   * @param filePath 파일 경로 (템플릿 인스턴스인 경우 필요)
    * @returns HTML 콘텐츠
    */
   async convertTextToHtml(
     content: string,
     config: { horizontalPadding: number; fontSize: number },
-    isMarkdown: boolean = false
+    isMarkdown: boolean = false,
+    isTemplateInstance: boolean = false,
+    filePath?: string
   ): Promise<string> {
+    if (isTemplateInstance && filePath) {
+      return await this.convertTemplateInstanceToHtml(content, config, filePath);
+    }
     if (isMarkdown) {
       const markdownHtml = await this.convertMarkdownToHtml(content);
       return this.convertMarkdownHtmlToPdfHtml(markdownHtml, config);
@@ -586,6 +595,182 @@ class PdfExportService {
   </div>
 </body>
 </html>`;
+  }
+
+  /**
+   * 템플릿 인스턴스를 HTML로 변환
+   * 템플릿 뷰어와 동일한 스타일로 PDF 생성
+   * 
+   * @param content 템플릿 인스턴스 JSON 콘텐츠
+   * @param config 텍스트 에디터 설정
+   * @param filePath 파일 경로
+   * @returns HTML 콘텐츠
+   */
+  async convertTemplateInstanceToHtml(
+    content: string,
+    config: { horizontalPadding: number; fontSize: number },
+    filePath: string
+  ): Promise<string> {
+    try {
+      const parsed = JSON.parse(content) as TemplateInstance;
+      const fileName = getFileName(filePath);
+      
+      // 날짜 포맷팅
+      const formatDate = (dateString: string): string => {
+        if (!dateString) return '';
+        try {
+          const date = new Date(dateString);
+          return date.toLocaleDateString('ko-KR', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+          });
+        } catch {
+          return dateString;
+        }
+      };
+
+      // 템플릿 정보 가져오기
+      let templateData: CustomTemplate | null = null;
+      if (window.api?.mymemo && window.api?.filesystem) {
+        try {
+          const { getTemplatesPath } = await import('./myMemoService');
+          const templatesPath = await getTemplatesPath();
+          const items = await window.api.filesystem.listDirectory(templatesPath);
+          const jsonFiles = items.filter(item => !item.isDirectory && item.name.endsWith('.json'));
+          
+          for (const file of jsonFiles) {
+            try {
+              const templateContent = await window.api.filesystem.readFile(file.path);
+              if (templateContent) {
+                const template = JSON.parse(templateContent) as CustomTemplate;
+                if (template.id === parsed.templateId) {
+                  templateData = template;
+                  break;
+                }
+              }
+            } catch {
+              // 무시
+            }
+          }
+        } catch {
+          // 무시
+        }
+      }
+
+      const parts = templateData?.parts || [];
+      const sortedParts = [...parts].sort((a, b) => a.order - b.order);
+
+      // HTML 콘텐츠 생성
+      let bodyContent = '';
+      
+      // 헤더
+      bodyContent += `
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 1px solid #d1d5db;">
+          <div style="font-size: 0.75rem; color: #6b7280;">${this.escapeHtml(fileName)}</div>
+          <div style="font-size: 0.75rem; color: #6b7280; text-align: right;">`;
+      
+      if (parsed.updatedAt && parsed.updatedAt !== parsed.createdAt) {
+        bodyContent += `<div>수정: ${formatDate(parsed.updatedAt)}</div>`;
+      }
+      if (parsed.createdAt) {
+        bodyContent += `<div>작성: ${formatDate(parsed.createdAt)}</div>`;
+      }
+      
+      bodyContent += `
+          </div>
+        </div>`;
+
+      // data 영역
+      bodyContent += '<div style="display: flex; flex-direction: column; gap: 2rem;">';
+      
+      if (sortedParts.length > 0) {
+        sortedParts.forEach((part) => {
+          const partContent = parsed.data[part.id] || '';
+          bodyContent += `
+            <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+              <h2 style="font-size: 1.5rem; font-weight: 600; color: #111827; margin: 0;">${this.escapeHtml(part.title)}</h2>`;
+          
+          if (partContent.trim()) {
+            // 줄바꿈을 <br>로 변환하고 HTML 이스케이프
+            const escapedContent = this.escapeHtml(partContent).replace(/\n/g, '<br>');
+            bodyContent += `
+              <div style="font-size: 0.875rem; color: #374151; white-space: pre-wrap; word-wrap: break-word; line-height: 1.75;">${escapedContent}</div>`;
+          } else {
+            bodyContent += `
+              <div style="font-size: 0.875rem; color: #9ca3af; font-style: italic;">(내용 없음)</div>`;
+          }
+          
+          bodyContent += `
+            </div>`;
+        });
+      } else {
+        // 템플릿 정보가 없으면 data를 그대로 표시
+        Object.entries(parsed.data).forEach(([key, value]) => {
+          bodyContent += `
+            <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+              <h2 style="font-size: 1.5rem; font-weight: 600; color: #111827; margin: 0;">${this.escapeHtml(key)}</h2>
+              <div style="font-size: 0.875rem; color: #374151; white-space: pre-wrap; word-wrap: break-word; line-height: 1.75;">${this.escapeHtml(String(value)).replace(/\n/g, '<br>')}</div>
+            </div>`;
+        });
+      }
+      
+      bodyContent += '</div>';
+
+      const baseFontSize = config.fontSize || 14;
+      const horizontalPadding = config.horizontalPadding || 80;
+
+      return `
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${this.escapeHtml(fileName)}</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+      font-size: ${baseFontSize}px;
+      line-height: 1.75;
+      color: #111827;
+      background-color: #ffffff;
+      padding: ${horizontalPadding}px;
+      margin: 0;
+      max-width: 56rem;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    h2 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: #111827;
+      margin-top: 0;
+      margin-bottom: 0.5rem;
+    }
+  </style>
+</head>
+<body>
+  ${bodyContent}
+</body>
+</html>`;
+    } catch (error) {
+      console.error('Error converting template instance to HTML:', error);
+      throw new Error('템플릿 인스턴스 변환 실패');
+    }
+  }
+
+  /**
+   * HTML 이스케이프
+   */
+  private escapeHtml(text: string): string {
+    return text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
 }
 
