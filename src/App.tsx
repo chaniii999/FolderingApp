@@ -585,7 +585,7 @@ function App() {
   // 핫키 훅 사용
   useHotkeys(hotkeys, shouldBlockHotkey, isInputElement);
 
-  const handleNewFileCreated = useCallback(async (filePath?: string) => {
+  const handleNewFileCreated = useCallback(async (filePath?: string, isDirectory?: boolean) => {
     // 템플릿 인스턴스 생성 모드인 경우
     // filePath가 문자열이지만 실제 파일 경로가 아닌 경우 (템플릿 인스턴스 생성)
     // 또는 filePath가 없고 selectedTemplate이 있는 경우
@@ -666,9 +666,8 @@ function App() {
 
     // 파일/폴더 생성 후 디렉토리 새로고침
     if (fileExplorerRef.current) {
-      // 작업 히스토리에 추가
       if (filePath) {
-        // 파일이 생성된 폴더의 부모 폴더만 새로고침 (확장 상태 유지)
+        // 파일/폴더가 생성된 폴더의 부모 폴더만 새로고침 (확장 상태 유지)
         const separator = filePath.includes('\\') ? '\\' : '/';
         const parentFolderPath = filePath.substring(0, filePath.lastIndexOf(separator));
         
@@ -677,25 +676,21 @@ function App() {
           await fileExplorerRef.current.refreshFolder(parentFolderPath);
         } else {
           // 루트 폴더이거나 부모 폴더가 현재 경로와 같으면 전체 새로고침
-          fileExplorerRef.current.refresh();
+          await fileExplorerRef.current.refreshFolder(currentPath);
         }
         
         undoService.addAction({
           type: 'create',
           path: filePath,
-          isDirectory: false,
+          isDirectory: isDirectory ?? false,
         });
-        setTimeout(() => {
-          addOrSwitchTab(filePath);
-          setNewlyCreatedFilePath(filePath);
-        }, 200); // 디렉토리 새로고침 후 파일 선택 및 탭 추가
-      } else {
-        // 폴더 생성은 FileExplorer에서 처리하므로 여기서는 포커스만 (다이얼로그가 닫힌 후)
-        // 다이얼로그가 열려있지 않을 때만 포커스 이동
-        if (!showNewFileDialog) {
+        
+        // 파일인 경우에만 탭 추가
+        if (!isDirectory) {
           setTimeout(() => {
-            fileExplorerRef.current?.focus();
-          }, 100);
+            addOrSwitchTab(filePath);
+            setNewlyCreatedFilePath(filePath);
+          }, 200); // 디렉토리 새로고침 후 파일 선택 및 탭 추가
         }
       }
     }

@@ -76,17 +76,26 @@ export default function TreeNode({
         <div className="w-4 flex items-center justify-center">
           {isSelected && <span className="text-sm">▶</span>}
         </div>
-        {node.isDirectory && (
-          <div className="w-4 flex items-center justify-center">
-            {node.isLoading ? (
-              <span className="text-xs">⏳</span>
-            ) : isExpanded ? (
-              <span className="text-xs">▼</span>
-            ) : (
-              <span className="text-xs">▶</span>
-            )}
-          </div>
-        )}
+        {node.isDirectory && (() => {
+          // 폴더가 비어있으면 화살표 표시하지 않음
+          // node.children이 명시적으로 빈 배열([])인 경우만 빈 폴더로 판단
+          // undefined인 경우는 아직 로드되지 않았을 수 있으므로 화살표 표시
+          const isEmpty = Array.isArray(node.children) && node.children.length === 0;
+          if (isEmpty) {
+            return <div className="w-4" />;
+          }
+          return (
+            <div className="w-4 flex items-center justify-center">
+              {node.isLoading ? (
+                <span className="text-xs">⏳</span>
+              ) : isExpanded ? (
+                <span className="text-xs">▼</span>
+              ) : (
+                <span className="text-xs">▶</span>
+              )}
+            </div>
+          );
+        })()}
         {!node.isDirectory && <div className="w-4" />}
         <div className="flex-1 flex items-center gap-2">
           <span className="text-sm">{node.isDirectory ? '📁' : '📄'}</span>

@@ -102,7 +102,18 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
     }
   }, [hideNonTextFiles]);
 
+  // 특정 경로의 하위 항목 로드
+  const loadChildren = useCallback(async (parentPath: string): Promise<TreeNode[]> => {
+    const items = await loadDirectory(parentPath);
+    return items.map(item => ({
+      ...item,
+      isExpanded: false,
+      isLoading: false,
+    }));
+  }, [loadDirectory]);
+
   // 트리 데이터 초기화
+  // 모든 폴더의 children을 미리 로드하여 빈 폴더 여부 확인
   const initializeTree = useCallback(async () => {
     try {
       setLoading(true);
@@ -116,21 +127,51 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
         isLoading: false,
       }));
 
-      setTreeData(rootNodes);
-      setLoadedPaths(new Set([rootPath]));
+      // 모든 폴더의 children을 재귀적으로 미리 로드
+      const loadAllChildren = async (nodes: TreeNode[]): Promise<TreeNode[]> => {
+        return Promise.all(nodes.map(async (node) => {
+          if (node.isDirectory) {
+            const children = await loadChildren(node.path);
+            const loadedChildren = await loadAllChildren(children);
+            return {
+              ...node,
+              children: loadedChildren,
+            };
+          }
+          return node;
+        }));
+      };
+
+      const nodesWithChildren = await loadAllChildren(rootNodes);
+      setTreeData(nodesWithChildren);
+      
+      // 모든 폴더 경로를 loadedPaths에 추가
+      const allPaths = new Set([rootPath]);
+      const addAllPaths = (nodes: TreeNode[]): void => {
+        nodes.forEach(node => {
+          if (node.isDirectory) {
+            allPaths.add(node.path);
+            if (node.children) {
+              addAllPaths(node.children);
+            }
+          }
+        });
+      };
+      addAllPaths(nodesWithChildren);
+      setLoadedPaths(allPaths);
     } catch (error) {
       console.error('Error initializing tree:', error);
     } finally {
       setLoading(false);
     }
-  }, [getRootPath, loadDirectory]);
+  }, [getRootPath, loadDirectory, loadChildren]);
 
   // currentPath 변경 시 트리 재초기화
   useEffect(() => {
     void initializeTree();
   }, [currentPath, initializeTree]);
 
-  // hideNonTextFiles 변경 시 전체 트리 재로드 (확장된 노드 포함)
+  // hideNonTextFiles 변경 시 전체 트리 재로드 (모든 폴더의 children 미리 로드)
   useEffect(() => {
     const reloadTree = async (): Promise<void> => {
       try {
@@ -145,8 +186,38 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
           isLoading: false,
         }));
 
-        setTreeData(rootNodes);
-        setLoadedPaths(new Set([rootPath]));
+        // 모든 폴더의 children을 재귀적으로 미리 로드
+        const loadAllChildren = async (nodes: TreeNode[]): Promise<TreeNode[]> => {
+          return Promise.all(nodes.map(async (node) => {
+            if (node.isDirectory) {
+              const children = await loadChildren(node.path);
+              const loadedChildren = await loadAllChildren(children);
+              return {
+                ...node,
+                children: loadedChildren,
+              };
+            }
+            return node;
+          }));
+        };
+
+        const nodesWithChildren = await loadAllChildren(rootNodes);
+        setTreeData(nodesWithChildren);
+        
+        // 모든 폴더 경로를 loadedPaths에 추가
+        const allPaths = new Set([rootPath]);
+        const addAllPaths = (nodes: TreeNode[]): void => {
+          nodes.forEach(node => {
+            if (node.isDirectory) {
+              allPaths.add(node.path);
+              if (node.children) {
+                addAllPaths(node.children);
+              }
+            }
+          });
+        };
+        addAllPaths(nodesWithChildren);
+        setLoadedPaths(allPaths);
         setExpandedPaths(new Set()); // 확장된 경로도 초기화
       } catch (error) {
         console.error('Error reloading tree:', error);
@@ -158,16 +229,6 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
     reloadTree();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hideNonTextFiles]);
-
-  // 특정 경로의 하위 항목 로드
-  const loadChildren = useCallback(async (parentPath: string): Promise<TreeNode[]> => {
-    const items = await loadDirectory(parentPath);
-    return items.map(item => ({
-      ...item,
-      isExpanded: false,
-      isLoading: false,
-    }));
-  }, [loadDirectory]);
 
   // 트리에서 노드 찾기
   const findNodeInTree = useCallback((nodes: TreeNode[], targetPath: string): TreeNode | null => {
@@ -241,50 +302,63 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
       // 현재 열린 폴더들의 경로를 저장
       const savedExpandedPaths = new Set(expandedPaths);
       
-      // 전체 트리 새로고침
+      // 전체 트리 새로고침 (모든 폴더의 children 미리 로드)
       const items = await loadDirectory(rootPath);
       const rootNodes: TreeNode[] = items.map(item => ({
         ...item,
         isExpanded: false,
         isLoading: false,
       }));
-      
-      setTreeData(rootNodes);
-      setLoadedPaths(new Set([rootPath]));
-      
-      // 저장된 확장 상태를 복원하면서 children 로드 (재귀)
-      const restoreExpandedFolders = async (nodes: TreeNode[]): Promise<TreeNode[]> => {
+
+      // 모든 폴더의 children을 재귀적으로 미리 로드
+      const loadAllChildren = async (nodes: TreeNode[]): Promise<TreeNode[]> => {
         return Promise.all(nodes.map(async (node) => {
-          if (node.isDirectory && savedExpandedPaths.has(node.path)) {
+          if (node.isDirectory) {
             const children = await loadChildren(node.path);
-            const restoredChildren = await restoreExpandedFolders(children);
+            const loadedChildren = await loadAllChildren(children);
             return {
               ...node,
-              children: restoredChildren,
-              isExpanded: true,
+              children: loadedChildren,
             };
           }
           return node;
         }));
       };
+
+      const nodesWithChildren = await loadAllChildren(rootNodes);
       
-      const restoredNodes = await restoreExpandedFolders(rootNodes);
+      // 저장된 확장 상태를 복원
+      const restoreExpandedFolders = (nodes: TreeNode[]): TreeNode[] => {
+        return nodes.map(node => {
+          if (node.isDirectory) {
+            const isExpanded = savedExpandedPaths.has(node.path);
+            return {
+              ...node,
+              isExpanded,
+              children: node.children ? restoreExpandedFolders(node.children) : node.children,
+            };
+          }
+          return node;
+        });
+      };
+      
+      const restoredNodes = restoreExpandedFolders(nodesWithChildren);
       setTreeData(restoredNodes);
       
-      // loadedPaths 업데이트 (모든 확장된 폴더 포함)
-      const newLoadedPaths = new Set([rootPath]);
-      const addLoadedPaths = (nodes: TreeNode[]): void => {
+      // 모든 폴더 경로를 loadedPaths에 추가
+      const allPaths = new Set([rootPath]);
+      const addAllPaths = (nodes: TreeNode[]): void => {
         nodes.forEach(node => {
-          if (node.isDirectory && savedExpandedPaths.has(node.path)) {
-            newLoadedPaths.add(node.path);
+          if (node.isDirectory) {
+            allPaths.add(node.path);
             if (node.children) {
-              addLoadedPaths(node.children);
+              addAllPaths(node.children);
             }
           }
         });
       };
-      addLoadedPaths(restoredNodes);
-      setLoadedPaths(newLoadedPaths);
+      addAllPaths(restoredNodes);
+      setLoadedPaths(allPaths);
       
       // 확장 상태 복원
       setExpandedPaths(savedExpandedPaths);
@@ -476,17 +550,26 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
               <span className="text-sm">▶</span>
             )}
           </div>
-          {node.isDirectory && (
-            <div className="w-4 flex items-center justify-center flex-shrink-0">
-              {node.isLoading ? (
-                <span className="text-xs">⏳</span>
-              ) : isExpanded ? (
-                <span className="text-xs">▼</span>
-              ) : (
-                <span className="text-xs">▶</span>
-              )}
-            </div>
-          )}
+          {node.isDirectory && (() => {
+            // 폴더가 비어있으면 화살표 표시하지 않음
+            // node.children이 명시적으로 빈 배열([])인 경우만 빈 폴더로 판단
+            // undefined인 경우는 아직 로드되지 않았을 수 있으므로 화살표 표시
+            const isEmpty = Array.isArray(node.children) && node.children.length === 0;
+            if (isEmpty) {
+              return <div className="w-4 flex-shrink-0" />;
+            }
+            return (
+              <div className="w-4 flex items-center justify-center flex-shrink-0">
+                {node.isLoading ? (
+                  <span className="text-xs">⏳</span>
+                ) : isExpanded ? (
+                  <span className="text-xs">▼</span>
+                ) : (
+                  <span className="text-xs">▶</span>
+                )}
+              </div>
+            );
+          })()}
           {!node.isDirectory && <div className="w-4 flex-shrink-0" />}
           <div className="flex items-center gap-2 min-w-0">
             <span className="text-sm flex-shrink-0">{node.isDirectory ? '📁' : '📄'}</span>

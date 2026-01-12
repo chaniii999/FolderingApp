@@ -10,7 +10,7 @@ export type FileType = 'folder' | 'file' | 'markdown' | 'template';
 interface NewFileDialogProps {
   currentPath: string;
   onClose: () => void;
-  onCreated: (filePath?: string) => void;
+  onCreated: (filePath?: string, isDirectory?: boolean) => void;
   onSelectTemplate?: (template: import('../types/myMemo').CustomTemplate) => void;
   selectedTemplateName?: string | null; // 선택된 템플릿 이름
   showTemplateList?: boolean; // 템플릿 목록 표시 여부
@@ -156,8 +156,8 @@ function NewFileDialog({ currentPath, onClose, onCreated, onSelectTemplate, sele
         return;
       }
       // 템플릿 인스턴스 생성은 App.tsx의 handleNewFileCreated에서 처리
-      // 파일명을 전달하여 템플릿 인스턴스 생성에 사용
-      onCreated(fileName.trim());
+      // 파일명을 전달하여 템플릿 인스턴스 생성에 사용 (항상 파일이므로 isDirectory: false)
+      onCreated(fileName.trim(), false);
       onClose();
       return;
     }
@@ -176,11 +176,11 @@ function NewFileDialog({ currentPath, onClose, onCreated, onSelectTemplate, sele
 
       if (selectedType.type === 'folder') {
         await window.api.filesystem.createDirectory(fullPath);
-        onCreated(); // 폴더는 경로 전달 안 함
+        onCreated(fullPath, true); // 폴더 경로와 isDirectory 플래그 전달
       } else {
         const initialContent = selectedType.type === 'markdown' ? '# ' : '';
         await window.api.filesystem.createFile(fullPath, initialContent);
-        onCreated(fullPath); // 파일은 경로 전달
+        onCreated(fullPath, false); // 파일 경로와 isDirectory 플래그 전달
       }
 
       onClose();
