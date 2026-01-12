@@ -41,6 +41,7 @@ function App() {
   const [showSearchDialog, setShowSearchDialog] = useState<boolean>(false);
   const [showTemplateManageDialog, setShowTemplateManageDialog] = useState<boolean>(false);
   const [isMyMemoModeActive, setIsMyMemoModeActive] = useState<boolean>(false);
+  const [templateInstanceFileName, setTemplateInstanceFileName] = useState<string>('');
   const previousPathRef = useRef<string>(''); // 나만의 메모 모드 진입 전 경로 저장
   const hasInitializedGuideRef = useRef<boolean>(false);
   
@@ -620,6 +621,41 @@ function App() {
     }
   }, [addOrSwitchTab, showNewFileDialog, currentPath]);
 
+  // 템플릿 인스턴스 생성 핸들러
+  const handleTemplateInstanceCreate = useCallback(async (template: import('./types/myMemo').CustomTemplate, fileName: string) => {
+    try {
+      if (!window.api?.filesystem) {
+        throw new Error('API가 로드되지 않았습니다.');
+      }
+
+      const { joinPath } = await import('./utils/pathUtils');
+      const filePath = joinPath(newFileDialogPath, `${fileName}.json`);
+
+      // 템플릿 인스턴스 생성
+      const instance: import('./types/myMemo').TemplateInstance = {
+        id: `instance-${Date.now()}`,
+        templateId: template.id,
+        fileName: `${fileName}.json`,
+        filePath: filePath,
+        data: template.parts.reduce((acc, part) => {
+          acc[part.id] = part.default || '';
+          return acc;
+        }, {} as Record<string, string>),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      const instanceContent = JSON.stringify(instance, null, 2);
+      await window.api.filesystem.createFile(filePath, instanceContent);
+
+      toastService.success('템플릿 인스턴스가 생성되었습니다.');
+      await handleNewFileCreated(filePath);
+    } catch (err) {
+      const errorMessage = handleError(err, '템플릿 인스턴스 생성 중 오류가 발생했습니다.');
+      toastService.error(errorMessage);
+    }
+  }, [newFileDialogPath, handleNewFileCreated]);
+
   const handleFileSelect = useCallback((filePath: string) => {
     // 빈 문자열이 전달되면 선택 해제
     if (!filePath || filePath === '') {
@@ -826,16 +862,23 @@ function App() {
           currentPath={newFileDialogPath}
           onClose={handleNewFileDialogClose}
           onCreated={handleNewFileCreated}
-          onSelectTemplate={() => {
+          onSelectTemplate={(fileName: string) => {
             setShowNewFileDialog(false);
+            setTemplateInstanceFileName(fileName);
             setShowTemplateManageDialog(true);
           }}
         />
       )}
       {showTemplateManageDialog && (
         <TemplateManageDialog
-          onClose={() => setShowTemplateManageDialog(false)}
+          onClose={() => {
+            setShowTemplateManageDialog(false);
+            setTemplateInstanceFileName('');
+          }}
           onTemplateSelect={handleTemplateSelect}
+          onTemplateInstanceCreate={templateInstanceFileName ? handleTemplateInstanceCreate : undefined}
+          isInstanceMode={!!templateInstanceFileName}
+          defaultFileName={templateInstanceFileName}
         />
       )}
       {showSearchDialog && (

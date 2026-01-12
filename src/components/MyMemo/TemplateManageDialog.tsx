@@ -9,9 +9,12 @@ import TemplateEditDialog from './TemplateEditDialog';
 interface TemplateManageDialogProps {
   onClose: () => void;
   onTemplateSelect?: (templatePath: string) => void;
+  onTemplateInstanceCreate?: (template: CustomTemplate, fileName: string) => void;
+  isInstanceMode?: boolean; // 템플릿 인스턴스 생성 모드인지 여부
+  defaultFileName?: string; // 기본 파일 이름
 }
 
-function TemplateManageDialog({ onClose, onTemplateSelect }: TemplateManageDialogProps) {
+function TemplateManageDialog({ onClose, onTemplateSelect, onTemplateInstanceCreate, isInstanceMode = false, defaultFileName = '' }: TemplateManageDialogProps) {
   const [templates, setTemplates] = useState<Array<{ path: string; template: CustomTemplate }>>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -94,6 +97,22 @@ function TemplateManageDialog({ onClose, onTemplateSelect }: TemplateManageDialo
       setEditingTemplate(template.template);
       setEditingTemplatePath(templatePath);
       setShowEditDialog(true);
+    }
+  };
+
+  const handleTemplateSelect = (templatePath: string): void => {
+    const template = templates.find(t => t.path === templatePath);
+    if (template) {
+      if (isInstanceMode && onTemplateInstanceCreate) {
+        // 템플릿 인스턴스 생성 모드
+        const fileName = defaultFileName || template.template.name;
+        onTemplateInstanceCreate(template.template, fileName);
+        onClose();
+      } else if (onTemplateSelect) {
+        // 기존 동작 (템플릿 편집 모드)
+        onTemplateSelect(templatePath);
+        onClose();
+      }
     }
   };
 
@@ -192,24 +211,38 @@ function TemplateManageDialog({ onClose, onTemplateSelect }: TemplateManageDialo
                           </p>
                         </div>
                         <div className="flex gap-2 ml-4">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleEdit(path);
-                            }}
-                            className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600"
-                          >
-                            편집
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              void handleDelete(path);
-                            }}
-                            className="px-3 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600"
-                          >
-                            삭제
-                          </button>
+                          {isInstanceMode ? (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleTemplateSelect(path);
+                              }}
+                              className="px-3 py-1 text-sm bg-green-500 text-white rounded hover:bg-green-600"
+                            >
+                              선택
+                            </button>
+                          ) : (
+                            <>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleEdit(path);
+                                }}
+                                className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600"
+                              >
+                                편집
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  void handleDelete(path);
+                                }}
+                                className="px-3 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600"
+                              >
+                                삭제
+                              </button>
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -219,12 +252,14 @@ function TemplateManageDialog({ onClose, onTemplateSelect }: TemplateManageDialo
             </div>
 
             <div className="flex gap-2 justify-end border-t border-gray-300 dark:border-gray-600 pt-4">
-              <button
-                onClick={handleAddNew}
-                className="px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600"
-              >
-                새 템플릿 추가
-              </button>
+              {!isInstanceMode && (
+                <button
+                  onClick={handleAddNew}
+                  className="px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600"
+                >
+                  새 템플릿 추가
+                </button>
+              )}
               <button
                 onClick={onClose}
                 className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded hover:bg-gray-300 dark:hover:bg-gray-600"

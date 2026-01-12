@@ -9,7 +9,7 @@ interface NewFileDialogProps {
   currentPath: string;
   onClose: () => void;
   onCreated: (filePath?: string) => void;
-  onSelectTemplate?: () => void;
+  onSelectTemplate?: (fileName: string) => void;
 }
 
 // 나만의 메모 모드에서만 사용 가능한 파일 타입 목록
@@ -78,7 +78,7 @@ function NewFileDialog({ currentPath, onClose, onCreated, onSelectTemplate }: Ne
       e.preventDefault();
       // 템플릿 타입이 선택된 경우 템플릿 목록 팝업 표시
       if (selectedType.type === 'template' && onSelectTemplate) {
-        onSelectTemplate();
+        onSelectTemplate(fileName.trim() || '템플릿 인스턴스');
         return;
       }
       handleCreate();
@@ -142,8 +142,11 @@ function NewFileDialog({ currentPath, onClose, onCreated, onSelectTemplate }: Ne
     const availableTypes = getFileTypes(isMyMemo);
     const selectedType = availableTypes[selectedTypeIndex];
     
-    // 템플릿 타입은 handleCreate에서 처리하지 않음 (템플릿 목록 팝업에서 처리)
+    // 템플릿 타입은 템플릿 목록 팝업 표시
     if (selectedType.type === 'template') {
+      if (onSelectTemplate) {
+        onSelectTemplate(fileName.trim() || '템플릿 인스턴스');
+      }
       return;
     }
 
@@ -244,7 +247,7 @@ function NewFileDialog({ currentPath, onClose, onCreated, onSelectTemplate }: Ne
                     setSelectedTypeIndex(index);
                     // 템플릿 타입을 클릭하면 템플릿 목록 팝업 표시
                     if (isTemplate && onSelectTemplate) {
-                      onSelectTemplate();
+                      onSelectTemplate(fileName.trim() || '템플릿 인스턴스');
                     }
                   }}
                 >
