@@ -14,6 +14,7 @@ import MarkdownViewer from './MarkdownViewer';
 import PdfViewer from './PdfViewer';
 import TemplateEditor from './MyMemo/TemplateEditor';
 import TemplateViewer from './MyMemo/TemplateViewer';
+import TemplateInstanceEditor from './MyMemo/TemplateInstanceEditor';
 import { pdfExportService } from '../services/pdfExportService';
 
 import type { TextEditorConfig } from '../services/textEditorConfigService';
@@ -65,7 +66,9 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
   const [recoveryContent, setRecoveryContent] = useState<string | null>(null);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [isTemplate, setIsTemplate] = useState(false);
+  const [isTemplateInstance, setIsTemplateInstance] = useState(false);
   const [isMyMemoMode, setIsMyMemoMode] = useState(false);
+  const isTemplateInstanceRef = useRef<boolean>(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -111,6 +114,7 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
           setContent('');
           setOriginalContent('');
           setIsTemplate(false);
+          setIsTemplateInstance(false);
           setLoading(false);
           return;
         }
@@ -118,6 +122,11 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
         // 템플릿 파일인지 확인 (나만의 메모 영역에 존재하는 .json 파일)
         const templateFile = await isTemplateFile(filePath);
         setIsTemplate(templateFile);
+        
+        const templateInstanceFile = await isTemplateInstanceFile(filePath);
+        console.log('loadFile - templateInstanceFile:', templateInstanceFile, 'filePath:', filePath);
+        setIsTemplateInstance(templateInstanceFile);
+        isTemplateInstanceRef.current = templateInstanceFile;
 
         // 나만의 메모 모드인지 확인
         const myMemoMode = await isMyMemoPath(filePath);
@@ -129,6 +138,7 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
           setContent('');
           setOriginalContent('');
           setIsTemplate(false);
+          setIsTemplateInstance(false);
           setLoading(false);
           return;
         }
@@ -476,16 +486,31 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
         // i 키로 편집 모드 진입 (modifier 키 없을 때만)
         if ((e.key === 'i' || e.key === 'I') && !e.ctrlKey && !e.altKey && !e.metaKey) {
           e.preventDefault();
-          setIsEditing(true);
+          // 템플릿 인스턴스 파일인지 확인
+          void (async () => {
+            const templateInstanceFile = await isTemplateInstanceFile(filePath);
+            setIsTemplateInstance(templateInstanceFile);
+            isTemplateInstanceRef.current = templateInstanceFile;
+            setIsEditing(true);
+          })();
           return;
         }
       }
     }
   };
 
-  const handleEditClick = useCallback(() => {
+  const handleEditClick = useCallback(async () => {
     if (filePath && !loading && !error) {
+      console.log('handleEditClick - filePath:', filePath);
+      // 템플릿 인스턴스 파일인지 확인
+      const templateInstanceFile = await isTemplateInstanceFile(filePath);
+      console.log('handleEditClick - templateInstanceFile:', templateInstanceFile);
+      setIsTemplateInstance(templateInstanceFile);
+      isTemplateInstanceRef.current = templateInstanceFile;
+      
+      console.log('handleEditClick - isTemplateInstance state:', templateInstanceFile, 'ref:', isTemplateInstanceRef.current);
       setIsEditing(true);
+      
       // 편집 모드 진입 시 자동 저장 시작
       if (filePath) {
         autoSaveService.startAutoSave(filePath, content);
@@ -912,6 +937,21 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
               {error}
             </div>
           </div>
+        ) : (() => {
+          const shouldUseTemplateEditor = (isTemplateInstance || isTemplateInstanceRef.current) && isEditing;
+          console.log('Render check - isTemplateInstance:', isTemplateInstance, 'ref:', isTemplateInstanceRef.current, 'isEditing:', isEditing, 'shouldUseTemplateEditor:', shouldUseTemplateEditor, 'filePath:', filePath);
+          return shouldUseTemplateEditor;
+        })() ? (
+          <TemplateInstanceEditor
+            filePath={filePath!}
+            content={content}
+            config={config}
+            onContentChange={(newContent) => {
+              setContent(newContent);
+              setHasChanges(newContent !== originalContent);
+            }}
+            onSave={handleSave}
+          />
         ) : isEditing ? (
           <textarea
             ref={textareaRef}
@@ -987,7 +1027,7 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
           />
         ) : isPdfFile(filePath) ? (
           <PdfViewer filePath={filePath} />
-        ) : isTemplate ? (
+        ) : isMyMemoMode && filePath.toLowerCase().endsWith('.json') ? (
           <TemplateViewer
             filePath={filePath!}
             content={content}
