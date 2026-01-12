@@ -1,4 +1,7 @@
 import { useState, useEffect } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+
 import type { CustomTemplate, TemplateInstance } from '../../types/myMemo';
 import { getFileName } from '../../utils/pathUtils';
 
@@ -229,8 +232,10 @@ function TemplateViewer({ filePath, content, config }: TemplateViewerProps) {
                       {part.title}
                     </h2>
                     {content.trim() ? (
-                      <div className="prose prose-sm dark:prose-invert max-w-none text-gray-700 dark:text-gray-300 whitespace-pre-wrap break-words">
-                        {content}
+                      <div className="prose prose-sm dark:prose-invert max-w-none text-gray-700 dark:text-gray-300">
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                          {content}
+                        </ReactMarkdown>
                       </div>
                     ) : (
                       <div className="text-gray-400 dark:text-gray-500 italic">
@@ -247,8 +252,10 @@ function TemplateViewer({ filePath, content, config }: TemplateViewerProps) {
                   <h2 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
                     {key}
                   </h2>
-                  <div className="prose prose-sm dark:prose-invert max-w-none text-gray-700 dark:text-gray-300 whitespace-pre-wrap break-words">
-                    {value}
+                  <div className="prose prose-sm dark:prose-invert max-w-none text-gray-700 dark:text-gray-300">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      {String(value)}
+                    </ReactMarkdown>
                   </div>
                 </div>
               ))
@@ -377,8 +384,10 @@ function TemplateViewer({ filePath, content, config }: TemplateViewerProps) {
                   <h2 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
                     {key}
                   </h2>
-                  <div className="prose prose-sm dark:prose-invert max-w-none text-gray-700 dark:text-gray-300 whitespace-pre-wrap break-words">
-                    {String(value)}
+                  <div className="prose prose-sm dark:prose-invert max-w-none text-gray-700 dark:text-gray-300">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      {String(value)}
+                    </ReactMarkdown>
                   </div>
                 </div>
               ))}
