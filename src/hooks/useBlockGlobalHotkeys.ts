@@ -66,15 +66,22 @@ export function useBlockGlobalHotkeys(options: UseBlockGlobalHotkeysOptions = {}
       if (dialogElement && dialogElement.contains(target)) {
         // 입력 필드 내부에서는 화살표 키가 정상 작동하도록 허용
         if (allowArrowKeysInInput) {
-          const isInputElement = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
+          const isInputElement = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT';
           if (isInputElement && (
             e.key === 'ArrowUp' || 
             e.key === 'ArrowDown' || 
             e.key === 'ArrowLeft' || 
             e.key === 'ArrowRight'
           )) {
-            return; // 입력 필드 내부의 화살표 키는 허용
+            // 입력 필드 내부의 화살표 키는 다른 핫키 핸들러가 가로채지 않도록 전파 차단
+            e.stopPropagation();
+            return;
           }
+        }
+        // 다이얼로그 내부의 다른 이벤트는 전파 차단하여 외부 핫키가 작동하지 않도록 함
+        const isInputElement = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT';
+        if (isInputElement) {
+          e.stopPropagation();
         }
         return; // 다이얼로그 내부 이벤트는 허용
       }
