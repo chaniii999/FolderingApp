@@ -411,7 +411,7 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
           } : undefined}
         >
           <div className="w-4 flex items-center justify-center flex-shrink-0">
-            {(isSelected || (node.isDirectory && isExpanded)) && (
+            {isSelected && (
               <span className="text-sm">▶</span>
             )}
           </div>
