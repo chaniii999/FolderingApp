@@ -25,6 +25,7 @@ interface FileExplorerProps {
 export interface FileExplorerRef {
   focus: () => void;
   refresh: () => void;
+  refreshFolder: (folderPath: string) => Promise<void>;
   startRenameForPath: (filePath: string) => void;
   getDraggedFolderPath: () => string | null;
   getSelectedFolderPath: () => string | null;
@@ -219,6 +220,63 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
     }
   }, [expandedPaths, loadedPaths, loadChildren, updateTreeNode]);
 
+  // 특정 폴더만 새로고침 (확장 상태 유지)
+  const refreshFolder = useCallback(async (folderPath: string): Promise<void> => {
+    try {
+      const rootPath = await getRootPath();
+      if (!rootPath) return;
+      
+      // 루트 폴더인 경우 확장 상태를 유지하면서 루트 노드만 업데이트
+      if (rootPath === folderPath) {
+        const items = await loadDirectory(rootPath);
+        const rootNodes: TreeNode[] = items.map(item => ({
+          ...item,
+          isExpanded: false,
+          isLoading: false,
+        }));
+        
+        // 확장된 폴더의 children 복원
+        const restoredNodes = await Promise.all(rootNodes.map(async (node) => {
+          if (node.isDirectory && expandedPaths.has(node.path)) {
+            const children = await loadChildren(node.path);
+            return {
+              ...node,
+              children,
+              isExpanded: true,
+            };
+          }
+          return node;
+        }));
+        
+        setTreeData(restoredNodes);
+        setLoadedPaths(prev => {
+          const next = new Set(prev);
+          next.add(rootPath);
+          // 확장된 폴더들을 loadedPaths에 추가
+          restoredNodes.forEach(node => {
+            if (node.isDirectory && expandedPaths.has(node.path)) {
+              next.add(node.path);
+            }
+          });
+          return next;
+        });
+      } else {
+        // 하위 폴더인 경우 children만 업데이트
+        if (expandedPaths.has(folderPath)) {
+          const children = await loadChildren(folderPath);
+          setTreeData(prev => updateTreeNode(prev, folderPath, node => ({
+            ...node,
+            children,
+            isLoading: false,
+          })));
+          setLoadedPaths(prev => new Set(prev).add(folderPath));
+        }
+      }
+    } catch (error) {
+      console.error('Error refreshing folder:', error);
+    }
+  }, [expandedPaths, loadChildren, updateTreeNode, getRootPath, loadDirectory]);
+
   useImperativeHandle(ref, () => ({
     focus: () => {
       if (listRef.current) {
@@ -227,6 +285,9 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
     },
     refresh: () => {
       initializeTree();
+    },
+    refreshFolder: (folderPath: string) => {
+      return refreshFolder(folderPath);
     },
     startRenameForPath: (filePath: string) => {
       setRenamingPath(filePath);
@@ -244,7 +305,7 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
       }
       return null;
     },
-  }), [initializeTree, findNodeInTree, treeData, draggedFolderPath, cursorPath]);
+  }), [initializeTree, findNodeInTree, treeData, draggedFolderPath, cursorPath, refreshFolder]);
 
   // 트리 노드 렌더링 (재귀)
   const renderTreeNode = useCallback((node: TreeNode, depth: number = 0, flatIndex: { current: number } = { current: 0 }): JSX.Element | null => {

@@ -472,13 +472,23 @@ function App() {
   }, []);
 
 
-  const handleNewFileCreated = useCallback((filePath?: string) => {
+  const handleNewFileCreated = useCallback(async (filePath?: string) => {
     // 파일/폴더 생성 후 디렉토리 새로고침
     if (fileExplorerRef.current) {
-      fileExplorerRef.current.refresh();
-      
       // 작업 히스토리에 추가
       if (filePath) {
+        // 파일이 생성된 폴더의 부모 폴더만 새로고침 (확장 상태 유지)
+        const separator = filePath.includes('\\') ? '\\' : '/';
+        const parentFolderPath = filePath.substring(0, filePath.lastIndexOf(separator));
+        
+        // 부모 폴더가 있으면 해당 폴더만 새로고침, 없으면 전체 새로고침
+        if (parentFolderPath && parentFolderPath !== currentPath) {
+          await fileExplorerRef.current.refreshFolder(parentFolderPath);
+        } else {
+          // 루트 폴더이거나 부모 폴더가 현재 경로와 같으면 전체 새로고침
+          fileExplorerRef.current.refresh();
+        }
+        
         undoService.addAction({
           type: 'create',
           path: filePath,
@@ -498,7 +508,7 @@ function App() {
         }
       }
     }
-  }, [addOrSwitchTab, showNewFileDialog]);
+  }, [addOrSwitchTab, showNewFileDialog, currentPath]);
 
   const handleFileSelect = useCallback((filePath: string) => {
     // 빈 문자열이 전달되면 선택 해제
