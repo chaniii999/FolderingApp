@@ -208,11 +208,11 @@ function TemplateViewer({ filePath, content, config }: TemplateViewerProps) {
               {fileName}
             </div>
             <div className="text-xs text-gray-500 dark:text-gray-400 text-right">
-              {instance.createdAt && (
-                <div>작성: {formatDate(instance.createdAt)}</div>
-              )}
               {instance.updatedAt && instance.updatedAt !== instance.createdAt && (
                 <div>수정: {formatDate(instance.updatedAt)}</div>
+              )}
+              {instance.createdAt && (
+                <div>작성: {formatDate(instance.createdAt)}</div>
               )}
             </div>
           </div>
@@ -222,16 +222,21 @@ function TemplateViewer({ filePath, content, config }: TemplateViewerProps) {
             {sortedParts.length > 0 ? (
               sortedParts.map((part) => {
                 const content = instance.data[part.id] || '';
-                if (!content.trim()) return null;
                 
                 return (
                   <div key={part.id} className="space-y-2">
                     <h2 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
                       {part.title}
                     </h2>
-                    <div className="prose prose-sm dark:prose-invert max-w-none text-gray-700 dark:text-gray-300 whitespace-pre-wrap break-words">
-                      {content}
-                    </div>
+                    {content.trim() ? (
+                      <div className="prose prose-sm dark:prose-invert max-w-none text-gray-700 dark:text-gray-300 whitespace-pre-wrap break-words">
+                        {content}
+                      </div>
+                    ) : (
+                      <div className="text-gray-400 dark:text-gray-500 italic">
+                        (내용 없음)
+                      </div>
+                    )}
                   </div>
                 );
               })
@@ -274,11 +279,11 @@ function TemplateViewer({ filePath, content, config }: TemplateViewerProps) {
               {fileName}
             </div>
             <div className="text-xs text-gray-500 dark:text-gray-400 text-right">
-              {template.createdAt && (
-                <div>작성: {formatDate(template.createdAt)}</div>
-              )}
               {template.updatedAt && template.updatedAt !== template.createdAt && (
                 <div>수정: {formatDate(template.updatedAt)}</div>
+              )}
+              {template.createdAt && (
+                <div>작성: {formatDate(template.createdAt)}</div>
               )}
             </div>
           </div>
@@ -356,10 +361,10 @@ function TemplateViewer({ filePath, content, config }: TemplateViewerProps) {
                 {fileName}
               </div>
               <div className="text-xs text-gray-500 dark:text-gray-400 text-right">
-                {createdAt && <div>작성: {formatDate(createdAt)}</div>}
                 {updatedAt && updatedAt !== createdAt && (
                   <div>수정: {formatDate(updatedAt)}</div>
                 )}
+                {createdAt && <div>작성: {formatDate(createdAt)}</div>}
               </div>
             </div>
           )}

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useImperativeHandle, forwardRef } from 'react';
 import { getHotkeys, isHotkey } from '../config/hotkeys';
-import { isTextFile, isPdfFile, isTemplateFile } from '../utils/fileUtils';
+import { isTextFile, isPdfFile, isTemplateFile, isTemplateInstanceFile } from '../utils/fileUtils';
 import { undoService } from '../services/undoService';
 import { toastService } from '../services/toastService';
 import { autoSaveService } from '../services/autoSaveService';
@@ -17,6 +17,7 @@ import TemplateViewer from './MyMemo/TemplateViewer';
 import { pdfExportService } from '../services/pdfExportService';
 
 import type { TextEditorConfig } from '../services/textEditorConfigService';
+import type { TemplateInstance } from '../types/myMemo';
 
 export interface FileContentViewerRef {
   isEditing: boolean;
@@ -617,7 +618,7 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
   }, [filePath, isEditing]);
 
   const handleSave = useCallback(async (newContent?: string) => {
-    const contentToSave = newContent ?? content;
+    let contentToSave = newContent ?? content;
     
     if (!filePath) return;
     
@@ -633,6 +634,22 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
         throw new Error('writeFile 함수를 사용할 수 없습니다. Electron 앱을 재시작해주세요.');
       }
 
+      // 템플릿 인스턴스 파일인 경우 updatedAt 갱신
+      const isInstance = await isTemplateInstanceFile(filePath);
+      if (isInstance) {
+        try {
+          const parsed = JSON.parse(contentToSave) as TemplateInstance;
+          const updatedInstance: TemplateInstance = {
+            ...parsed,
+            updatedAt: new Date().toISOString(),
+          };
+          contentToSave = JSON.stringify(updatedInstance, null, 2);
+        } catch (parseErr) {
+          // JSON 파싱 실패 시 원본 내용 그대로 저장
+          console.warn('Failed to parse template instance, saving as-is:', parseErr);
+        }
+      }
+
       await window.api.filesystem.writeFile(filePath, contentToSave);
       
       // 저장 시 커서 위치 저장
@@ -644,6 +661,9 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
       // content state 업데이트
       if (newContent) {
         setContent(newContent);
+      } else if (isInstance) {
+        // 템플릿 인스턴스인 경우 갱신된 내용으로 업데이트
+        setContent(contentToSave);
       }
       setOriginalContent(contentToSave);
       setHasChanges(false);
@@ -673,7 +693,7 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
         }
       }
     }
-  }, [filePath, hasChanges, content]);
+  }, [filePath, hasChanges, content, isTemplate]);
 
   const handleCancel = useCallback(() => {
     // 취소 시 커서 위치 저장
