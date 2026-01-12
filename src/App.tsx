@@ -826,7 +826,7 @@ function App() {
           currentPath={newFileDialogPath}
           onClose={handleNewFileDialogClose}
           onCreated={handleNewFileCreated}
-          onAddTemplate={() => {
+          onSelectTemplate={() => {
             setShowNewFileDialog(false);
             setShowTemplateManageDialog(true);
           }}

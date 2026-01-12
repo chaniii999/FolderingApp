@@ -9,7 +9,7 @@ interface NewFileDialogProps {
   currentPath: string;
   onClose: () => void;
   onCreated: (filePath?: string) => void;
-  onAddTemplate?: () => void;
+  onSelectTemplate?: () => void;
 }
 
 // 나만의 메모 모드에서만 사용 가능한 파일 타입 목록
@@ -21,13 +21,13 @@ const getFileTypes = (isMyMemoMode: boolean): { type: FileType; label: string; e
   ];
   
   if (isMyMemoMode) {
-    return [...baseTypes, { type: 'template', label: '커스텀 템플릿', extension: '.json' }];
+    return [...baseTypes, { type: 'template', label: '템플릿', extension: '.json' }];
   }
   
   return baseTypes;
 };
 
-function NewFileDialog({ currentPath, onClose, onCreated, onAddTemplate }: NewFileDialogProps) {
+function NewFileDialog({ currentPath, onClose, onCreated, onSelectTemplate }: NewFileDialogProps) {
   const [fileName, setFileName] = useState('');
   const [selectedTypeIndex, setSelectedTypeIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -70,9 +70,17 @@ function NewFileDialog({ currentPath, onClose, onCreated, onAddTemplate }: NewFi
     // 모든 키 이벤트를 다이얼로그 내부에서만 처리하도록 전파 차단
     e.stopPropagation();
     
+    const availableTypes = getFileTypes(isMyMemo);
+    const selectedType = availableTypes[selectedTypeIndex];
+    
     // Enter로 확인 처리
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
+      // 템플릿 타입이 선택된 경우 템플릿 목록 팝업 표시
+      if (selectedType.type === 'template' && onSelectTemplate) {
+        onSelectTemplate();
+        return;
+      }
       handleCreate();
       return;
     }
@@ -85,7 +93,6 @@ function NewFileDialog({ currentPath, onClose, onCreated, onAddTemplate }: NewFi
     }
 
     // 위/아래 화살표로 파일 타입 선택
-    const availableTypes = getFileTypes(isMyMemo);
     if (e.key === 'ArrowUp') {
       e.preventDefault();
       setSelectedTypeIndex((prev) => (prev > 0 ? prev - 1 : prev));
@@ -132,6 +139,14 @@ function NewFileDialog({ currentPath, onClose, onCreated, onAddTemplate }: NewFi
   }, []);
 
   const handleCreate = async () => {
+    const availableTypes = getFileTypes(isMyMemo);
+    const selectedType = availableTypes[selectedTypeIndex];
+    
+    // 템플릿 타입은 handleCreate에서 처리하지 않음 (템플릿 목록 팝업에서 처리)
+    if (selectedType.type === 'template') {
+      return;
+    }
+
     if (!fileName.trim()) {
       setError('이름을 입력해주세요.');
       return;
@@ -142,44 +157,11 @@ function NewFileDialog({ currentPath, onClose, onCreated, onAddTemplate }: NewFi
         throw new Error('API가 로드되지 않았습니다.');
       }
 
-      const availableTypes = getFileTypes(isMyMemo);
-      const selectedType = availableTypes[selectedTypeIndex];
       const fullPath = joinPath(currentPath, `${fileName.trim()}${selectedType.extension}`);
 
       if (selectedType.type === 'folder') {
         await window.api.filesystem.createDirectory(fullPath);
         onCreated(); // 폴더는 경로 전달 안 함
-      } else if (selectedType.type === 'template') {
-        // 커스텀 템플릿 생성 (템플릿 경로에 저장)
-        if (!window.api?.mymemo) {
-          throw new Error('MyMemo API가 로드되지 않았습니다.');
-        }
-        
-        const { getTemplatesPath } = await import('../services/myMemoService');
-        const templatesPath = await getTemplatesPath();
-        const templateFileName = `${fileName.trim()}.json`;
-        const templatePath = joinPath(templatesPath, templateFileName);
-        
-        const templateContent = JSON.stringify({
-          id: `template-${Date.now()}`,
-          name: fileName.trim(),
-          description: '',
-          parts: [
-            {
-              id: 'part-1',
-              title: '내용',
-              type: 'textarea',
-              default: '',
-              order: 0,
-            },
-          ],
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        }, null, 2);
-        
-        await window.api.filesystem.createFile(templatePath, templateContent);
-        // 템플릿은 파일 탐색기에 표시하지 않으므로 onCreated 호출 안 함
-        onCreated();
       } else {
         const initialContent = selectedType.type === 'markdown' ? '# ' : '';
         await window.api.filesystem.createFile(fullPath, initialContent);
@@ -235,7 +217,8 @@ function NewFileDialog({ currentPath, onClose, onCreated, onAddTemplate }: NewFi
               setFileName(e.target.value);
               setError(null);
             }}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+            disabled={getFileTypes(isMyMemo)[selectedTypeIndex]?.type === 'template'}
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
             placeholder="이름을 입력하세요"
           />
         </div>
@@ -245,20 +228,31 @@ function NewFileDialog({ currentPath, onClose, onCreated, onAddTemplate }: NewFi
             타입 (위/아래 화살표로 선택)
           </label>
           <div className="space-y-1 max-h-48 overflow-y-auto border border-gray-300 dark:border-gray-600 rounded p-1">
-            {getFileTypes(isMyMemo).map((type, index) => (
-              <div
-                key={type.type}
-                className={`px-3 py-2 rounded cursor-pointer ${
-                  selectedTypeIndex === index
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-900 dark:text-gray-200'
-                }`}
-                onClick={() => setSelectedTypeIndex(index)}
-              >
-                {type.label}
-                {type.extension && <span className="text-xs ml-2">({type.extension})</span>}
-              </div>
-            ))}
+            {getFileTypes(isMyMemo).map((type, index) => {
+              const isTemplate = type.type === 'template';
+              const isSelected = selectedTypeIndex === index;
+              
+              return (
+                <div
+                  key={type.type}
+                  className={`px-3 py-2 rounded cursor-pointer ${
+                    isSelected
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-900 dark:text-gray-200'
+                  }`}
+                  onClick={() => {
+                    setSelectedTypeIndex(index);
+                    // 템플릿 타입을 클릭하면 템플릿 목록 팝업 표시
+                    if (isTemplate && onSelectTemplate) {
+                      onSelectTemplate();
+                    }
+                  }}
+                >
+                  {type.label}
+                  {type.extension && <span className="text-xs ml-2">({type.extension})</span>}
+                </div>
+              );
+            })}
           </div>
         </div>
 
@@ -269,17 +263,6 @@ function NewFileDialog({ currentPath, onClose, onCreated, onAddTemplate }: NewFi
         )}
 
         <div className="flex gap-2 justify-end">
-          {onAddTemplate && isMyMemo && (
-            <button
-              onClick={() => {
-                onClose();
-                onAddTemplate();
-              }}
-              className="px-4 py-2 rounded flex items-center gap-2 bg-purple-500 text-white hover:bg-purple-600"
-            >
-              <span>템플릿 추가하기</span>
-            </button>
-          )}
           <button
             onClick={onClose}
             className="px-4 py-2 rounded flex items-center gap-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600"
