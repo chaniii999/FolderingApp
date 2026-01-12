@@ -661,9 +661,9 @@ function App() {
               if (content) {
                 const template = JSON.parse(content) as import('./types/myMemo').CustomTemplate;
                 if (template.id === selectedTemplate.id) {
-                  // 템플릿 파트를 기본값으로 초기화
+                  // 템플릿 파트를 기본값으로 초기화 (파트 제목을 키로 사용)
                   instance.data = template.parts.reduce((acc, part) => {
-                    acc[part.id] = part.default || '';
+                    acc[part.title] = part.default || '';
                     return acc;
                   }, {} as Record<string, string>);
                   break;

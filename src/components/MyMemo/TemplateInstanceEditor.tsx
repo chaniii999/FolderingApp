@@ -88,11 +88,11 @@ function TemplateInstanceEditor({ filePath, content, config, onContentChange, on
                     const template = JSON.parse(templateContent) as CustomTemplate;
                     if (template.id === templateInstance.templateId) {
                       setTemplateData(template);
-                      // 템플릿의 모든 파트에 대해 기본값 설정 (없는 경우)
+                      // 템플릿의 모든 파트에 대해 기본값 설정 (없는 경우) - 파트 제목을 키로 사용
                       const newPartValues: Record<string, string> = { ...parsed.data };
                       template.parts.forEach(part => {
-                        if (!(part.id in newPartValues)) {
-                          newPartValues[part.id] = part.default || '';
+                        if (!(part.title in newPartValues)) {
+                          newPartValues[part.title] = part.default || '';
                         }
                       });
                       isUpdatingFromContentRef.current = true;
@@ -137,17 +137,17 @@ function TemplateInstanceEditor({ filePath, content, config, onContentChange, on
   }, []);
 
   // 파트 값 변경 핸들러
-  const handlePartValueChange = useCallback((partId: string, value: string) => {
+  const handlePartValueChange = useCallback((partTitle: string, value: string) => {
     // content에서 업데이트 중일 때는 무시
     if (isUpdatingFromContentRef.current) {
       return;
     }
 
     setPartValues(prev => {
-      const newValues = { ...prev, [partId]: value };
+      const newValues = { ...prev, [partTitle]: value };
       
       // IME 입력 중이 아닐 때만 content 변경 (debounce)
-      if (instanceRef.current && !isComposingRef.current.get(partId)) {
+      if (instanceRef.current && !isComposingRef.current.get(partTitle)) {
         // 기존 timeout 취소
         if (updateTimeoutRef.current) {
           clearTimeout(updateTimeoutRef.current);
@@ -191,17 +191,17 @@ function TemplateInstanceEditor({ filePath, content, config, onContentChange, on
     const commonProps = {
       value: value,
       onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-        handlePartValueChange(part.id, e.target.value);
+        handlePartValueChange(part.title, e.target.value);
       },
       onCompositionStart: () => {
-        isComposingRef.current.set(part.id, true);
+        isComposingRef.current.set(part.title, true);
       },
       onCompositionEnd: (e: React.CompositionEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const finalValue = e.currentTarget.value;
-        isComposingRef.current.set(part.id, false);
+        isComposingRef.current.set(part.title, false);
         // IME 입력 종료 후 최종 값으로 즉시 업데이트 (debounce 없이)
         setPartValues(prev => {
-          const newValues = { ...prev, [part.id]: finalValue };
+          const newValues = { ...prev, [part.title]: finalValue };
           if (instanceRef.current) {
             const updatedInstance: TemplateInstance = {
               ...instanceRef.current,
@@ -229,7 +229,7 @@ function TemplateInstanceEditor({ filePath, content, config, onContentChange, on
             rows={6}
             ref={(el) => {
               if (el) {
-                inputRefs.current.set(part.id, el);
+                inputRefs.current.set(part.title, el);
               }
             }}
             className={`${commonProps.className} resize-y`}
@@ -242,7 +242,7 @@ function TemplateInstanceEditor({ filePath, content, config, onContentChange, on
             type="text"
             ref={(el) => {
               if (el) {
-                inputRefs.current.set(part.id, el);
+                inputRefs.current.set(part.title, el);
               }
             }}
           />
@@ -254,7 +254,7 @@ function TemplateInstanceEditor({ filePath, content, config, onContentChange, on
             type="number"
             ref={(el) => {
               if (el) {
-                inputRefs.current.set(part.id, el);
+                inputRefs.current.set(part.title, el);
               }
             }}
           />
@@ -266,7 +266,7 @@ function TemplateInstanceEditor({ filePath, content, config, onContentChange, on
             type="date"
             ref={(el) => {
               if (el) {
-                inputRefs.current.set(part.id, el);
+                inputRefs.current.set(part.title, el);
               }
             }}
           />
@@ -275,13 +275,13 @@ function TemplateInstanceEditor({ filePath, content, config, onContentChange, on
         return (
           <select
             value={value}
-            onChange={(e) => handlePartValueChange(part.id, e.target.value)}
+            onChange={(e) => handlePartValueChange(part.title, e.target.value)}
             placeholder={part.placeholder || ''}
             className={commonProps.className}
             style={commonProps.style}
             ref={(el) => {
               if (el) {
-                inputRefs.current.set(part.id, el);
+                inputRefs.current.set(part.title, el);
               }
             }}
           >
@@ -300,7 +300,7 @@ function TemplateInstanceEditor({ filePath, content, config, onContentChange, on
             type="text"
             ref={(el) => {
               if (el) {
-                inputRefs.current.set(part.id, el);
+                inputRefs.current.set(part.title, el);
               }
             }}
           />
@@ -372,7 +372,7 @@ function TemplateInstanceEditor({ filePath, content, config, onContentChange, on
         <div className="space-y-8">
           {sortedParts.length > 0 ? (
             sortedParts.map((part) => {
-              const value = partValues[part.id] || '';
+              const value = partValues[part.title] || '';
               
               return (
                 <div key={part.id} className="space-y-2">

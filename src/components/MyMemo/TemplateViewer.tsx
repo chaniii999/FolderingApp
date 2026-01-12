@@ -225,7 +225,7 @@ function TemplateViewer({ filePath, content, config }: TemplateViewerProps) {
           <div className="space-y-8">
             {sortedParts.length > 0 ? (
               sortedParts.map((part) => {
-                const content = instance.data[part.id] || '';
+                const content = instance.data[part.title] || '';
                 
                 return (
                   <div key={part.id} className="space-y-2">
