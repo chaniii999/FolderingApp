@@ -458,9 +458,24 @@ function App() {
 
   // 템플릿 선택 핸들러 (템플릿 관리에서 편집 클릭 시)
   const handleTemplateSelect = useCallback((templatePath: string) => {
+    // 파일 경로를 먼저 명시적으로 설정
     setSelectedFilePath(templatePath);
+    // 탭 추가 또는 전환 (내부에서도 setSelectedFilePath 호출하지만 중복은 문제 없음)
     addOrSwitchTab(templatePath);
   }, [addOrSwitchTab]);
+
+  // activeTabId 변경 시 selectedFilePath 동기화
+  useEffect(() => {
+    if (activeTabId) {
+      const activeTab = tabs.find(tab => tab.id === activeTabId);
+      if (activeTab && activeTab.filePath !== selectedFilePath) {
+        setSelectedFilePath(activeTab.filePath);
+      }
+    } else if (activeTabId === null && selectedFilePath !== null) {
+      // 활성 탭이 없으면 파일 선택 해제
+      setSelectedFilePath(null);
+    }
+  }, [activeTabId, tabs]); // selectedFilePath를 dependency에서 제거하여 무한 루프 방지
 
   const handlePathChange = useCallback((newPath: string) => {
     undoService.setCurrentPath(newPath);

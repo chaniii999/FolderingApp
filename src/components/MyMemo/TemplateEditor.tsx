@@ -18,13 +18,24 @@ function TemplateEditor({ filePath, content, onSave, onCancel, config }: Templat
 
   // JSON 파싱 및 템플릿 로드
   useEffect(() => {
+    if (!content || content.trim() === '') {
+      setError('템플릿 내용이 비어있습니다.');
+      setTemplate(null);
+      return;
+    }
+
     try {
       const parsed = JSON.parse(content) as CustomTemplate;
+      // 템플릿 형식 검증
+      if (!parsed.id || !parsed.name || !Array.isArray(parsed.parts)) {
+        throw new Error('템플릿 형식이 올바르지 않습니다.');
+      }
       setTemplate(parsed);
       setError(null);
     } catch (err) {
       setError('템플릿 파일 형식이 올바르지 않습니다.');
       console.error('Error parsing template:', err);
+      setTemplate(null);
     }
   }, [content]);
 

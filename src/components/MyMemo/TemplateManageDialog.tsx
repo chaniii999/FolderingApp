@@ -2,8 +2,9 @@ import { useState, useEffect, useRef } from 'react';
 import type { CustomTemplate } from '../../types/myMemo';
 import { toastService } from '../../services/toastService';
 import { getErrorMessage } from '../../utils/errorHandler';
-import { getFileName } from '../../utils/pathUtils';
+import { getFileName, joinPath } from '../../utils/pathUtils';
 import { getTemplatesPath } from '../../services/myMemoService';
+import TemplateEditDialog from './TemplateEditDialog';
 
 interface TemplateManageDialogProps {
   onClose: () => void;
@@ -15,11 +16,13 @@ function TemplateManageDialog({ onClose, onTemplateSelect }: TemplateManageDialo
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<CustomTemplate | null>(null);
+  const [editingTemplatePath, setEditingTemplatePath] = useState<string | null>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
 
-  // 템플릿 목록 로드
-  useEffect(() => {
-    const loadTemplates = async (): Promise<void> => {
+  // 템플릿 목록 로드 함수
+  const loadTemplates = async (): Promise<void> => {
       try {
         setLoading(true);
         setError(null);
@@ -61,6 +64,8 @@ function TemplateManageDialog({ onClose, onTemplateSelect }: TemplateManageDialo
       }
     };
 
+  // 템플릿 목록 로드
+  useEffect(() => {
     void loadTemplates();
   }, []);
 
@@ -84,17 +89,34 @@ function TemplateManageDialog({ onClose, onTemplateSelect }: TemplateManageDialo
   };
 
   const handleEdit = (templatePath: string): void => {
-    if (onTemplateSelect) {
-      onTemplateSelect(templatePath);
+    const template = templates.find(t => t.path === templatePath);
+    if (template) {
+      setEditingTemplate(template.template);
+      setEditingTemplatePath(templatePath);
+      setShowEditDialog(true);
     }
-    onClose();
   };
 
   const handleAddNew = (): void => {
+    setEditingTemplate(null);
+    setEditingTemplatePath(null);
+    setShowEditDialog(true);
+  };
+
+  const handleTemplateSave = async (templatePath: string): Promise<void> => {
+    // 템플릿 목록 새로고침
+    await loadTemplates();
+    
+    // 저장된 템플릿을 편집 모드로 열기 (선택사항)
     if (onTemplateSelect) {
-      // 새 템플릿 생성은 NewFileDialog에서 처리
-      onClose();
+      onTemplateSelect(templatePath);
     }
+  };
+
+  const handleEditDialogClose = (): void => {
+    setShowEditDialog(false);
+    setEditingTemplate(null);
+    setEditingTemplatePath(null);
   };
 
   useEffect(() => {
@@ -112,20 +134,21 @@ function TemplateManageDialog({ onClose, onTemplateSelect }: TemplateManageDialo
   }, [onClose]);
 
   return (
-    <div
-      className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 dark:bg-opacity-70 z-50"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) {
-          onClose();
-        }
-      }}
-    >
+    <>
       <div
-        ref={dialogRef}
-        className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[80vh] flex flex-col"
-        onClick={(e) => e.stopPropagation()}
+        className={`absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 dark:bg-opacity-70 z-50 ${showEditDialog ? 'pointer-events-none' : ''}`}
+        onClick={(e) => {
+          if (e.target === e.currentTarget && !showEditDialog) {
+            onClose();
+          }
+        }}
       >
-        <h3 className="text-lg font-semibold mb-4 dark:text-gray-200">템플릿 관리</h3>
+        <div
+          ref={dialogRef}
+          className={`bg-white dark:bg-gray-800 rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[80vh] flex flex-col ${showEditDialog ? 'opacity-50 pointer-events-none' : ''}`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <h3 className="text-lg font-semibold mb-4 dark:text-gray-200">템플릿 관리</h3>
 
         {loading ? (
           <div className="flex items-center justify-center py-8 text-gray-500 dark:text-gray-400">
@@ -211,8 +234,17 @@ function TemplateManageDialog({ onClose, onTemplateSelect }: TemplateManageDialo
             </div>
           </>
         )}
+        </div>
       </div>
-    </div>
+      {showEditDialog && (
+        <TemplateEditDialog
+          template={editingTemplate}
+          templatePath={editingTemplatePath}
+          onClose={handleEditDialogClose}
+          onSave={handleTemplateSave}
+        />
+      )}
+    </>
   );
 }
 
