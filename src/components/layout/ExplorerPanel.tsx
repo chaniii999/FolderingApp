@@ -13,10 +13,13 @@ interface ExplorerPanelProps {
   isDialogOpen: boolean;
   hideNonTextFiles: boolean;
   isEditing: boolean;
+  isMyMemoModeActive?: boolean;
   onPathChange: (newPath: string) => void;
   onFileSelect: (filePath: string) => void;
   onFileDeleted?: (filePath: string) => void;
   onNewFileClick: () => void;
+  onMyMemoClick?: () => void;
+  onTemplateManageClick?: () => void;
   onToggleFullPath: () => void;
   onResize: (width: number) => void;
   getCurrentFolderName: () => string;
@@ -32,10 +35,13 @@ function ExplorerPanel({
   isDialogOpen,
   hideNonTextFiles,
   isEditing,
+  isMyMemoModeActive = false,
   onPathChange,
   onFileSelect,
   onFileDeleted,
   onNewFileClick,
+  onMyMemoClick,
+  onTemplateManageClick,
   onToggleFullPath,
   onResize,
   getCurrentFolderName,
@@ -56,6 +62,53 @@ function ExplorerPanel({
             >
               {showFullPath ? currentPath : getCurrentFolderName()}
             </span>
+          )}
+          {onTemplateManageClick && isMyMemoModeActive && (
+            <button
+              onClick={onTemplateManageClick}
+              className="relative w-8 h-8 text-white rounded border-2 border-gray-800 dark:border-gray-200 bg-gradient-to-b from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 shadow-lg hover:shadow-xl transform hover:scale-110 transition-all duration-150 flex items-center justify-center flex-shrink-0 active:scale-95"
+              style={{
+                textShadow: '1px 1px 2px rgba(0,0,0,0.5)',
+                boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.3), 0 2px 4px rgba(0,0,0,0.3)',
+              }}
+              title="템플릿 관리"
+            >
+              <span className="relative z-10 text-lg">📋</span>
+              <div 
+                className="absolute inset-0 rounded opacity-0 hover:opacity-100 transition-opacity"
+                style={{
+                  background: 'linear-gradient(to bottom, rgba(255,255,255,0.2), transparent)',
+                }}
+              />
+            </button>
+          )}
+          {onMyMemoClick && (
+            <button
+              onClick={onMyMemoClick}
+              className={`relative w-8 h-8 text-white rounded border-2 shadow-lg hover:shadow-xl transform hover:scale-110 transition-all duration-150 flex items-center justify-center flex-shrink-0 active:scale-95 ${
+                isMyMemoModeActive
+                  ? 'border-yellow-400 dark:border-yellow-300 bg-gradient-to-b from-purple-600 to-purple-800 hover:from-purple-700 hover:to-purple-900'
+                  : 'border-gray-800 dark:border-gray-200 bg-gradient-to-b from-purple-500 to-purple-700 hover:from-purple-600 hover:to-purple-800'
+              }`}
+              style={{
+                textShadow: '1px 1px 2px rgba(0,0,0,0.5)',
+                boxShadow: isMyMemoModeActive
+                  ? 'inset 0 1px 0 rgba(255,255,255,0.3), 0 2px 4px rgba(0,0,0,0.3), 0 0 8px rgba(251, 191, 36, 0.5)'
+                  : 'inset 0 1px 0 rgba(255,255,255,0.3), 0 2px 4px rgba(0,0,0,0.3)',
+              }}
+              title={isMyMemoModeActive ? '나만의 Memo (활성화됨 - 클릭하여 일반 모드로 전환)' : '나만의 Memo (클릭하여 활성화)'}
+            >
+              <span className="relative z-10 text-lg">📝</span>
+              {isMyMemoModeActive && (
+                <span className="absolute -top-1 -right-1 w-2 h-2 bg-yellow-400 rounded-full animate-pulse" />
+              )}
+              <div 
+                className="absolute inset-0 rounded opacity-0 hover:opacity-100 transition-opacity"
+                style={{
+                  background: 'linear-gradient(to bottom, rgba(255,255,255,0.2), transparent)',
+                }}
+              />
+            </button>
           )}
           <button
             onClick={onNewFileClick}

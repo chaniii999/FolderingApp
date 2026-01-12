@@ -77,7 +77,14 @@ export interface ElectronAPI {
   };
   menu: {
     updateCheckbox: (id: string, checked: boolean) => Promise<void>;
+    setEnabled: (id: string, enabled: boolean) => Promise<void>;
     updateFontMenu: () => Promise<void>;
+  };
+  mymemo: {
+    getPath: () => Promise<string>;
+    isMyMemoPath: (filePath: string) => Promise<boolean>;
+    getTemplatesPath: () => Promise<string>;
+    isTemplatePath: (filePath: string) => Promise<boolean>;
   };
 }
 

@@ -3,6 +3,7 @@ import * as fileSystemService from '../services/fileSystemService';
 import { saveStartPath, selectStartPath, deleteStartPath } from '../services/startPathService';
 import { pdfService } from '../services/pdfService';
 import type { PdfExportOptions } from '../services/pdfService';
+import { getMyMemoPath, initializeMyMemoStructure, isMyMemoPath, getTemplatesPath, isTemplatePath } from '../services/myMemoService';
 import os from 'os';
 import { app } from 'electron';
 import fs from 'fs';
@@ -233,5 +234,57 @@ export function fileSystemHandlers(ipcMain: IpcMain): void {
       return [];
     }
   });
+
+  // 나만의 Memo 관련 핸들러
+  ipcMain.handle('mymemo:getPath', async () => {
+    try {
+      console.log('[FileSystemHandlers] mymemo:getPath called');
+      initializeMyMemoStructure();
+      const path = getMyMemoPath();
+      console.log('[FileSystemHandlers] mymemo:getPath returning:', path);
+      return path;
+    } catch (error) {
+      console.error('Error getting my memo path:', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('mymemo:isMyMemoPath', async (_event, filePath: string) => {
+    try {
+      console.log('[FileSystemHandlers] mymemo:isMyMemoPath called with:', filePath);
+      const result = isMyMemoPath(filePath);
+      console.log('[FileSystemHandlers] mymemo:isMyMemoPath returning:', result);
+      return result;
+    } catch (error) {
+      console.error('Error checking my memo path:', error);
+      return false;
+    }
+  });
+
+  ipcMain.handle('mymemo:getTemplatesPath', async () => {
+    try {
+      console.log('[FileSystemHandlers] mymemo:getTemplatesPath called');
+      const path = getTemplatesPath();
+      console.log('[FileSystemHandlers] mymemo:getTemplatesPath returning:', path);
+      return path;
+    } catch (error) {
+      console.error('Error getting templates path:', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('mymemo:isTemplatePath', async (_event, filePath: string) => {
+    try {
+      console.log('[FileSystemHandlers] mymemo:isTemplatePath called with:', filePath);
+      const result = isTemplatePath(filePath);
+      console.log('[FileSystemHandlers] mymemo:isTemplatePath returning:', result);
+      return result;
+    } catch (error) {
+      console.error('Error checking template path:', error);
+      return false;
+    }
+  });
+  
+  console.log('[FileSystemHandlers] MyMemo handlers registered');
 }
 

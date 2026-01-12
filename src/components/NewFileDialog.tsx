@@ -1,26 +1,51 @@
 import { useState, useEffect, useRef } from 'react';
 import { joinPath } from '../utils/pathUtils';
 import { getErrorMessage } from '../utils/errorHandler';
+import { isMyMemoMode } from '../services/myMemoService';
 
-export type FileType = 'folder' | 'file' | 'markdown';
+export type FileType = 'folder' | 'file' | 'markdown' | 'template';
 
 interface NewFileDialogProps {
   currentPath: string;
   onClose: () => void;
   onCreated: (filePath?: string) => void;
+  onAddTemplate?: () => void;
 }
 
-const fileTypes: { type: FileType; label: string; extension: string }[] = [
-  { type: 'folder', label: '폴더', extension: '' },
-  { type: 'file', label: '파일', extension: '' },
-  { type: 'markdown', label: 'Markdown 파일', extension: '.md' },
-];
+// 나만의 메모 모드에서만 사용 가능한 파일 타입 목록
+const getFileTypes = (isMyMemoMode: boolean): { type: FileType; label: string; extension: string }[] => {
+  const baseTypes: { type: FileType; label: string; extension: string }[] = [
+    { type: 'folder', label: '폴더', extension: '' },
+    { type: 'file', label: '파일', extension: '' },
+    { type: 'markdown', label: 'Markdown 파일', extension: '.md' },
+  ];
+  
+  if (isMyMemoMode) {
+    return [...baseTypes, { type: 'template', label: '커스텀 템플릿', extension: '.json' }];
+  }
+  
+  return baseTypes;
+};
 
-function NewFileDialog({ currentPath, onClose, onCreated }: NewFileDialogProps) {
+function NewFileDialog({ currentPath, onClose, onCreated, onAddTemplate }: NewFileDialogProps) {
   const [fileName, setFileName] = useState('');
   const [selectedTypeIndex, setSelectedTypeIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [isMyMemo, setIsMyMemo] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // 나만의 메모 모드 확인
+  useEffect(() => {
+    const checkMyMemoMode = async (): Promise<void> => {
+      if (currentPath) {
+        const isMyMemoModeActive = await isMyMemoMode(currentPath);
+        setIsMyMemo(isMyMemoModeActive);
+      } else {
+        setIsMyMemo(false);
+      }
+    };
+    void checkMyMemoMode();
+  }, [currentPath]);
 
   useEffect(() => {
     // 다이얼로그가 열리면 입력 필드에 포커스
@@ -60,6 +85,7 @@ function NewFileDialog({ currentPath, onClose, onCreated }: NewFileDialogProps) 
     }
 
     // 위/아래 화살표로 파일 타입 선택
+    const availableTypes = getFileTypes(isMyMemo);
     if (e.key === 'ArrowUp') {
       e.preventDefault();
       setSelectedTypeIndex((prev) => (prev > 0 ? prev - 1 : prev));
@@ -68,7 +94,7 @@ function NewFileDialog({ currentPath, onClose, onCreated }: NewFileDialogProps) 
 
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setSelectedTypeIndex((prev) => (prev < fileTypes.length - 1 ? prev + 1 : prev));
+      setSelectedTypeIndex((prev) => (prev < availableTypes.length - 1 ? prev + 1 : prev));
       return;
     }
   };
@@ -116,12 +142,44 @@ function NewFileDialog({ currentPath, onClose, onCreated }: NewFileDialogProps) 
         throw new Error('API가 로드되지 않았습니다.');
       }
 
-      const selectedType = fileTypes[selectedTypeIndex];
+      const availableTypes = getFileTypes(isMyMemo);
+      const selectedType = availableTypes[selectedTypeIndex];
       const fullPath = joinPath(currentPath, `${fileName.trim()}${selectedType.extension}`);
 
       if (selectedType.type === 'folder') {
         await window.api.filesystem.createDirectory(fullPath);
         onCreated(); // 폴더는 경로 전달 안 함
+      } else if (selectedType.type === 'template') {
+        // 커스텀 템플릿 생성 (템플릿 경로에 저장)
+        if (!window.api?.mymemo) {
+          throw new Error('MyMemo API가 로드되지 않았습니다.');
+        }
+        
+        const { getTemplatesPath } = await import('../services/myMemoService');
+        const templatesPath = await getTemplatesPath();
+        const templateFileName = `${fileName.trim()}.json`;
+        const templatePath = joinPath(templatesPath, templateFileName);
+        
+        const templateContent = JSON.stringify({
+          id: `template-${Date.now()}`,
+          name: fileName.trim(),
+          description: '',
+          parts: [
+            {
+              id: 'part-1',
+              title: '내용',
+              type: 'textarea',
+              default: '',
+              order: 0,
+            },
+          ],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        }, null, 2);
+        
+        await window.api.filesystem.createFile(templatePath, templateContent);
+        // 템플릿은 파일 탐색기에 표시하지 않으므로 onCreated 호출 안 함
+        onCreated();
       } else {
         const initialContent = selectedType.type === 'markdown' ? '# ' : '';
         await window.api.filesystem.createFile(fullPath, initialContent);
@@ -186,8 +244,8 @@ function NewFileDialog({ currentPath, onClose, onCreated }: NewFileDialogProps) 
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             타입 (위/아래 화살표로 선택)
           </label>
-          <div className="space-y-1">
-            {fileTypes.map((type, index) => (
+          <div className="space-y-1 max-h-48 overflow-y-auto border border-gray-300 dark:border-gray-600 rounded p-1">
+            {getFileTypes(isMyMemo).map((type, index) => (
               <div
                 key={type.type}
                 className={`px-3 py-2 rounded cursor-pointer ${
@@ -211,6 +269,17 @@ function NewFileDialog({ currentPath, onClose, onCreated }: NewFileDialogProps) 
         )}
 
         <div className="flex gap-2 justify-end">
+          {onAddTemplate && isMyMemo && (
+            <button
+              onClick={() => {
+                onClose();
+                onAddTemplate();
+              }}
+              className="px-4 py-2 rounded flex items-center gap-2 bg-purple-500 text-white hover:bg-purple-600"
+            >
+              <span>템플릿 추가하기</span>
+            </button>
+          )}
           <button
             onClick={onClose}
             className="px-4 py-2 rounded flex items-center gap-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600"

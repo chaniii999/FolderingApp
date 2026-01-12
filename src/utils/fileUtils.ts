@@ -50,3 +50,33 @@ export function isPdfFile(filePath: string | null): boolean {
   return extension === 'pdf';
 }
 
+/**
+ * 템플릿 파일인지 확인 (템플릿 경로 내의 .json 파일)
+ */
+export async function isTemplateFile(filePath: string | null): Promise<boolean> {
+  if (!filePath) return false;
+  
+  const fileName = getFileName(filePath);
+  if (!fileName) return false;
+  
+  const lastDotIndex = fileName.lastIndexOf('.');
+  if (lastDotIndex === -1 || lastDotIndex === fileName.length - 1) {
+    return false;
+  }
+  
+  const extension = fileName.substring(lastDotIndex + 1).toLowerCase();
+  if (extension !== 'json') {
+    return false;
+  }
+  
+  // 템플릿 경로인지 확인
+  if (window.api?.mymemo) {
+    try {
+      return await window.api.mymemo.isTemplatePath(filePath);
+    } catch {
+      return false;
+    }
+  }
+  
+  return false;
+}

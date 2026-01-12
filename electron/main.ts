@@ -107,6 +107,14 @@ function setupMenuBar(showMenuBar: boolean, window: BrowserWindow) {
       }
     });
     
+    // 메뉴 아이템 활성화/비활성화 IPC 핸들러
+    ipcMain.handle('menu:setEnabled', (_event, id: string, enabled: boolean) => {
+      const menuItem = applicationMenu?.getMenuItemById(id);
+      if (menuItem) {
+        menuItem.enabled = enabled;
+      }
+    });
+    
     // Font 메뉴 업데이트 IPC 핸들러
     ipcMain.handle('menu:updateFontMenu', () => {
       updateFontMenu();
@@ -205,9 +213,11 @@ app.whenReady().then(async () => {
   }
   
   // IPC 핸들러 등록
+  console.log('[Main] Registering IPC handlers...');
   folderHandlers(ipcMain);
   noteHandlers(ipcMain);
   fileSystemHandlers(ipcMain);
+  console.log('[Main] All IPC handlers registered');
 
   const window = createWindow();
   mainWindow = window;

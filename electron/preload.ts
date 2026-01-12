@@ -64,7 +64,14 @@ const api = {
   },
   menu: {
     updateCheckbox: (id: string, checked: boolean): Promise<void> => ipcRenderer.invoke('menu:updateCheckbox', id, checked),
+    setEnabled: (id: string, enabled: boolean): Promise<void> => ipcRenderer.invoke('menu:setEnabled', id, enabled),
     updateFontMenu: (): Promise<void> => ipcRenderer.invoke('menu:updateFontMenu'),
+  },
+  mymemo: {
+    getPath: (): Promise<string> => ipcRenderer.invoke('mymemo:getPath'),
+    isMyMemoPath: (filePath: string): Promise<boolean> => ipcRenderer.invoke('mymemo:isMyMemoPath', filePath),
+    getTemplatesPath: (): Promise<string> => ipcRenderer.invoke('mymemo:getTemplatesPath'),
+    isTemplatePath: (filePath: string): Promise<boolean> => ipcRenderer.invoke('mymemo:isTemplatePath', filePath),
   },
 };
 

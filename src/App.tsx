@@ -5,6 +5,7 @@ import NewFileDialog from './components/NewFileDialog';
 import SearchDialog from './components/SearchDialog';
 import SaveConfirmDialog from './components/SaveConfirmDialog';
 import ToastContainer from './components/ToastContainer';
+import TemplateManageDialog from './components/MyMemo/TemplateManageDialog';
 import AppHeader from './components/layout/AppHeader';
 import ExplorerPanel from './components/layout/ExplorerPanel';
 import ContentViewerPanel from './components/layout/ContentViewerPanel';
@@ -21,6 +22,7 @@ import { useTabs } from './hooks/useTabs';
 import { useSettings } from './hooks/useSettings';
 import { usePerformanceMeasure } from './utils/usePerformanceMeasure';
 import { performanceMonitor } from './utils/performanceMonitor';
+import { isMyMemoMode } from './services/myMemoService';
 
 function App() {
   usePerformanceMeasure('App');
@@ -37,6 +39,9 @@ function App() {
   const [fileViewerState, setFileViewerState] = useState<{ isEditing: boolean; hasChanges: boolean }>({ isEditing: false, hasChanges: false });
   const [showFullPath, setShowFullPath] = useState<boolean>(false);
   const [showSearchDialog, setShowSearchDialog] = useState<boolean>(false);
+  const [showTemplateManageDialog, setShowTemplateManageDialog] = useState<boolean>(false);
+  const [isMyMemoModeActive, setIsMyMemoModeActive] = useState<boolean>(false);
+  const previousPathRef = useRef<string>(''); // 나만의 메모 모드 진입 전 경로 저장
   const hasInitializedGuideRef = useRef<boolean>(false);
   
   // 탭 관리
@@ -446,6 +451,103 @@ function App() {
     setShowNewFileDialog(true);
   }, [currentPath]);
 
+  // 템플릿 관리 버튼 클릭 핸들러
+  const handleTemplateManageClick = useCallback(() => {
+    setShowTemplateManageDialog(true);
+  }, []);
+
+  // 템플릿 선택 핸들러 (템플릿 관리에서 편집 클릭 시)
+  const handleTemplateSelect = useCallback((templatePath: string) => {
+    setSelectedFilePath(templatePath);
+    addOrSwitchTab(templatePath);
+  }, [addOrSwitchTab]);
+
+  const handlePathChange = useCallback((newPath: string) => {
+    undoService.setCurrentPath(newPath);
+    setCurrentPath(newPath);
+    setSelectedFilePath(null);
+  }, []);
+
+  // 나만의 memo 모드 상태 확인
+  useEffect(() => {
+    const checkMyMemoMode = async (): Promise<void> => {
+      // API가 로드될 때까지 대기
+      if (!window.api?.mymemo) {
+        console.warn('[App] MyMemo API not available yet');
+        setIsMyMemoModeActive(false);
+        return;
+      }
+      
+      if (currentPath) {
+        try {
+          const isMyMemo = await isMyMemoMode(currentPath);
+          setIsMyMemoModeActive(isMyMemo);
+          
+          // Select Path 메뉴 활성화/비활성화
+          if (window.api?.menu) {
+            await window.api.menu.setEnabled('selectPath', !isMyMemo);
+          }
+        } catch (error) {
+          console.error('[App] Error checking my memo mode:', error);
+          setIsMyMemoModeActive(false);
+        }
+      } else {
+        setIsMyMemoModeActive(false);
+        if (window.api?.menu) {
+          await window.api.menu.setEnabled('selectPath', true);
+        }
+      }
+    };
+    
+    void checkMyMemoMode();
+  }, [currentPath]);
+
+  // 나만의 Memo 버튼 클릭 핸들러 (토글)
+  const handleMyMemoClick = useCallback(async () => {
+    try {
+      if (!window.api?.mymemo) {
+        toastService.error('MyMemo API가 로드되지 않았습니다.');
+        return;
+      }
+      
+      // 현재 나만의 메모 모드인지 확인
+      const isCurrentlyMyMemo = await isMyMemoMode(currentPath);
+      
+      if (isCurrentlyMyMemo) {
+        // 나만의 메모 모드 → 일반 모드로 전환
+        const previousPath = previousPathRef.current || '';
+        if (previousPath) {
+          handlePathChange(previousPath);
+        } else {
+          // 이전 경로가 없으면 홈 경로로
+          const homePath = await window.api.filesystem.getHomePath();
+          handlePathChange(homePath);
+        }
+        previousPathRef.current = '';
+      } else {
+        // 일반 모드 → 나만의 메모 모드로 전환
+        // 현재 경로를 저장
+        if (currentPath) {
+          previousPathRef.current = currentPath;
+        }
+        
+        const myMemoPath = await window.api.mymemo.getPath();
+        console.log('[App] Switching to MyMemo path:', myMemoPath);
+        handlePathChange(myMemoPath);
+      }
+      
+      // FileExplorer 새로고침 (약간의 지연 후)
+      setTimeout(() => {
+        if (fileExplorerRef.current) {
+          fileExplorerRef.current.refresh();
+        }
+      }, 100);
+    } catch (err) {
+      console.error('Error toggling my memo:', err);
+      toastService.error('나만의 Memo 전환에 실패했습니다.');
+    }
+  }, [currentPath, handlePathChange]);
+
   // 핫키 설정 배열
   const hotkeys = useMemo(() => createAppHotkeys({
     currentPath,
@@ -464,13 +566,6 @@ function App() {
 
   // 핫키 훅 사용
   useHotkeys(hotkeys, shouldBlockHotkey, isInputElement);
-
-  const handlePathChange = useCallback((newPath: string) => {
-    undoService.setCurrentPath(newPath);
-    setCurrentPath(newPath);
-    setSelectedFilePath(null);
-  }, []);
-
 
   const handleNewFileCreated = useCallback(async (filePath?: string) => {
     // 파일/폴더 생성 후 디렉토리 새로고침
@@ -678,10 +773,13 @@ function App() {
             isDialogOpen={showNewFileDialog || showSearchDialog}
             hideNonTextFiles={systemConfig.hideNonTextFiles}
             isEditing={fileViewerState.isEditing}
+            isMyMemoModeActive={isMyMemoModeActive}
             onPathChange={handlePathChange}
             onFileSelect={handleFileSelect}
             onFileDeleted={handleFileDeleted}
             onNewFileClick={handleNewFileClick}
+            onMyMemoClick={handleMyMemoClick}
+            onTemplateManageClick={handleTemplateManageClick}
             onToggleFullPath={handleToggleFullPath}
             onResize={setExplorerWidth}
             getCurrentFolderName={getCurrentFolderName}
@@ -713,6 +811,16 @@ function App() {
           currentPath={newFileDialogPath}
           onClose={handleNewFileDialogClose}
           onCreated={handleNewFileCreated}
+          onAddTemplate={() => {
+            setShowNewFileDialog(false);
+            setShowTemplateManageDialog(true);
+          }}
+        />
+      )}
+      {showTemplateManageDialog && (
+        <TemplateManageDialog
+          onClose={() => setShowTemplateManageDialog(false)}
+          onTemplateSelect={handleTemplateSelect}
         />
       )}
       {showSearchDialog && (

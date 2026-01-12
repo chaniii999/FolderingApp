@@ -58,15 +58,25 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
   const renameInputRef = useRef<HTMLInputElement>(null);
   const deleteDialogRef = useRef<HTMLDivElement>(null);
 
-  // 루트 경로 가져오기 (SelectPath로 지정한 경로)
+  // 루트 경로 가져오기 (SelectPath로 지정한 경로 또는 나만의 메모 경로)
   const getRootPath = useCallback(async (): Promise<string | null> => {
     try {
-      if (!window.api?.filesystem) return null;
-      // getCurrentDirectory는 SelectPath로 지정한 경로를 반환
+      if (!window.api?.filesystem) return currentPath || null;
+      
+      // 나만의 메모 모드인지 확인
+      if (window.api?.mymemo && currentPath) {
+        const isMyMemo = await window.api.mymemo.isMyMemoPath(currentPath);
+        if (isMyMemo) {
+          // 나만의 메모 모드면 currentPath를 직접 사용
+          return currentPath;
+        }
+      }
+      
+      // 일반 모드면 SelectPath로 지정한 경로 사용
       const rootPath = await window.api.filesystem.getCurrentDirectory();
       return rootPath || currentPath;
     } catch {
-      return currentPath;
+      return currentPath || null;
     }
   }, [currentPath]);
 
@@ -115,9 +125,10 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
     }
   }, [getRootPath, loadDirectory]);
 
+  // currentPath 변경 시 트리 재초기화
   useEffect(() => {
-    initializeTree();
-  }, [initializeTree]);
+    void initializeTree();
+  }, [currentPath, initializeTree]);
 
   // hideNonTextFiles 변경 시 전체 트리 재로드 (확장된 노드 포함)
   useEffect(() => {

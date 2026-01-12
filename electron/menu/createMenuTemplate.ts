@@ -26,6 +26,8 @@ export function createMenuTemplate({
       submenu: [
         {
           label: 'Select Path',
+          id: 'selectPath',
+          enabled: true,
           click: () => {
             console.log('[Menu] Select Path clicked');
             const window = BrowserWindow.getAllWindows()[0];

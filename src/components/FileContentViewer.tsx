@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useImperativeHandle, forwardRef } from 'react';
 import { getHotkeys, isHotkey } from '../config/hotkeys';
-import { isTextFile, isPdfFile } from '../utils/fileUtils';
+import { isTextFile, isPdfFile, isTemplateFile } from '../utils/fileUtils';
 import { undoService } from '../services/undoService';
 import { toastService } from '../services/toastService';
 import { autoSaveService } from '../services/autoSaveService';
@@ -11,6 +11,7 @@ import { handleError, getErrorMessage } from '../utils/errorHandler';
 import RecoveryDialog from './RecoveryDialog';
 import MarkdownViewer from './MarkdownViewer';
 import PdfViewer from './PdfViewer';
+import TemplateEditor from './MyMemo/TemplateEditor';
 import { pdfExportService } from '../services/pdfExportService';
 
 import type { TextEditorConfig } from '../services/textEditorConfigService';
@@ -60,6 +61,7 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
   const [showRecoveryDialog, setShowRecoveryDialog] = useState(false);
   const [recoveryContent, setRecoveryContent] = useState<string | null>(null);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const [isTemplate, setIsTemplate] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -104,15 +106,21 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
         if (isPdfFile(filePath)) {
           setContent('');
           setOriginalContent('');
+          setIsTemplate(false);
           setLoading(false);
           return;
         }
+
+        // 템플릿 파일인지 확인
+        const templateFile = await isTemplateFile(filePath);
+        setIsTemplate(templateFile);
 
         // 텍스트 파일이 아닌 경우 에러 표시하고 데이터 로드하지 않음
         if (!isTextFile(filePath)) {
           setError('표시할 수 없는 파일입니다!');
           setContent('');
           setOriginalContent('');
+          setIsTemplate(false);
           setLoading(false);
           return;
         }
@@ -601,8 +609,13 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
     }
   }, [filePath, isEditing]);
 
-  const handleSave = useCallback(async () => {
-    if (!filePath || !hasChanges) return;
+  const handleSave = useCallback(async (newContent?: string) => {
+    const contentToSave = newContent ?? content;
+    
+    if (!filePath) return;
+    
+    // 템플릿이 아닌 경우 hasChanges 체크
+    if (!isTemplate && !hasChanges) return;
 
     try {
       if (!window.api?.filesystem) {
@@ -613,7 +626,7 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
         throw new Error('writeFile 함수를 사용할 수 없습니다. Electron 앱을 재시작해주세요.');
       }
 
-      await window.api.filesystem.writeFile(filePath, content);
+      await window.api.filesystem.writeFile(filePath, contentToSave);
       
       // 저장 시 커서 위치 저장
       if (textareaRef.current && filePath) {
@@ -621,7 +634,11 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
         cursorPositionMapRef.current.set(filePath, cursorPosition);
       }
       
-      setOriginalContent(content);
+      // content state 업데이트
+      if (newContent) {
+        setContent(newContent);
+      }
+      setOriginalContent(contentToSave);
       setHasChanges(false);
       setIsEditing(false);
       
@@ -943,6 +960,16 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
           />
         ) : isPdfFile(filePath) ? (
           <PdfViewer filePath={filePath} />
+        ) : isTemplate ? (
+          <TemplateEditor
+            filePath={filePath!}
+            content={content}
+            onSave={async (newContent: string) => {
+              await handleSave(newContent);
+            }}
+            onCancel={handleCancel}
+            config={config}
+          />
         ) : isMarkdownFile(filePath) ? (
           <MarkdownViewer content={content} config={config} />
         ) : (
