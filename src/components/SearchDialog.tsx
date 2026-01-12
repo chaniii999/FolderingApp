@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import type { SearchResult } from '../types/electron';
+import { useBlockGlobalHotkeys } from '../hooks/useBlockGlobalHotkeys';
 
 interface SearchDialogProps {
   currentPath: string;
@@ -121,38 +122,11 @@ function SearchDialog({ currentPath, onClose, onFileSelect, onPathChange }: Sear
     e.stopPropagation();
   };
 
-  useEffect(() => {
-    // 다이얼로그가 열려있을 때 전역 핫키 차단
-    const handleGlobalKeyDown = (e: KeyboardEvent) => {
-      // 다이얼로그 내부 요소에서 발생한 이벤트는 허용
-      const target = e.target as HTMLElement;
-      const dialogElement = document.querySelector('[data-search-dialog]');
-      if (dialogElement && dialogElement.contains(target)) {
-        return; // 다이얼로그 내부 이벤트는 허용
-      }
-
-      // 다이얼로그 외부에서 발생한 핫키만 차단
-      // Ctrl+F, /, Ctrl+Z 등 핫키 차단
-      if ((e.ctrlKey && (e.key === 'f' || e.key === 'F' || e.key === 'z' || e.key === 'Z')) || 
-          e.key === '/' ||
-          (e.ctrlKey && (e.key === '+' || e.key === '=' || e.key === '-')) ||
-          e.key === 'n' || e.key === 'N' ||
-          e.key === 'e' || e.key === 'E' ||
-          e.key === 'p' || e.key === 'P' ||
-          e.key === 'o' || e.key === 'O' ||
-          e.key === 'b' || e.key === 'B' ||
-          e.key === 'i' || e.key === 'I') {
-        e.preventDefault();
-        e.stopPropagation();
-      }
-    };
-
-    window.addEventListener('keydown', handleGlobalKeyDown, true);
-
-    return () => {
-      window.removeEventListener('keydown', handleGlobalKeyDown, true);
-    };
-  }, []);
+  // 전역 핫키 차단
+  useBlockGlobalHotkeys({
+    dialogSelector: '[data-search-dialog]',
+    allowArrowKeysInInput: true,
+  });
 
   const handleSelectResult = (result: SearchResult) => {
     if (result.isDirectory) {

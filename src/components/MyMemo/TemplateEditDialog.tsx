@@ -4,6 +4,7 @@ import { toastService } from '../../services/toastService';
 import { getErrorMessage } from '../../utils/errorHandler';
 import { getTemplatesPath } from '../../services/myMemoService';
 import { joinPath } from '../../utils/pathUtils';
+import { useBlockGlobalHotkeys } from '../../hooks/useBlockGlobalHotkeys';
 
 interface TemplateEditDialogProps {
   template?: CustomTemplate | null; // 기존 템플릿이면 전달, 새 템플릿이면 null
@@ -215,40 +216,10 @@ function TemplateEditDialog({ template, templatePath: initialTemplatePath, onClo
   }, [templateData]);
 
   // 전역 핫키 차단
-  useEffect(() => {
-    const handleGlobalKeyDown = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement;
-      const dialogElement = document.querySelector('[data-template-edit-dialog]');
-      if (dialogElement && dialogElement.contains(target)) {
-        // 입력 필드 내부에서는 화살표 키가 정상 작동하도록 허용
-        const isInputElement = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
-        if (isInputElement && (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
-          return; // 입력 필드 내부의 화살표 키는 허용
-        }
-        return; // 다이얼로그 내부 이벤트는 허용
-      }
-
-      // 다이얼로그 외부에서 발생한 핫키만 차단
-      if ((e.ctrlKey && (e.key === 'f' || e.key === 'F' || e.key === 'z' || e.key === 'Z')) || 
-          e.key === '/' ||
-          (e.ctrlKey && (e.key === '+' || e.key === '=' || e.key === '-')) ||
-          e.key === 'n' || e.key === 'N' ||
-          e.key === 'e' || e.key === 'E' ||
-          e.key === 'p' || e.key === 'P' ||
-          e.key === 'o' || e.key === 'O' ||
-          e.key === 'b' || e.key === 'B' ||
-          e.key === 'i' || e.key === 'I') {
-        e.preventDefault();
-        e.stopPropagation();
-      }
-    };
-
-    window.addEventListener('keydown', handleGlobalKeyDown, true);
-
-    return () => {
-      window.removeEventListener('keydown', handleGlobalKeyDown, true);
-    };
-  }, []);
+  useBlockGlobalHotkeys({
+    dialogSelector: '[data-template-edit-dialog]',
+    allowArrowKeysInInput: true,
+  });
 
   if (!templateData) {
     return null;
