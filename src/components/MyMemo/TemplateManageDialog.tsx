@@ -12,17 +12,20 @@ interface TemplateManageDialogProps {
   onTemplateInstanceCreate?: (template: CustomTemplate, fileName: string) => void;
   isInstanceMode?: boolean; // 템플릿 인스턴스 생성 모드인지 여부
   defaultFileName?: string; // 기본 파일 이름
+  onBackToNewFile?: () => void; // 새로 만들기 창으로 돌아가기
 }
 
-function TemplateManageDialog({ onClose, onTemplateSelect, onTemplateInstanceCreate, isInstanceMode = false, defaultFileName = '' }: TemplateManageDialogProps) {
+function TemplateManageDialog({ onClose, onTemplateSelect, onTemplateInstanceCreate, isInstanceMode = false, defaultFileName = '', onBackToNewFile }: TemplateManageDialogProps) {
   const [templates, setTemplates] = useState<Array<{ path: string; template: CustomTemplate }>>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
+  const [selectedTemplateIndex, setSelectedTemplateIndex] = useState<number>(0);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<CustomTemplate | null>(null);
   const [editingTemplatePath, setEditingTemplatePath] = useState<string | null>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
+  const templateListRef = useRef<HTMLDivElement>(null);
 
   // 템플릿 목록 로드 함수
   const loadTemplates = async (): Promise<void> => {
@@ -103,8 +106,12 @@ function TemplateManageDialog({ onClose, onTemplateSelect, onTemplateInstanceCre
   const handleTemplateSelect = (templatePath: string): void => {
     const template = templates.find(t => t.path === templatePath);
     if (template) {
-      if (isInstanceMode && onTemplateInstanceCreate) {
-        // 템플릿 인스턴스 생성 모드
+      if (isInstanceMode && onBackToNewFile) {
+        // 템플릿 인스턴스 생성 모드 - 새로 만들기 창으로 돌아가기
+        onBackToNewFile(template.template);
+        onClose();
+      } else if (onTemplateInstanceCreate) {
+        // 즉시 생성 모드 (사용하지 않음)
         const fileName = defaultFileName || template.template.name;
         onTemplateInstanceCreate(template.template, fileName);
         onClose();
@@ -138,19 +145,121 @@ function TemplateManageDialog({ onClose, onTemplateSelect, onTemplateInstanceCre
     setEditingTemplatePath(null);
   };
 
+  // 선택된 템플릿 인덱스에 따라 스크롤
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' || e.key === 'Esc') {
-        e.preventDefault();
+    if (templateListRef.current && templates.length > 0 && selectedTemplateIndex >= 0) {
+      const templateElements = templateListRef.current.querySelectorAll('[data-template-item]');
+      if (templateElements[selectedTemplateIndex]) {
+        templateElements[selectedTemplateIndex].scrollIntoView({
+          behavior: 'smooth',
+          block: 'nearest',
+        });
+      }
+    }
+  }, [selectedTemplateIndex, templates]);
+
+  // 템플릿 목록 로드 후 첫 번째 템플릿 선택
+  useEffect(() => {
+    if (templates.length > 0 && selectedTemplateIndex === 0 && !selectedTemplate) {
+      setSelectedTemplate(templates[0].path);
+    }
+  }, [templates, selectedTemplateIndex, selectedTemplate]);
+
+  // 템플릿 선택 시 인덱스도 업데이트
+  useEffect(() => {
+    if (selectedTemplate) {
+      const index = templates.findIndex(t => t.path === selectedTemplate);
+      if (index >= 0 && index !== selectedTemplateIndex) {
+        setSelectedTemplateIndex(index);
+      }
+    }
+  }, [selectedTemplate, templates, selectedTemplateIndex]);
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    // 모든 키 이벤트를 다이얼로그 내부에서만 처리하도록 전파 차단
+    e.stopPropagation();
+
+    // Esc 또는 x로 닫기 (새로 만들기 창으로 돌아가기)
+    if (e.key === 'Escape' || e.key === 'Esc' || e.key === 'x' || e.key === 'X') {
+      e.preventDefault();
+      if (onBackToNewFile) {
+        onBackToNewFile();
+      } else {
         onClose();
+      }
+      return;
+    }
+
+    // 템플릿이 없으면 다른 키 처리 안 함
+    if (templates.length === 0) {
+      return;
+    }
+
+    // 위/아래 화살표로 템플릿 선택
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setSelectedTemplateIndex((prev) => {
+        const newIndex = prev > 0 ? prev - 1 : prev;
+        if (templates[newIndex]) {
+          setSelectedTemplate(templates[newIndex].path);
+        }
+        return newIndex;
+      });
+      return;
+    }
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setSelectedTemplateIndex((prev) => {
+        const newIndex = prev < templates.length - 1 ? prev + 1 : prev;
+        if (templates[newIndex]) {
+          setSelectedTemplate(templates[newIndex].path);
+        }
+        return newIndex;
+      });
+      return;
+    }
+
+    // Enter 또는 z로 템플릿 선택
+    if ((e.key === 'Enter' || e.key === 'z' || e.key === 'Z') && !e.shiftKey) {
+      e.preventDefault();
+      if (selectedTemplate) {
+        handleTemplateSelect(selectedTemplate);
+      }
+      return;
+    }
+  };
+
+  useEffect(() => {
+    // 다이얼로그가 열려있을 때 전역 핫키 차단
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      const dialogElement = dialogRef.current;
+      if (dialogElement && dialogElement.contains(target)) {
+        return; // 다이얼로그 내부 이벤트는 허용
+      }
+
+      // 다이얼로그 외부에서 발생한 핫키만 차단
+      if ((e.ctrlKey && (e.key === 'f' || e.key === 'F' || e.key === 'z' || e.key === 'Z')) || 
+          e.key === '/' ||
+          (e.ctrlKey && (e.key === '+' || e.key === '=' || e.key === '-')) ||
+          e.key === 'n' || e.key === 'N' ||
+          e.key === 'e' || e.key === 'E' ||
+          e.key === 'p' || e.key === 'P' ||
+          e.key === 'o' || e.key === 'O' ||
+          e.key === 'b' || e.key === 'B' ||
+          e.key === 'i' || e.key === 'I') {
+        e.preventDefault();
+        e.stopPropagation();
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keydown', handleGlobalKeyDown, true);
+
     return () => {
-      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keydown', handleGlobalKeyDown, true);
     };
-  }, [onClose]);
+  }, []);
 
   return (
     <>
@@ -166,6 +275,8 @@ function TemplateManageDialog({ onClose, onTemplateSelect, onTemplateInstanceCre
           ref={dialogRef}
           className={`bg-white dark:bg-gray-800 rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[80vh] flex flex-col ${showEditDialog ? 'opacity-50 pointer-events-none' : ''}`}
           onClick={(e) => e.stopPropagation()}
+          onKeyDown={handleKeyDown}
+          tabIndex={0}
         >
           <h3 className="text-lg font-semibold mb-4 dark:text-gray-200">템플릿 관리</h3>
 
@@ -185,16 +296,25 @@ function TemplateManageDialog({ onClose, onTemplateSelect, onTemplateInstanceCre
                   템플릿이 없습니다.
                 </div>
               ) : (
-                <div className="space-y-2">
-                  {templates.map(({ path, template }) => (
+                <div 
+                  ref={templateListRef}
+                  className="space-y-2"
+                  onKeyDown={handleKeyDown}
+                  tabIndex={0}
+                >
+                  {templates.map(({ path, template }, index) => (
                     <div
                       key={path}
-                      className={`border rounded p-3 ${
+                      data-template-item
+                      className={`border rounded p-3 cursor-pointer ${
                         selectedTemplate === path
-                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900'
-                          : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700'
+                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900 ring-2 ring-blue-500'
+                          : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 hover:border-gray-400 dark:hover:border-gray-500'
                       }`}
-                      onClick={() => setSelectedTemplate(path)}
+                      onClick={() => {
+                        setSelectedTemplate(path);
+                        setSelectedTemplateIndex(index);
+                      }}
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex-1">

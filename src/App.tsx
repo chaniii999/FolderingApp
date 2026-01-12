@@ -40,8 +40,10 @@ function App() {
   const [showFullPath, setShowFullPath] = useState<boolean>(false);
   const [showSearchDialog, setShowSearchDialog] = useState<boolean>(false);
   const [showTemplateManageDialog, setShowTemplateManageDialog] = useState<boolean>(false);
+  const [showTemplateListInNewFile, setShowTemplateListInNewFile] = useState<boolean>(false);
   const [isMyMemoModeActive, setIsMyMemoModeActive] = useState<boolean>(false);
   const [templateInstanceFileName, setTemplateInstanceFileName] = useState<string>('');
+  const [selectedTemplate, setSelectedTemplate] = useState<{ id: string; name: string } | null>(null);
   const previousPathRef = useRef<string>(''); // 나만의 메모 모드 진입 전 경로 저장
   const hasInitializedGuideRef = useRef<boolean>(false);
   
@@ -584,6 +586,84 @@ function App() {
   useHotkeys(hotkeys, shouldBlockHotkey, isInputElement);
 
   const handleNewFileCreated = useCallback(async (filePath?: string) => {
+    // 템플릿 인스턴스 생성 모드인 경우
+    // filePath가 문자열이지만 실제 파일 경로가 아닌 경우 (템플릿 인스턴스 생성)
+    // 또는 filePath가 없고 selectedTemplate이 있는 경우
+    const isTemplateInstanceMode = selectedTemplate && (
+      !filePath || 
+      (typeof filePath === 'string' && filePath.trim() && !filePath.includes('\\') && !filePath.includes('/'))
+    );
+    
+    if (isTemplateInstanceMode) {
+      try {
+        if (!window.api?.filesystem) {
+          throw new Error('API가 로드되지 않았습니다.');
+        }
+
+        // filePath가 파일명인 경우 사용, 아니면 templateInstanceFileName 사용
+        const instanceFileName = (filePath && typeof filePath === 'string' && filePath.trim()) 
+          ? filePath.trim() 
+          : (templateInstanceFileName || '템플릿 인스턴스');
+        
+        const { joinPath } = await import('./utils/pathUtils');
+        const instanceFilePath = joinPath(newFileDialogPath, `${instanceFileName}.json`);
+
+        // 템플릿 인스턴스 생성
+        const instance: import('./types/myMemo').TemplateInstance = {
+          id: `instance-${Date.now()}`,
+          templateId: selectedTemplate.id,
+          fileName: `${instanceFileName}.json`,
+          filePath: instanceFilePath,
+          data: {}, // 템플릿 파트 정보는 템플릿 파일에서 가져와야 함
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+
+        // 템플릿 파일에서 파트 정보 가져오기
+        if (window.api?.mymemo) {
+          const { getTemplatesPath } = await import('./services/myMemoService');
+          const templatesPath = await getTemplatesPath();
+          const items = await window.api.filesystem.listDirectory(templatesPath);
+          const jsonFiles = items.filter(item => !item.isDirectory && item.name.endsWith('.json'));
+
+          for (const file of jsonFiles) {
+            try {
+              const content = await window.api.filesystem.readFile(file.path);
+              if (content) {
+                const template = JSON.parse(content) as import('./types/myMemo').CustomTemplate;
+                if (template.id === selectedTemplate.id) {
+                  // 템플릿 파트를 기본값으로 초기화
+                  instance.data = template.parts.reduce((acc, part) => {
+                    acc[part.id] = part.default || '';
+                    return acc;
+                  }, {} as Record<string, string>);
+                  break;
+                }
+              }
+            } catch {
+              // 무시
+            }
+          }
+        }
+
+        const instanceContent = JSON.stringify(instance, null, 2);
+        await window.api.filesystem.createFile(instanceFilePath, instanceContent);
+
+        toastService.success('템플릿 인스턴스가 생성되었습니다.');
+        
+        // 파일 경로 설정하여 일반 파일 생성 로직 실행
+        filePath = instanceFilePath;
+        
+        // 선택된 템플릿 초기화
+        setSelectedTemplate(null);
+        setTemplateInstanceFileName('');
+      } catch (err) {
+        const errorMessage = handleError(err, '템플릿 인스턴스 생성 중 오류가 발생했습니다.');
+        toastService.error(errorMessage);
+        return;
+      }
+    }
+
     // 파일/폴더 생성 후 디렉토리 새로고침
     if (fileExplorerRef.current) {
       // 작업 히스토리에 추가
@@ -619,7 +699,7 @@ function App() {
         }
       }
     }
-  }, [addOrSwitchTab, showNewFileDialog, currentPath]);
+  }, [addOrSwitchTab, showNewFileDialog, currentPath, selectedTemplate, templateInstanceFileName, newFileDialogPath]);
 
   // 템플릿 인스턴스 생성 핸들러
   const handleTemplateInstanceCreate = useCallback(async (template: import('./types/myMemo').CustomTemplate, fileName: string) => {
@@ -782,6 +862,8 @@ function App() {
   // 새 파일 다이얼로그 닫기 핸들러
   const handleNewFileDialogClose = useCallback(() => {
     setShowNewFileDialog(false);
+    setSelectedTemplate(null);
+    setTemplateInstanceFileName('');
     // 다이얼로그가 닫힐 때 FileExplorer에 포커스 복귀
     setTimeout(() => {
       fileExplorerRef.current?.focus();
@@ -862,10 +944,18 @@ function App() {
           currentPath={newFileDialogPath}
           onClose={handleNewFileDialogClose}
           onCreated={handleNewFileCreated}
-          onSelectTemplate={(fileName: string) => {
-            setShowNewFileDialog(false);
-            setTemplateInstanceFileName(fileName);
-            setShowTemplateManageDialog(true);
+          onSelectTemplate={(template: import('./types/myMemo').CustomTemplate) => {
+            setSelectedTemplate({ id: template.id, name: template.name });
+            if (!templateInstanceFileName) {
+              setTemplateInstanceFileName(template.name);
+            }
+            setShowTemplateListInNewFile(false);
+          }}
+          selectedTemplateName={selectedTemplate?.name || null}
+          showTemplateList={showTemplateListInNewFile}
+          onTemplateListClose={() => setShowTemplateListInNewFile(false)}
+          onRequestTemplateList={() => {
+            setShowTemplateListInNewFile(true);
           }}
         />
       )}
@@ -874,11 +964,32 @@ function App() {
           onClose={() => {
             setShowTemplateManageDialog(false);
             setTemplateInstanceFileName('');
+            setSelectedTemplate(null);
           }}
           onTemplateSelect={handleTemplateSelect}
-          onTemplateInstanceCreate={templateInstanceFileName ? handleTemplateInstanceCreate : undefined}
+          onTemplateInstanceCreate={undefined}
           isInstanceMode={!!templateInstanceFileName}
           defaultFileName={templateInstanceFileName}
+          onBackToNewFile={templateInstanceFileName ? (template: import('./types/myMemo').CustomTemplate) => {
+            setSelectedTemplate({ id: template.id, name: template.name });
+            setShowTemplateManageDialog(false);
+            setShowNewFileDialog(true);
+          } : undefined}
+        />
+      )}
+      {showTemplateListInNewFile && showNewFileDialog && (
+        <TemplateManageDialog
+          onClose={() => {
+            setShowTemplateListInNewFile(false);
+          }}
+          onTemplateSelect={handleTemplateSelect}
+          onTemplateInstanceCreate={undefined}
+          isInstanceMode={true}
+          defaultFileName={templateInstanceFileName}
+          onBackToNewFile={(template: import('./types/myMemo').CustomTemplate) => {
+            setSelectedTemplate({ id: template.id, name: template.name });
+            setShowTemplateListInNewFile(false);
+          }}
         />
       )}
       {showSearchDialog && (

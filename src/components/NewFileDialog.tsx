@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { joinPath } from '../utils/pathUtils';
 import { getErrorMessage } from '../utils/errorHandler';
 import { isMyMemoMode } from '../services/myMemoService';
+import TemplateManageDialog from './MyMemo/TemplateManageDialog';
 
 export type FileType = 'folder' | 'file' | 'markdown' | 'template';
 
@@ -9,7 +10,10 @@ interface NewFileDialogProps {
   currentPath: string;
   onClose: () => void;
   onCreated: (filePath?: string) => void;
-  onSelectTemplate?: (fileName: string) => void;
+  onSelectTemplate?: (template: import('../types/myMemo').CustomTemplate) => void;
+  selectedTemplateName?: string | null; // 선택된 템플릿 이름
+  showTemplateList?: boolean; // 템플릿 목록 표시 여부
+  onTemplateListClose?: () => void; // 템플릿 목록 닫기
 }
 
 // 나만의 메모 모드에서만 사용 가능한 파일 타입 목록
@@ -27,7 +31,7 @@ const getFileTypes = (isMyMemoMode: boolean): { type: FileType; label: string; e
   return baseTypes;
 };
 
-function NewFileDialog({ currentPath, onClose, onCreated, onSelectTemplate }: NewFileDialogProps) {
+function NewFileDialog({ currentPath, onClose, onCreated, onSelectTemplate, selectedTemplateName, showTemplateList = false, onTemplateListClose, onRequestTemplateList }: NewFileDialogProps) {
   const [fileName, setFileName] = useState('');
   const [selectedTypeIndex, setSelectedTypeIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -49,10 +53,21 @@ function NewFileDialog({ currentPath, onClose, onCreated, onSelectTemplate }: Ne
 
   useEffect(() => {
     // 다이얼로그가 열리면 입력 필드에 포커스
-    if (inputRef.current) {
+    if (inputRef.current && !showTemplateList) {
       inputRef.current.focus();
     }
-  }, []);
+  }, [showTemplateList]);
+
+  // 템플릿이 선택되면 타입 인덱스를 템플릿으로 설정
+  useEffect(() => {
+    if (selectedTemplateName && isMyMemo) {
+      const availableTypes = getFileTypes(isMyMemo);
+      const templateIndex = availableTypes.findIndex(type => type.type === 'template');
+      if (templateIndex >= 0 && selectedTypeIndex !== templateIndex) {
+        setSelectedTypeIndex(templateIndex);
+      }
+    }
+  }, [selectedTemplateName, isMyMemo, selectedTypeIndex]);
 
   // 다이얼로그 내부 클릭 시에도 입력 필드에 포커스 유지
   const handleDialogClick = (e: React.MouseEvent) => {
@@ -76,9 +91,17 @@ function NewFileDialog({ currentPath, onClose, onCreated, onSelectTemplate }: Ne
     // Enter로 확인 처리
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      // 템플릿 타입이 선택된 경우 템플릿 목록 팝업 표시
-      if (selectedType.type === 'template' && onSelectTemplate) {
-        onSelectTemplate(fileName.trim() || '템플릿 인스턴스');
+      // 템플릿 타입이 선택된 경우
+      if (selectedType.type === 'template') {
+        // 템플릿이 이미 선택되어 있으면 생성
+        if (selectedTemplateName) {
+          handleCreate();
+          return;
+        }
+        // 템플릿이 선택되지 않았으면 템플릿 목록 팝업 표시
+        if (onRequestTemplateList) {
+          onRequestTemplateList();
+        }
         return;
       }
       handleCreate();
@@ -142,11 +165,24 @@ function NewFileDialog({ currentPath, onClose, onCreated, onSelectTemplate }: Ne
     const availableTypes = getFileTypes(isMyMemo);
     const selectedType = availableTypes[selectedTypeIndex];
     
-    // 템플릿 타입은 템플릿 목록 팝업 표시
-    if (selectedType.type === 'template') {
-      if (onSelectTemplate) {
-        onSelectTemplate(fileName.trim() || '템플릿 인스턴스');
+      // 템플릿 타입 처리
+      if (selectedType.type === 'template') {
+        // 템플릿이 선택되지 않았으면 템플릿 목록 팝업 표시
+        if (!selectedTemplateName) {
+          if (onRequestTemplateList) {
+            onRequestTemplateList();
+          }
+          return;
+        }
+      // 템플릿이 선택되었으면 생성은 onCreated에서 처리 (App.tsx에서)
+      // 여기서는 파일명만 검증
+      if (!fileName.trim()) {
+        setError('이름을 입력해주세요.');
+        return;
       }
+      // 템플릿 인스턴스 생성은 App.tsx의 handleNewFileCreated에서 처리
+      // 파일명을 전달하여 템플릿 인스턴스 생성에 사용
+      onCreated(fileName.trim());
       return;
     }
 
@@ -180,18 +216,21 @@ function NewFileDialog({ currentPath, onClose, onCreated, onSelectTemplate }: Ne
   };
 
   return (
+    <>
     <div
       data-new-file-dialog
       className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 dark:bg-opacity-70 z-50"
       onClick={(e) => {
-        if (e.target === e.currentTarget) {
+        if (e.target === e.currentTarget && !showTemplateList) {
           onClose();
         }
       }}
       onKeyDown={(e) => {
         // 다이얼로그 외부로 키 이벤트 전파 차단
         e.stopPropagation();
-        handleKeyDown(e);
+        if (!showTemplateList) {
+          handleKeyDown(e);
+        }
       }}
     >
       <div
@@ -220,8 +259,7 @@ function NewFileDialog({ currentPath, onClose, onCreated, onSelectTemplate }: Ne
               setFileName(e.target.value);
               setError(null);
             }}
-            disabled={getFileTypes(isMyMemo)[selectedTypeIndex]?.type === 'template'}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
             placeholder="이름을 입력하세요"
           />
         </div>
@@ -246,13 +284,22 @@ function NewFileDialog({ currentPath, onClose, onCreated, onSelectTemplate }: Ne
                   onClick={() => {
                     setSelectedTypeIndex(index);
                     // 템플릿 타입을 클릭하면 템플릿 목록 팝업 표시
-                    if (isTemplate && onSelectTemplate) {
-                      onSelectTemplate(fileName.trim() || '템플릿 인스턴스');
+                    if (isTemplate && !selectedTemplateName && onRequestTemplateList) {
+                      onRequestTemplateList();
                     }
                   }}
                 >
-                  {type.label}
-                  {type.extension && <span className="text-xs ml-2">({type.extension})</span>}
+                  <div className="flex items-center justify-between">
+                    <span>
+                      {type.label}
+                      {type.extension && <span className="text-xs ml-2">({type.extension})</span>}
+                    </span>
+                    {isTemplate && isSelected && selectedTemplateName && (
+                      <span className="text-xs bg-blue-600 text-white px-2 py-0.5 rounded ml-2">
+                        {selectedTemplateName}
+                      </span>
+                    )}
+                  </div>
                 </div>
               );
             })}
@@ -286,7 +333,26 @@ function NewFileDialog({ currentPath, onClose, onCreated, onSelectTemplate }: Ne
           </button>
         </div>
       </div>
+      {showTemplateList && onTemplateListClose && (
+        <TemplateManageDialog
+          onClose={onTemplateListClose}
+          onTemplateSelect={undefined}
+          onTemplateInstanceCreate={undefined}
+          isInstanceMode={true}
+          defaultFileName={fileName.trim() || '템플릿 인스턴스'}
+          onBackToNewFile={(template: import('../types/myMemo').CustomTemplate) => {
+            if (onSelectTemplate) {
+              // 템플릿 선택 정보를 부모로 전달
+              onSelectTemplate(template);
+            }
+            if (onTemplateListClose) {
+              onTemplateListClose();
+            }
+          }}
+        />
+      )}
     </div>
+    </>
   );
 }
 
