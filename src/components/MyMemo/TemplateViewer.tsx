@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkBreaks from 'remark-breaks';
 
 import type { CustomTemplate, TemplateInstance } from '../../types/myMemo';
 import { getFileName } from '../../utils/pathUtils';
@@ -233,7 +234,7 @@ function TemplateViewer({ filePath, content, config }: TemplateViewerProps) {
                     </h2>
                     {content.trim() ? (
                       <div className="prose prose-sm dark:prose-invert max-w-none text-gray-700 dark:text-gray-300">
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
                           {content}
                         </ReactMarkdown>
                       </div>
@@ -253,7 +254,7 @@ function TemplateViewer({ filePath, content, config }: TemplateViewerProps) {
                     {key}
                   </h2>
                   <div className="prose prose-sm dark:prose-invert max-w-none text-gray-700 dark:text-gray-300">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
                       {String(value)}
                     </ReactMarkdown>
                   </div>
@@ -385,7 +386,7 @@ function TemplateViewer({ filePath, content, config }: TemplateViewerProps) {
                     {key}
                   </h2>
                   <div className="prose prose-sm dark:prose-invert max-w-none text-gray-700 dark:text-gray-300">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
                       {String(value)}
                     </ReactMarkdown>
                   </div>

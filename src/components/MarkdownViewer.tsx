@@ -1,5 +1,6 @@
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkBreaks from 'remark-breaks';
 
 import type { TextEditorConfig } from '../services/textEditorConfigService';
 
@@ -23,7 +24,7 @@ export default function MarkdownViewer({ content, config }: MarkdownViewerProps)
         fontSize: `${config.fontSize}px`,
       }}
     >
-      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+      <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
         {content}
       </ReactMarkdown>
     </div>
