@@ -183,6 +183,7 @@ function NewFileDialog({ currentPath, onClose, onCreated, onSelectTemplate, sele
       // 템플릿 인스턴스 생성은 App.tsx의 handleNewFileCreated에서 처리
       // 파일명을 전달하여 템플릿 인스턴스 생성에 사용
       onCreated(fileName.trim());
+      onClose();
       return;
     }
 
