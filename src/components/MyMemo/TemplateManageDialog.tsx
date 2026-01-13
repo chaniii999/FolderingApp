@@ -13,7 +13,7 @@ interface TemplateManageDialogProps {
   onTemplateInstanceCreate?: (template: CustomTemplate, fileName: string) => void;
   isInstanceMode?: boolean; // 템플릿 인스턴스 생성 모드인지 여부
   defaultFileName?: string; // 기본 파일 이름
-  onBackToNewFile?: () => void; // 새로 만들기 창으로 돌아가기
+  onBackToNewFile?: (template?: CustomTemplate) => void; // 새로 만들기 창으로 돌아가기 (템플릿 선택 시)
 }
 
 function TemplateManageDialog({ onClose, onTemplateSelect, onTemplateInstanceCreate, isInstanceMode = false, defaultFileName = '', onBackToNewFile }: TemplateManageDialogProps) {
@@ -240,6 +240,7 @@ function TemplateManageDialog({ onClose, onTemplateSelect, onTemplateInstanceCre
   return (
     <>
       <div
+        data-template-manage-dialog
         className={`absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 dark:bg-opacity-70 z-50 ${showEditDialog ? 'pointer-events-none' : ''}`}
         onClick={(e) => {
           if (e.target === e.currentTarget && !showEditDialog) {

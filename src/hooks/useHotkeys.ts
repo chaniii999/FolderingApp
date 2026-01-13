@@ -36,8 +36,15 @@ export function useHotkeys(
 ) {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      console.log('[useHotkeys] handleKeyDown called', {
+        key: e.key,
+        shouldBlock: shouldBlockHotkey(),
+        target: (e.target as HTMLElement)?.tagName,
+      });
+      
       // 핫키가 작동하지 않아야 할 상황에서는 아예 처리하지 않음
       if (shouldBlockHotkey()) {
+        console.log('[useHotkeys] handleKeyDown: blocked by shouldBlockHotkey');
         return;
       }
 

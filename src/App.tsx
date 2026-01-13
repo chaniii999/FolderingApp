@@ -396,9 +396,14 @@ function App() {
           break;
       }
 
-      // 디렉토리 새로고침
+      // 디렉토리 새로고침 및 포커스 복원
       if (fileExplorerRef.current) {
         fileExplorerRef.current.refresh();
+        setTimeout(() => {
+          if (fileExplorerRef.current) {
+            fileExplorerRef.current.focus();
+          }
+        }, 100);
       }
     } catch (err) {
       handleError(err, '되돌리기 중 오류가 발생했습니다.');
@@ -517,10 +522,16 @@ function App() {
         handlePathChange(myMemoPath);
       }
       
-      // FileExplorer 새로고침 (약간의 지연 후)
+      // FileExplorer 새로고침 및 포커스 복원 (약간의 지연 후)
       setTimeout(() => {
         if (fileExplorerRef.current) {
           fileExplorerRef.current.refresh();
+          // 새로고침 후 포커스 복원
+          setTimeout(() => {
+            if (fileExplorerRef.current) {
+              fileExplorerRef.current.focus();
+            }
+          }, 100);
         }
       }, 100);
     } catch (err) {
@@ -681,6 +692,13 @@ function App() {
             addOrSwitchTab(filePath);
             setNewlyCreatedFilePath(filePath);
           }, 200); // 디렉토리 새로고침 후 파일 선택 및 탭 추가
+        } else {
+          // 폴더 생성 후 포커스 복원
+          setTimeout(() => {
+            if (fileExplorerRef.current) {
+              fileExplorerRef.current.focus();
+            }
+          }, 200);
         }
       }
     }

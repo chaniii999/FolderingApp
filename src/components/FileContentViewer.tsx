@@ -281,9 +281,28 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
     }
 
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      console.log('[FileContentViewer] handleGlobalKeyDown called', {
+        key: e.key,
+        isDialogOpen,
+        isEditing,
+        target: (e.target as HTMLElement)?.tagName,
+      });
+      
       // 다이얼로그가 열려있거나 편집 중이면 키 이벤트 처리하지 않음
       if (isDialogOpen || isEditing) {
+        console.log('[FileContentViewer] handleGlobalKeyDown: blocked by isDialogOpen or isEditing');
         return;
+      }
+
+      // 다이얼로그 내부 요소에서 발생한 이벤트는 처리하지 않음
+      const target = e.target as HTMLElement;
+      if (target) {
+        // data 속성으로 다이얼로그 확인
+        const dialogElement = target.closest('[data-new-file-dialog], [data-search-dialog], [data-template-manage-dialog]');
+        if (dialogElement) {
+          console.log('[FileContentViewer] handleGlobalKeyDown: blocked by dialog element', dialogElement);
+          return;
+        }
       }
 
       // "i" 키로 편집 모드 진입 (파일이 선택되어 있을 때만)

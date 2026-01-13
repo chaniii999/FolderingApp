@@ -56,6 +56,7 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
   const handleRenameConfirmRef = useRef<(() => Promise<void>) | null>(null);
   const handleRenameCancelRef = useRef<(() => void) | null>(null);
   const isRenamingConfirmedRef = useRef<boolean>(false);
+  const hasInitialFocusRef = useRef<boolean>(false);
 
   // 루트 경로 가져오기 (SelectPath로 지정한 경로 또는 나만의 메모 경로)
   const getRootPath = useCallback(async (): Promise<string | null> => {
@@ -176,6 +177,16 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
       };
       addAllPaths(nodesWithChildren);
       setLoadedPaths(allPaths);
+      
+      // 처음 실행 시 포커스 설정
+      if (!hasInitialFocusRef.current && listRef.current) {
+        hasInitialFocusRef.current = true;
+        setTimeout(() => {
+          if (listRef.current) {
+            listRef.current.focus();
+          }
+        }, 100);
+      }
     } catch (error) {
       console.error('Error initializing tree:', error);
     } finally {
@@ -712,6 +723,13 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
         }
         
         toastService.success('이동됨');
+        
+        // 포커스 복원
+        setTimeout(() => {
+          if (listRef.current) {
+            listRef.current.focus();
+          }
+        }, 100);
       } catch (err) {
         handleError(err, '이동 중 오류가 발생했습니다.');
       } finally {
@@ -1111,6 +1129,13 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
       }
       
       toastService.success(clipboard.isCut ? '이동됨' : '복사됨');
+      
+      // 포커스 복원
+      setTimeout(() => {
+        if (listRef.current) {
+          listRef.current.focus();
+        }
+      }, 100);
     } catch (err) {
       handleError(err, '붙여넣기 중 오류가 발생했습니다.');
     }
@@ -1201,6 +1226,13 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
         }
         
         toastService.success('이동됨');
+        
+        // 포커스 복원
+        setTimeout(() => {
+          if (listRef.current) {
+            listRef.current.focus();
+          }
+        }, 100);
       } catch (err) {
         handleError(err, '이동 중 오류가 발생했습니다.');
       } finally {
@@ -1259,6 +1291,13 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
       
       toastService.success('파일이 복사되었습니다.');
       setDraggedFolderPath(null);
+      
+      // 포커스 복원
+      setTimeout(() => {
+        if (listRef.current) {
+          listRef.current.focus();
+        }
+      }, 100);
     } catch (err) {
       handleError(err, '파일 붙여넣기 중 오류가 발생했습니다.');
       setDraggedFolderPath(null);
