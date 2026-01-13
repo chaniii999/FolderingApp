@@ -208,8 +208,15 @@ function TemplateViewer({ filePath, content, config }: TemplateViewerProps) {
         <div className="max-w-4xl mx-auto">
           {/* 헤더: 파일명(좌측) + 날짜(우측) */}
           <div className="flex items-start justify-between mb-8 pb-4 border-b border-gray-300 dark:border-gray-600">
-            <div className="text-xs text-gray-500 dark:text-gray-400">
-              {fileName}
+            <div className="flex flex-col gap-1">
+              <div className="text-lg font-semibold text-gray-500 dark:text-gray-400">
+                {fileName.replace(/\.json$/i, '')}
+              </div>
+              {templateData?.name && (
+                <div className="text-xs text-gray-400 dark:text-gray-500">
+                  {templateData.name}
+                </div>
+              )}
             </div>
             <div className="text-xs text-gray-500 dark:text-gray-400 text-right">
               {instance.updatedAt && instance.updatedAt !== instance.createdAt && (
