@@ -964,6 +964,39 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
                 return;
               }
               
+              // Tab: 탭 문자 삽입 (포커스 이동 방지)
+              if (e.key === 'Tab' && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (textareaRef.current) {
+                  const textarea = textareaRef.current;
+                  const start = textarea.selectionStart;
+                  const end = textarea.selectionEnd;
+                  const text = textarea.value;
+                  const tabChar = '\t'; // 탭 문자 (4개 공백으로 표시됨)
+                  
+                  // 선택된 텍스트가 있으면 탭 문자로 대체, 없으면 삽입
+                  const newText = text.substring(0, start) + tabChar + text.substring(end);
+                  const newCursorPos = start + 1; // 탭 문자는 1개 문자
+                  
+                  // textarea의 value를 직접 변경하고 onChange 이벤트를 트리거하여 handleContentChange가 호출되도록 함
+                  textarea.value = newText;
+                  const syntheticEvent = {
+                    target: textarea,
+                    currentTarget: textarea,
+                  } as React.ChangeEvent<HTMLTextAreaElement>;
+                  handleContentChange(syntheticEvent);
+                  
+                  // 커서 위치 설정 (다음 프레임에서 실행하여 상태 업데이트 후 적용)
+                  setTimeout(() => {
+                    if (textareaRef.current) {
+                      textareaRef.current.setSelectionRange(newCursorPos, newCursorPos);
+                    }
+                  }, 0);
+                }
+                return;
+              }
+              
               // Shift + Enter: 다음 줄로 줄바꿈(커서 이동)
               if (e.key === 'Enter' && e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
                 e.preventDefault();

@@ -234,12 +234,41 @@ function TemplateInstanceEditor({ filePath, content, config, onContentChange, on
     }
   };
 
+  // Tab 키로 탭 문자 삽입하는 핸들러
+  const handleTabKey = useCallback((e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>, element: HTMLInputElement | HTMLTextAreaElement, partTitle: string) => {
+    if (e.key === 'Tab' && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      const start = element.selectionStart || 0;
+      const end = element.selectionEnd || 0;
+      const text = element.value;
+      const tabChar = '\t'; // 탭 문자 (4개 공백으로 표시됨)
+      
+      // 선택된 텍스트가 있으면 탭 문자로 대체, 없으면 삽입
+      const newText = text.substring(0, start) + tabChar + text.substring(end);
+      const newCursorPos = start + 1; // 탭 문자는 1개 문자
+      
+      // 값 업데이트
+      handlePartValueChange(partTitle, newText);
+      
+      // 커서 위치 설정 (다음 프레임에서 실행하여 상태 업데이트 후 적용)
+      setTimeout(() => {
+        element.setSelectionRange(newCursorPos, newCursorPos);
+      }, 0);
+    }
+  }, [handlePartValueChange]);
+
   // 파트 타입에 따른 입력 필드 렌더링
   const renderInputField = (part: TemplatePart, value: string) => {
     const commonProps = {
       value: value,
       onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         handlePartValueChange(part.title, e.target.value);
+      },
+      onKeyDown: (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        const element = e.currentTarget;
+        handleTabKey(e, element, part.title);
       },
       onCompositionStart: () => {
         isComposingRef.current.set(part.title, true);
@@ -402,7 +431,7 @@ function TemplateInstanceEditor({ filePath, content, config, onContentChange, on
     >
       <div className="max-w-4xl mx-auto">
         {/* 헤더: 파일명(좌측) + 날짜(우측) */}
-        <div className="flex items-start justify-between mb-8 pb-4 border-b border-gray-300 dark:border-gray-600">
+        <div className="flex items-start justify-between mb-8 pb-4 border-b-2 border-gray-800 dark:border-gray-200">
           <div className="flex flex-col gap-1">
             <div className="text-2xl font-semibold text-gray-500 dark:text-gray-400">
               {fileName.replace(/\.json$/i, '')}
@@ -424,7 +453,7 @@ function TemplateInstanceEditor({ filePath, content, config, onContentChange, on
         </div>
 
         {/* 편집 폼: 파트별 입력 필드 */}
-        <div className="space-y-8">
+        <div className="space-y-12">
           {sortedParts.length > 0 ? (
             sortedParts.map((part) => {
               // 인스턴스의 data 키를 찾기 (part.title과 일치하는 키 또는 첫 번째 매칭)
@@ -433,42 +462,46 @@ function TemplateInstanceEditor({ filePath, content, config, onContentChange, on
               const value = partValues[displayTitle] || partValues[instanceKey] || '';
               
               return (
-                <div key={part.id} className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      value={displayTitle}
-                      onChange={(e) => {
-                        const newTitle = e.target.value;
-                        handlePartTitleChange(part.id, instanceKey, newTitle);
-                      }}
-                      onBlur={(e) => {
-                        // 포커스를 잃을 때 빈 제목이면 원래 제목으로 복원
-                        const newTitle = e.target.value.trim();
-                        if (!newTitle) {
-                          setPartTitles(prev => ({
-                            ...prev,
-                            [part.id]: instanceKey,
-                          }));
-                        } else if (newTitle !== instanceKey) {
-                          // 제목이 변경되었고 빈 값이 아니면 data 업데이트
+                <div key={part.id} className="space-y-4">
+                  <div className="pb-3 border-b border-gray-200 dark:border-gray-700">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={displayTitle}
+                        onChange={(e) => {
+                          const newTitle = e.target.value;
                           handlePartTitleChange(part.id, instanceKey, newTitle);
-                        }
-                      }}
-                      onKeyDown={(e) => {
-                        // 입력 필드 내부의 화살표 키는 정상 작동하도록 전파 차단
-                        if (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
-                          e.stopPropagation();
-                        }
-                      }}
-                      className="text-2xl font-semibold text-gray-900 dark:text-gray-100 bg-transparent border-b-2 border-transparent hover:border-gray-300 dark:hover:border-gray-600 focus:border-blue-500 dark:focus:border-blue-400 focus:outline-none px-1 py-1"
-                      placeholder="파트 제목"
-                    />
-                    {part.required && (
-                      <span className="text-red-600 dark:text-red-400 text-lg">*</span>
-                    )}
+                        }}
+                        onBlur={(e) => {
+                          // 포커스를 잃을 때 빈 제목이면 원래 제목으로 복원
+                          const newTitle = e.target.value.trim();
+                          if (!newTitle) {
+                            setPartTitles(prev => ({
+                              ...prev,
+                              [part.id]: instanceKey,
+                            }));
+                          } else if (newTitle !== instanceKey) {
+                            // 제목이 변경되었고 빈 값이 아니면 data 업데이트
+                            handlePartTitleChange(part.id, instanceKey, newTitle);
+                          }
+                        }}
+                        onKeyDown={(e) => {
+                          // 입력 필드 내부의 화살표 키는 정상 작동하도록 전파 차단
+                          if (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+                            e.stopPropagation();
+                          }
+                        }}
+                        className="text-2xl font-semibold text-gray-900 dark:text-gray-100 bg-transparent border-b-2 border-transparent hover:border-gray-300 dark:hover:border-gray-600 focus:border-blue-500 dark:focus:border-blue-400 focus:outline-none px-1 py-1"
+                        placeholder="파트 제목"
+                      />
+                      {part.required && (
+                        <span className="text-red-600 dark:text-red-400 text-lg">*</span>
+                      )}
+                    </div>
                   </div>
-                  {renderInputField(part, value)}
+                  <div className="pl-4">
+                    {renderInputField(part, value)}
+                  </div>
                 </div>
               );
             })

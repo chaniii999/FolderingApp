@@ -207,7 +207,7 @@ function TemplateViewer({ filePath, content, config }: TemplateViewerProps) {
       >
         <div className="max-w-4xl mx-auto">
           {/* 헤더: 파일명(좌측) + 날짜(우측) */}
-          <div className="flex items-start justify-between mb-8 pb-4 border-b border-gray-300 dark:border-gray-600">
+          <div className="flex items-start justify-between mb-8 pb-4 border-b-2 border-gray-800 dark:border-gray-200">
             <div className="flex flex-col gap-1">
               <div className="text-2xl font-semibold text-gray-500 dark:text-gray-400">
                 {fileName.replace(/\.json$/i, '')}
@@ -229,24 +229,26 @@ function TemplateViewer({ filePath, content, config }: TemplateViewerProps) {
           </div>
 
           {/* data 영역: 블로그 글처럼 표시 */}
-          <div className="space-y-8">
+          <div className="space-y-12">
             {sortedParts.length > 0 ? (
               sortedParts.map((part) => {
                 const content = instance.data[part.title] || '';
                 
                 return (
-                  <div key={part.id} className="space-y-2">
-                    <h2 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
-                      {part.title}
-                    </h2>
+                  <div key={part.id} className="space-y-4">
+                    <div className="pb-3 border-b border-gray-200 dark:border-gray-700">
+                      <h2 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
+                        {part.title}
+                      </h2>
+                    </div>
                     {content.trim() ? (
-                      <div className="prose prose-sm dark:prose-invert max-w-none text-gray-700 dark:text-gray-300">
+                      <div className="pl-4 prose prose-sm dark:prose-invert max-w-none text-gray-700 dark:text-gray-300">
                         <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
                           {content}
                         </ReactMarkdown>
                       </div>
                     ) : (
-                      <div className="text-gray-400 dark:text-gray-500 italic">
+                      <div className="pl-4 text-gray-400 dark:text-gray-500 italic">
                         (내용 없음)
                       </div>
                     )}
@@ -256,11 +258,13 @@ function TemplateViewer({ filePath, content, config }: TemplateViewerProps) {
             ) : (
               // 템플릿 정보가 없으면 data를 그대로 표시
               Object.entries(instance.data).map(([key, value]) => (
-                <div key={key} className="space-y-2">
-                  <h2 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
-                    {key}
-                  </h2>
-                  <div className="prose prose-sm dark:prose-invert max-w-none text-gray-700 dark:text-gray-300">
+                <div key={key} className="space-y-4">
+                  <div className="pb-3 border-b border-gray-200 dark:border-gray-700">
+                    <h2 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
+                      {key}
+                    </h2>
+                  </div>
+                  <div className="pl-4 prose prose-sm dark:prose-invert max-w-none text-gray-700 dark:text-gray-300">
                     <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
                       {String(value)}
                     </ReactMarkdown>
