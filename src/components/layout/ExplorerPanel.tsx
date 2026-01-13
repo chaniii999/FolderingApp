@@ -83,29 +83,31 @@ function ExplorerPanel({
           {onMyMemoClick && (
             <button
               onClick={onMyMemoClick}
-              className={`relative w-8 h-8 text-white rounded border-2 shadow-lg hover:shadow-xl transform hover:scale-110 transition-all duration-150 flex items-center justify-center flex-shrink-0 active:scale-95 ${
+              className={`relative w-8 h-8 rounded border-2 transition-all duration-150 flex items-center justify-center flex-shrink-0 active:scale-95 ${
                 isMyMemoModeActive
-                  ? 'border-yellow-400 dark:border-yellow-300 bg-gradient-to-b from-purple-600 to-purple-800 hover:from-purple-700 hover:to-purple-900'
-                  : 'border-gray-800 dark:border-gray-200 bg-gradient-to-b from-purple-500 to-purple-700 hover:from-purple-600 hover:to-purple-800'
+                  ? 'border-yellow-400 dark:border-yellow-300 bg-gradient-to-b from-purple-600 to-purple-800 hover:from-purple-700 hover:to-purple-900 text-white shadow-lg hover:shadow-xl transform hover:scale-110'
+                  : 'border-gray-300 dark:border-gray-600 bg-transparent hover:bg-purple-100 dark:hover:bg-purple-900 text-gray-600 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 hover:border-purple-400 dark:hover:border-purple-500'
               }`}
               style={{
-                textShadow: '1px 1px 2px rgba(0,0,0,0.5)',
-                boxShadow: isMyMemoModeActive
-                  ? 'inset 0 1px 0 rgba(255,255,255,0.3), 0 2px 4px rgba(0,0,0,0.3), 0 0 8px rgba(251, 191, 36, 0.5)'
-                  : 'inset 0 1px 0 rgba(255,255,255,0.3), 0 2px 4px rgba(0,0,0,0.3)',
+                ...(isMyMemoModeActive && {
+                  textShadow: '1px 1px 2px rgba(0,0,0,0.5)',
+                  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.3), 0 2px 4px rgba(0,0,0,0.3), 0 0 8px rgba(251, 191, 36, 0.5)',
+                }),
               }}
               title={isMyMemoModeActive ? '나만의 Memo (활성화됨 - 클릭하여 일반 모드로 전환)' : '나만의 Memo (클릭하여 활성화)'}
             >
-              <span className="relative z-10 text-lg">📝</span>
+              <span className={`relative z-10 text-lg ${isMyMemoModeActive ? '' : 'opacity-70'}`}>📝</span>
               {isMyMemoModeActive && (
-                <span className="absolute -top-1 -right-1 w-2 h-2 bg-yellow-400 rounded-full animate-pulse" />
+                <>
+                  <span className="absolute -top-1 -right-1 w-2 h-2 bg-yellow-400 rounded-full animate-pulse" />
+                  <div 
+                    className="absolute inset-0 rounded opacity-0 hover:opacity-100 transition-opacity"
+                    style={{
+                      background: 'linear-gradient(to bottom, rgba(255,255,255,0.2), transparent)',
+                    }}
+                  />
+                </>
               )}
-              <div 
-                className="absolute inset-0 rounded opacity-0 hover:opacity-100 transition-opacity"
-                style={{
-                  background: 'linear-gradient(to bottom, rgba(255,255,255,0.2), transparent)',
-                }}
-              />
             </button>
           )}
           <button
