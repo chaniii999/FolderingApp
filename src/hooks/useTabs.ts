@@ -39,7 +39,7 @@ export function useTabs(
     const tabId = filePath;
     
     setTabs(prevTabs => {
-      // 이미 열려있는 탭인지 확인
+      // 이미 열려있는 탭인지 확인 (중복 방지)
       const existingTab = prevTabs.find(tab => tab.id === tabId);
       if (existingTab) {
         // 이미 열려있으면 해당 탭으로 전환
@@ -49,8 +49,34 @@ export function useTabs(
         const savedState = tabStateRef.current.get(tabId);
         if (savedState) {
           setFileViewerState(savedState);
+        } else {
+          setFileViewerState({ isEditing: false, hasChanges: false });
         }
         return prevTabs;
+      }
+      
+      // 중복된 탭이 있는지 확인 (filePath 기준, 안전장치)
+      const duplicateTabs = prevTabs.filter(tab => tab.filePath === filePath);
+      if (duplicateTabs.length > 0) {
+        // 중복된 탭이 있으면 첫 번째 탭으로 전환하고 나머지 제거
+        const firstDuplicate = duplicateTabs[0];
+        const filteredTabs = prevTabs.filter(tab => tab.filePath !== filePath || tab.id === firstDuplicate.id);
+        
+        // 제거된 탭들의 상태 정리
+        duplicateTabs.slice(1).forEach(tab => {
+          tabStateRef.current.delete(tab.id);
+        });
+        
+        setTabs(filteredTabs);
+        setActiveTabId(firstDuplicate.id);
+        setSelectedFilePath(filePath);
+        const savedState = tabStateRef.current.get(firstDuplicate.id);
+        if (savedState) {
+          setFileViewerState(savedState);
+        } else {
+          setFileViewerState({ isEditing: false, hasChanges: false });
+        }
+        return filteredTabs;
       }
       
       // 새 탭 추가
@@ -188,10 +214,28 @@ export function useTabs(
     const fileName = getFileName(filePath);
     const tabId = filePath;
     
+    // 이미 같은 파일 경로를 가진 탭이 있는지 확인
+    const existingTab = tabs.find(t => t.id === tabId);
+    if (existingTab) {
+      // 이미 같은 파일을 가진 탭이 있으면 해당 탭으로 전환
+      setActiveTabId(tabId);
+      setSelectedFilePath(filePath);
+      const savedState = tabStateRef.current.get(tabId);
+      if (savedState) {
+        setFileViewerState(savedState);
+      } else {
+        setFileViewerState({ isEditing: false, hasChanges: false });
+      }
+      return;
+    }
+    
     // 활성 탭이 있으면 그 탭의 파일 경로만 변경
     if (activeTabId && tabs.length > 0) {
       const activeTab = tabs.find(t => t.id === activeTabId);
       if (activeTab) {
+        // 기존 활성 탭의 상태 저장
+        const oldState = tabStateRef.current.get(activeTabId);
+        
         // 활성 탭의 파일 경로 변경
         setTabs(prevTabs => prevTabs.map(tab => 
           tab.id === activeTabId
@@ -200,7 +244,6 @@ export function useTabs(
         ));
         
         // 기존 탭 상태를 새 탭 ID로 이동
-        const oldState = tabStateRef.current.get(activeTabId);
         if (oldState) {
           tabStateRef.current.set(tabId, oldState);
           tabStateRef.current.delete(activeTabId);

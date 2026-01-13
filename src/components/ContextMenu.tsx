@@ -8,13 +8,14 @@ interface ContextMenuProps {
   onCopy: () => void;
   onPaste: () => void;
   onDelete: () => void;
+  onRename?: () => void;
   onNewFile?: () => void;
   canCopy: boolean;
   canPaste: boolean;
   isBlankSpace?: boolean;
 }
 
-function ContextMenu({ x, y, onClose, onCut, onCopy, onPaste, onDelete, onNewFile, canCopy, canPaste, isBlankSpace = false }: ContextMenuProps) {
+function ContextMenu({ x, y, onClose, onCut, onCopy, onPaste, onDelete, onRename, onNewFile, canCopy, canPaste, isBlankSpace = false }: ContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -80,6 +81,13 @@ function ContextMenu({ x, y, onClose, onCut, onCopy, onPaste, onDelete, onNewFil
     onClose();
   };
 
+  const handleRenameClick = () => {
+    if (onRename) {
+      onRename();
+    }
+    onClose();
+  };
+
   const handleNewFileClick = () => {
     if (onNewFile) {
       onNewFile();
@@ -127,6 +135,15 @@ function ContextMenu({ x, y, onClose, onCut, onCopy, onPaste, onDelete, onNewFil
                 className="px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-gray-700 dark:text-gray-200"
               >
                 붙여넣기
+              </button>
+            )}
+            <div className="h-px bg-gray-200 dark:bg-gray-700 my-1" />
+            {onRename && (
+              <button
+                onClick={handleRenameClick}
+                className="px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-gray-700 dark:text-gray-200"
+              >
+                이름 바꾸기
               </button>
             )}
             <div className="h-px bg-gray-200 dark:bg-gray-700 my-1" />

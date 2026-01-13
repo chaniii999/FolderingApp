@@ -333,17 +333,30 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
       }
 
       const node = findNodeInTree(treeDataRef.current, renamingPath);
-      if (!node) return;
+      if (!node) {
+        setRenamingPath(null);
+        setRenamingName('');
+        return;
+      }
 
       const oldName = node.name;
+      const newName = renamingName.trim();
+      
+      // 이름이 변경되지 않았으면 그냥 취소
+      if (oldName === newName) {
+        setRenamingPath(null);
+        setRenamingName('');
+        return;
+      }
+
       const oldPath = node.path;
-      await window.api.filesystem.renameFile(node.path, renamingName.trim());
+      await window.api.filesystem.renameFile(node.path, newName);
       
       undoService.addAction({
         type: 'rename',
-        path: node.path.replace(oldName, renamingName.trim()),
+        path: node.path.replace(oldName, newName),
         oldPath: oldPath,
-        newName: renamingName.trim(),
+        newName: newName,
         isDirectory: node.isDirectory,
       });
       
@@ -351,17 +364,28 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
       setTreeData(prev => {
         const updated = updateTreeNode(prev, renamingPath, node => ({
           ...node,
-          name: renamingName.trim(),
-          path: node.path.replace(oldName, renamingName.trim()),
+          name: newName,
+          path: node.path.replace(oldName, newName),
         }));
         treeDataRef.current = updated;
         return updated;
       });
       
+      // 이름 변경 후 선택 해제 및 포커스 복원
       setRenamingPath(null);
       setRenamingName('');
+      setCursorPath(null);
+      
+      // FileExplorer에 포커스 복원
+      setTimeout(() => {
+        if (listRef.current) {
+          listRef.current.focus();
+        }
+      }, 0);
     } catch (err) {
       handleError(err, '이름 변경 중 오류가 발생했습니다.');
+      setRenamingPath(null);
+      setRenamingName('');
     }
   }, [renamingPath, renamingName, findNodeInTree, updateTreeNode]);
 
@@ -465,10 +489,17 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
       return refreshFolder(folderPath);
     },
     startRenameForPath: (filePath: string) => {
-      setRenamingPath(filePath);
       const node = findNodeInTree(treeDataRef.current, filePath);
       if (node) {
+        setRenamingPath(filePath);
         setRenamingName(node.name);
+        // 다음 틱에서 input에 포커스
+        setTimeout(() => {
+          if (renameInputRef.current) {
+            renameInputRef.current.focus();
+            renameInputRef.current.select();
+          }
+        }, 0);
       }
     },
     getDraggedFolderPath: () => draggedFolderPath,
@@ -653,7 +684,7 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
         onRenameConfirm={handleRenameConfirmCallback}
         onRenameCancel={handleRenameCancelCallback}
         itemRef={itemRefCallback}
-        renameInputRef={renameInputRef}
+        renameInputRef={isRenaming ? renameInputRef : null}
         renderChildren={renderChildren}
       />
     );
@@ -726,6 +757,22 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
           toggleExpand(node.path);
         }
       }
+    } else if (e.key === 'F2') {
+      e.preventDefault();
+      if (cursorPath) {
+        const node = flatNodes.find(n => n.path === cursorPath);
+        if (node) {
+          setRenamingPath(node.path);
+          setRenamingName(node.name);
+          // 다음 틱에서 input에 포커스
+          setTimeout(() => {
+            if (renameInputRef.current) {
+              renameInputRef.current.focus();
+              renameInputRef.current.select();
+            }
+          }, 0);
+        }
+      }
     } else if (e.key === 'e' || e.key === 'E') {
       e.preventDefault();
       if (cursorPath) {
@@ -733,6 +780,13 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
         if (node) {
           setRenamingPath(node.path);
           setRenamingName(node.name);
+          // 다음 틱에서 input에 포커스
+          setTimeout(() => {
+            if (renameInputRef.current) {
+              renameInputRef.current.focus();
+              renameInputRef.current.select();
+            }
+          }, 0);
         }
       }
     } else if (e.key === 'Delete' || e.key === 'Del') {
@@ -992,6 +1046,23 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
     }
   }, [clipboard, currentPath, onFileSelect, selectedFilePath, refreshFolder]);
 
+  const handleContextMenuRename = useCallback((): void => {
+    if (!contextMenu || !contextMenu.item || !contextMenu.path) return;
+    const node = findNodeInTree(treeDataRef.current, contextMenu.path);
+    if (node) {
+      setRenamingPath(contextMenu.path);
+      setRenamingName(node.name);
+      setContextMenu(null);
+      // 다음 틱에서 input에 포커스
+      setTimeout(() => {
+        if (renameInputRef.current) {
+          renameInputRef.current.focus();
+          renameInputRef.current.select();
+        }
+      }, 0);
+    }
+  }, [contextMenu, findNodeInTree]);
+
   const handleContextMenuDelete = () => {
     if (!contextMenu || !contextMenu.item || !contextMenu.path) return;
     const { item, path } = contextMenu;
@@ -1187,6 +1258,7 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
           onCopy={handleCopy}
           onPaste={handlePaste}
           onDelete={handleContextMenuDelete}
+          onRename={!contextMenu.isBlankSpace ? handleContextMenuRename : undefined}
           onNewFile={onNewFileClick}
           canCopy={contextMenu.item ? !contextMenu.item.isDirectory : false}
           canPaste={clipboard !== null}

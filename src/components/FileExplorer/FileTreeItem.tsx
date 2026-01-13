@@ -30,7 +30,7 @@ interface FileTreeItemProps {
   onRenameConfirm: () => void;
   onRenameCancel: () => void;
   itemRef: (el: HTMLDivElement | null, path: string) => void;
-  renameInputRef: React.RefObject<HTMLInputElement>;
+  renameInputRef: React.RefObject<HTMLInputElement> | null;
   renderChildren: (children: TreeNode[], depth: number) => React.ReactNode;
 }
 
@@ -127,7 +127,7 @@ const FileTreeItem = memo<FileTreeItemProps>(({
           })()}
           {isRenaming ? (
             <input
-              ref={isRenaming ? renameInputRef : null}
+              ref={renameInputRef}
               type="text"
               value={renamingName}
               onChange={(e) => onRenameChange(e.target.value)}
