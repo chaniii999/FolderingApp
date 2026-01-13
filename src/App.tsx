@@ -569,7 +569,8 @@ function App() {
     handleConfigChange,
     handleExportPdf,
     handleNewFileClick,
-  }), [currentPath, tabs, activeTabId, textEditorConfig, handleTabClick, handleUndo, handleConfigChange, handleExportPdf, handleNewFileClick]);
+    handleMyMemoClick,
+  }), [currentPath, tabs, activeTabId, textEditorConfig, handleTabClick, handleUndo, handleConfigChange, handleExportPdf, handleNewFileClick, handleMyMemoClick]);
 
   // 핫키 훅 사용
   useHotkeys(hotkeys, shouldBlockHotkey, isInputElement);

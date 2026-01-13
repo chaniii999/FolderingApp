@@ -102,6 +102,10 @@ function HelpPanel(_props: HelpPanelProps) {
             <h4 className="font-semibold mb-0.5 text-xs dark:text-gray-200">레이아웃</h4>
             <div className="space-y-0.5 text-xs">
               <div className="flex items-center justify-between gap-2">
+                <span className="text-gray-700 dark:text-gray-300">나만의 Memo 토글</span>
+                <kbd className="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs font-mono dark:text-gray-200">F1</kbd>
+              </div>
+              <div className="flex items-center justify-between gap-2">
                 <span className="text-gray-700 dark:text-gray-300">디렉토리 탭 토글</span>
                 <kbd className="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs font-mono dark:text-gray-200">b</kbd>
               </div>

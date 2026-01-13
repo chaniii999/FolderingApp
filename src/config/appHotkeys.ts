@@ -16,6 +16,7 @@ interface AppHotkeysDependencies {
   handleConfigChange: (config: Partial<TextEditorConfig>) => Promise<void>;
   handleExportPdf?: () => Promise<void>;
   handleNewFileClick?: () => void;
+  handleMyMemoClick?: () => Promise<void>;
 }
 
 /**
@@ -35,6 +36,7 @@ export function createAppHotkeys(deps: AppHotkeysDependencies): HotkeyConfig[] {
     handleConfigChange,
     handleExportPdf,
     handleNewFileClick,
+    handleMyMemoClick,
   } = deps;
 
   return [
@@ -56,6 +58,15 @@ export function createAppHotkeys(deps: AppHotkeysDependencies): HotkeyConfig[] {
       key: 'b',
       handler: () => {
         setIsExplorerVisible((prev) => !prev);
+      },
+    },
+    // F1 핫키: 나만의 Memo 토글
+    {
+      key: 'F1',
+      handler: () => {
+        if (handleMyMemoClick) {
+          handleMyMemoClick();
+        }
       },
     },
     // Ctrl+Z: 되돌리기 (입력 요소에서는 기본 동작 허용)

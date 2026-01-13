@@ -304,6 +304,7 @@ export function createGuideFile(dirPath: string): string | null {
 - **\`b\`**: 파일 목록 창 열기/닫기
 - **\`p\`**: 경로 선택
 - **\`o\`**: 폴더 열기
+- **\`F1\`**: 나만의 Memo 모드 토글
 
 ### 텍스트 편집기
 - **\`Ctrl + +\`**: 글씨 크기 키우기
@@ -317,6 +318,7 @@ export function createGuideFile(dirPath: string): string | null {
 4. **빈 공간 우클릭**: 파일 목록의 빈 공간을 우클릭하면 붙여넣기 메뉴가 나타납니다
 5. **탭 문자**: 텍스트 편집 모드에서 \`Tab\` 키를 누르면 탭 문자가 삽입되고 포커스가 이동하지 않습니다
 6. **빠른 이름 변경**: 파일을 선택한 상태에서 \`F2\` 키를 누르면 바로 이름 변경 모드로 진입합니다
+7. **나만의 Memo 모드**: \`F1\` 키를 누르면 나만의 Memo 모드와 일반 모드를 빠르게 전환할 수 있습니다
 
 ## 📚 더 알아보기
 
@@ -324,7 +326,7 @@ export function createGuideFile(dirPath: string): string | null {
 
 ---
 
-**Foldering v1.4.0** - 키보드 중심의 빠른 파일 탐색 및 텍스트 편집 앱
+**Foldering v1.4.0.2** - 키보드 중심의 빠른 파일 탐색 및 텍스트 편집 앱
 `;
 
     createFile(guidePath, guideContent);
