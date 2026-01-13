@@ -22,18 +22,15 @@ function getConfigPath(): string {
   if (isDev) {
     const cwd = process.cwd();
     const configPath = path.join(cwd, 'config', 'dev.json');
-    console.log('[DevConfig] Dev mode - Config path:', configPath);
     return configPath;
   } else {
     // 프로덕션: userData 경로 사용 (app.whenReady() 이후에만 호출 가능)
     try {
       const userDataPath = app.getPath('userData');
       const configPath = path.join(userDataPath, 'config', 'dev.json');
-      console.log('[DevConfig] Production - Config path:', configPath);
       return configPath;
     } catch (error) {
       // app이 준비되지 않았을 경우 fallback
-      console.warn('[DevConfig] app.getPath failed, using process.cwd()');
       const cwd = process.cwd();
       return path.join(cwd, 'config', 'dev.json');
     }
@@ -42,7 +39,6 @@ function getConfigPath(): string {
 
 export function loadDevConfig(): DevConfig {
   if (cachedConfig) {
-    console.log('[DevConfig] Using cached config:', cachedConfig);
     return cachedConfig;
   }
 
@@ -50,7 +46,6 @@ export function loadDevConfig(): DevConfig {
 
   try {
     if (fs.existsSync(configPath)) {
-      console.log('[DevConfig] Config file exists, loading...');
       const configContent = fs.readFileSync(configPath, 'utf-8');
       const config = JSON.parse(configContent) as Partial<DevConfig>;
       
@@ -58,9 +53,7 @@ export function loadDevConfig(): DevConfig {
         devTools: config.devTools ?? defaultConfig.devTools,
         menuBar: config.menuBar ?? defaultConfig.menuBar,
       };
-      console.log('[DevConfig] Loaded config:', cachedConfig);
     } else {
-      console.log('[DevConfig] Config file not found, using defaults');
       cachedConfig = { ...defaultConfig };
       saveDevConfig(cachedConfig);
     }
@@ -94,6 +87,5 @@ export function getDevConfig(): DevConfig {
 
 export function clearCache(): void {
   cachedConfig = null;
-  console.log('[DevConfig] Cache cleared');
 }
 

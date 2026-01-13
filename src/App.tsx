@@ -100,7 +100,6 @@ function App() {
   const initializeCurrentPath = useCallback(async () => {
     try {
       if (!window.api || !window.api.filesystem) {
-        console.warn('API가 로드되지 않았습니다.');
         return;
       }
       
@@ -127,19 +126,17 @@ function App() {
           }
         } catch (guideErr) {
           // 가이드.md 확인 실패해도 계속 진행
-          console.log('Guide file check skipped:', guideErr);
           hasInitializedGuideRef.current = true;
         }
       }
     } catch (err) {
-      console.error('Error getting current directory:', err);
       try {
         if (window.api?.filesystem) {
           const homePath = await window.api.filesystem.getHomeDirectory();
           setCurrentPath(homePath);
         }
       } catch (homeErr) {
-        console.error('Error getting home directory:', homeErr);
+        // 홈 디렉토리 가져오기 실패 시 무시
       }
     }
   }, [addOrSwitchTab]);
@@ -173,7 +170,6 @@ function App() {
   const handleSelectStartPath = useCallback(async () => {
     try {
       if (!window.api?.filesystem) {
-        console.error('API가 로드되지 않았습니다.');
         return;
       }
 
@@ -207,7 +203,6 @@ function App() {
               }
             }
           } catch (guideErr) {
-            console.error('Error creating guide file:', guideErr);
             // 가이드 파일 생성 실패해도 계속 진행
             if (fileExplorerRef.current) {
               fileExplorerRef.current.refresh();
@@ -221,7 +216,7 @@ function App() {
         }
       }
     } catch (err) {
-      console.error('Error selecting start path:', err);
+      // 시작 경로 선택 실패 시 무시
     }
   }, [addOrSwitchTab]);
 
@@ -230,13 +225,12 @@ function App() {
       if (!currentPath) return;
       
       if (!window.api?.filesystem) {
-        console.error('API가 로드되지 않았습니다.');
         return;
       }
 
       await window.api.filesystem.openFolder(currentPath);
     } catch (err) {
-      console.error('Error opening folder:', err);
+      // 폴더 열기 실패 시 무시
     }
   }, [currentPath]);
 
@@ -250,13 +244,6 @@ function App() {
     const importMeta = import.meta as ImportMeta;
     const isDev = importMeta.env?.DEV || process.env.NODE_ENV === 'development';
     if (isDev) {
-      const timeoutId = setTimeout(() => {
-        console.log('📊 초기 렌더링 성능 리포트:');
-        performanceMonitor.printReport();
-        console.log('\n💡 성능 리포트를 다시 보려면: window.showPerformanceReport()');
-        console.log('💡 시작 경로를 삭제하려면: window.deleteStartPath()');
-      }, 5000);
-
       // 개발자 도구에서 사용할 수 있는 유틸리티 함수 추가
       interface WindowWithDeleteStartPath extends Window {
         deleteStartPath?: () => Promise<void>;
@@ -266,30 +253,22 @@ function App() {
       windowWithUtil.deleteStartPath = async (): Promise<void> => {
         try {
           if (!window.api) {
-            console.error('❌ window.api가 없습니다. 앱을 재시작해주세요.');
             return;
           }
           if (!window.api.filesystem) {
-            console.error('❌ window.api.filesystem이 없습니다. 앱을 재시작해주세요.');
             return;
           }
           // 타입 단언을 사용하여 직접 호출 시도
           const filesystem = window.api.filesystem as { deleteStartPath?: () => Promise<void> };
           if (filesystem.deleteStartPath) {
             await filesystem.deleteStartPath();
-            console.log('✅ 시작 경로가 삭제되었습니다. 앱을 재시작하면 첫 실행처럼 동작합니다.');
-          } else {
-            console.error('❌ deleteStartPath가 없습니다. 앱을 재시작해주세요.');
-            console.log('사용 가능한 filesystem 메서드:', Object.keys(filesystem));
-            console.log('💡 앱을 재시작하면 새로운 API가 로드됩니다.');
           }
         } catch (error) {
-          console.error('❌ 시작 경로 삭제 중 오류:', error);
+          // 시작 경로 삭제 실패 시 무시
         }
       };
 
       return () => {
-        clearTimeout(timeoutId);
         delete windowWithUtil.deleteStartPath;
       };
     }
@@ -309,50 +288,40 @@ function App() {
   }, [handleSystemConfigChange, handleConfigChange, handleSelectStartPath, handleOpenCurrentFolder]);
 
   useEffect(() => {
-    console.log('[App] Setting up menu event listeners...');
-    
     // 메뉴바 이벤트 리스너 - ref를 통해 최신 함수 참조
     const handleMenuToggleHideNonTextFiles = (e: Event) => {
       const customEvent = e as CustomEvent<boolean>;
-      console.log('[App] handleMenuToggleHideNonTextFiles called, detail:', customEvent.detail);
       handleSystemConfigChangeRef.current({ hideNonTextFiles: customEvent.detail });
     };
     
     const handleMenuToggleShowHelp = (e: Event) => {
       const customEvent = e as CustomEvent<boolean>;
-      console.log('[App] handleMenuToggleShowHelp called, detail:', customEvent.detail);
       handleSystemConfigChangeRef.current({ showHelp: customEvent.detail });
     };
     
     const handleMenuChangeTheme = (e: Event) => {
       const customEvent = e as CustomEvent<Theme>;
-      console.log('[App] handleMenuChangeTheme called, detail:', customEvent.detail);
       handleSystemConfigChangeRef.current({ theme: customEvent.detail });
     };
     
     const handleMenuSelectPath = () => {
-      console.log('[App] handleMenuSelectPath called');
       handleSelectStartPathRef.current();
     };
     
     const handleMenuOpenFolder = () => {
-      console.log('[App] handleMenuOpenFolder called');
       handleOpenCurrentFolderRef.current();
     };
     
     const handleMenuChangeHorizontalPadding = async (e: Event) => {
       const customEvent = e as CustomEvent<number>;
-      console.log('[App] handleMenuChangeHorizontalPadding called, detail:', customEvent.detail);
       await handleConfigChangeRef.current({ horizontalPadding: customEvent.detail });
     };
     
     const handleMenuChangeFontSize = async (e: Event) => {
       const customEvent = e as CustomEvent<number>;
-      console.log('[App] handleMenuChangeFontSize called, detail:', customEvent.detail);
       await handleConfigChangeRef.current({ fontSize: customEvent.detail });
     };
     
-    console.log('[App] Registering menu event listeners');
     window.addEventListener('menu:toggleHideNonTextFiles', handleMenuToggleHideNonTextFiles);
     window.addEventListener('menu:toggleShowHelp', handleMenuToggleShowHelp);
     window.addEventListener('menu:changeTheme', handleMenuChangeTheme);
@@ -360,10 +329,8 @@ function App() {
     window.addEventListener('menu:openFolder', handleMenuOpenFolder);
     window.addEventListener('menu:changeHorizontalPadding', handleMenuChangeHorizontalPadding);
     window.addEventListener('menu:changeFontSize', handleMenuChangeFontSize);
-    console.log('[App] Menu event listeners registered');
     
     return () => {
-      console.log('[App] Removing menu event listeners');
       window.removeEventListener('menu:toggleHideNonTextFiles', handleMenuToggleHideNonTextFiles);
       window.removeEventListener('menu:toggleShowHelp', handleMenuToggleShowHelp);
       window.removeEventListener('menu:changeTheme', handleMenuChangeTheme);
@@ -493,7 +460,6 @@ function App() {
     const checkMyMemoMode = async (): Promise<void> => {
       // API가 로드될 때까지 대기
       if (!window.api?.mymemo) {
-        console.warn('[App] MyMemo API not available yet');
         setIsMyMemoModeActive(false);
         return;
       }
@@ -508,7 +474,6 @@ function App() {
             await window.api.menu.setEnabled('selectPath', !isMyMemo);
           }
         } catch (error) {
-          console.error('[App] Error checking my memo mode:', error);
           setIsMyMemoModeActive(false);
         }
       } else {
@@ -552,7 +517,6 @@ function App() {
         }
         
         const myMemoPath = await window.api.mymemo.getPath();
-        console.log('[App] Switching to MyMemo path:', myMemoPath);
         handlePathChange(myMemoPath);
       }
       
@@ -563,7 +527,6 @@ function App() {
         }
       }, 100);
     } catch (err) {
-      console.error('Error toggling my memo:', err);
       toastService.error('나만의 Memo 전환에 실패했습니다.');
     }
   }, [currentPath, handlePathChange]);
@@ -784,7 +747,6 @@ function App() {
       // 폴더 제외하고 파일만 반환
       return items.filter(item => !item.isDirectory).map(item => item.path);
     } catch (err) {
-      console.error('Error getting file list:', err);
       return [];
     }
   }, [currentPath]);

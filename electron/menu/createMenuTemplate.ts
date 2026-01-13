@@ -29,14 +29,9 @@ export function createMenuTemplate({
           id: 'selectPath',
           enabled: true,
           click: () => {
-            console.log('[Menu] Select Path clicked');
             const window = BrowserWindow.getAllWindows()[0];
-            console.log('[Menu] Window found:', window ? 'yes' : 'no', window && !window.isDestroyed() ? 'not destroyed' : 'destroyed or null');
             if (window && !window.isDestroyed()) {
-              console.log('[Menu] Sending menu:selectPath event');
               window.webContents.send('menu:selectPath');
-            } else {
-              console.error('[Menu] Cannot send menu:selectPath - window is null or destroyed');
             }
           },
         },
@@ -67,14 +62,9 @@ export function createMenuTemplate({
           type: 'checkbox',
           id: 'hideNonTextFiles',
           click: (menuItem) => {
-            console.log('[Menu] Toggle Hide Non Text Files clicked, checked:', menuItem.checked);
             const window = BrowserWindow.getAllWindows()[0];
-            console.log('[Menu] Window found:', window ? 'yes' : 'no', window && !window.isDestroyed() ? 'not destroyed' : 'destroyed or null');
             if (window && !window.isDestroyed()) {
-              console.log('[Menu] Sending menu:toggleHideNonTextFiles event');
               window.webContents.send('menu:toggleHideNonTextFiles', menuItem.checked);
-            } else {
-              console.error('[Menu] Cannot send menu:toggleHideNonTextFiles - window is null or destroyed');
             }
           },
         },
@@ -89,13 +79,9 @@ export function createMenuTemplate({
           id: 'theme-light',
           checked: true,
           click: () => {
-            console.log('[Menu] Theme Light clicked');
             const window = BrowserWindow.getAllWindows()[0];
             if (window && !window.isDestroyed()) {
-              console.log('[Menu] Sending menu:changeTheme event: light');
               window.webContents.send('menu:changeTheme', 'light');
-            } else {
-              console.error('[Menu] Cannot send menu:changeTheme - window is null or destroyed');
             }
           },
         },
@@ -105,13 +91,9 @@ export function createMenuTemplate({
           id: 'theme-dark',
           checked: false,
           click: () => {
-            console.log('[Menu] Theme Dark clicked');
             const window = BrowserWindow.getAllWindows()[0];
             if (window && !window.isDestroyed()) {
-              console.log('[Menu] Sending menu:changeTheme event: dark');
               window.webContents.send('menu:changeTheme', 'dark');
-            } else {
-              console.error('[Menu] Cannot send menu:changeTheme - window is null or destroyed');
             }
           },
         },
@@ -131,13 +113,9 @@ export function createMenuTemplate({
               id: `padding-${padding}`,
               checked: config.horizontalPadding === padding,
               click: () => {
-                console.log('[Menu] Change Horizontal Padding clicked:', padding);
                 const window = BrowserWindow.getAllWindows()[0];
                 if (window && !window.isDestroyed()) {
-                  console.log('[Menu] Sending menu:changeHorizontalPadding event:', padding);
                   window.webContents.send('menu:changeHorizontalPadding', padding);
-                } else {
-                  console.error('[Menu] Cannot send menu:changeHorizontalPadding - window is null or destroyed');
                 }
               },
             }));
@@ -154,13 +132,9 @@ export function createMenuTemplate({
               id: `fontsize-${fontSize}`,
               checked: config.fontSize === fontSize,
               click: () => {
-                console.log('[Menu] Change Font Size clicked:', fontSize);
                 const window = BrowserWindow.getAllWindows()[0];
                 if (window && !window.isDestroyed()) {
-                  console.log('[Menu] Sending menu:changeFontSize event:', fontSize);
                   window.webContents.send('menu:changeFontSize', fontSize);
-                } else {
-                  console.error('[Menu] Cannot send menu:changeFontSize - window is null or destroyed');
                 }
               },
             }));

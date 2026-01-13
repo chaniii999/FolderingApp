@@ -111,35 +111,28 @@ export async function isTemplateFile(filePath: string | null): Promise<boolean> 
  * 템플릿 인스턴스 파일인지 확인 (나만의 메모 경로 내의 .json 파일 중 TemplateInstance 형식)
  */
 export async function isTemplateInstanceFile(filePath: string | null): Promise<boolean> {
-  console.log('isTemplateInstanceFile - start, filePath:', filePath);
   if (!filePath) {
-    console.log('isTemplateInstanceFile - no filePath');
     return false;
   }
   
   const fileName = getFileName(filePath);
   if (!fileName) {
-    console.log('isTemplateInstanceFile - no fileName');
     return false;
   }
   
   const lastDotIndex = fileName.lastIndexOf('.');
   if (lastDotIndex === -1 || lastDotIndex === fileName.length - 1) {
-    console.log('isTemplateInstanceFile - no extension');
     return false;
   }
   
   const extension = fileName.substring(lastDotIndex + 1).toLowerCase();
   if (extension !== 'json') {
-    console.log('isTemplateInstanceFile - not json, extension:', extension);
     return false;
   }
   
   // 템플릿 파일이면 인스턴스가 아님
   const isTemplate = await isTemplateFile(filePath);
-  console.log('isTemplateInstanceFile - isTemplate:', isTemplate);
   if (isTemplate) {
-    console.log('isTemplateInstanceFile - is template file, return false');
     return false;
   }
   
@@ -147,9 +140,7 @@ export async function isTemplateInstanceFile(filePath: string | null): Promise<b
   if (window.api?.mymemo) {
     try {
       const isMyMemo = await window.api.mymemo.isMyMemoPath(filePath);
-      console.log('isTemplateInstanceFile - isMyMemo:', isMyMemo);
       if (!isMyMemo) {
-        console.log('isTemplateInstanceFile - not myMemo path, return false');
         return false;
       }
       
@@ -157,32 +148,22 @@ export async function isTemplateInstanceFile(filePath: string | null): Promise<b
       if (window.api?.filesystem?.readFile) {
         try {
           const content = await window.api.filesystem.readFile(filePath);
-          console.log('isTemplateInstanceFile - content length:', content?.length);
           if (content) {
             const parsed = JSON.parse(content);
-            console.log('isTemplateInstanceFile - parsed:', parsed);
             // TemplateInstance 형식인지 확인 (templateId, data 필드가 있는지)
             const hasTemplateId = !!parsed.templateId;
             const hasData = typeof parsed.data === 'object' && parsed.data !== null;
             const isInstance = hasTemplateId && hasData;
-            console.log('isTemplateInstanceFile - hasTemplateId:', hasTemplateId, 'hasData:', hasData, 'isInstance:', isInstance);
             return isInstance;
           }
         } catch (err) {
-          console.log('isTemplateInstanceFile - error parsing:', err);
           return false;
         }
-      } else {
-        console.log('isTemplateInstanceFile - no readFile function');
       }
     } catch (err) {
-      console.log('isTemplateInstanceFile - error checking myMemo path:', err);
       return false;
     }
-  } else {
-    console.log('isTemplateInstanceFile - no mymemo API');
   }
   
-  console.log('isTemplateInstanceFile - returning false at end');
   return false;
 }

@@ -81,23 +81,17 @@ function updateFontMenu() {
 import { createMenuTemplate } from './menu/createMenuTemplate';
 
 function setupMenuBar(showMenuBar: boolean, window: BrowserWindow) {
-  console.log('[Main] setupMenuBar called, showMenuBar:', showMenuBar);
   mainWindow = window;
-  console.log('[Main] mainWindow set:', mainWindow ? 'yes' : 'no');
   
   // 메뉴바는 항상 표시 (Option, Help 메뉴를 위해)
   if (showMenuBar !== false) {
-    console.log('[Main] Creating menu template...');
     const template = createMenuTemplate({
       loadTextEditorConfig,
       mainWindow,
     });
-    console.log('[Main] Menu template created, items count:', template.length);
 
     applicationMenu = Menu.buildFromTemplate(template);
-    console.log('[Main] Menu built from template');
     Menu.setApplicationMenu(applicationMenu);
-    console.log('[Main] Application menu set');
     
     // 메뉴바 업데이트를 위한 IPC 핸들러
     ipcMain.handle('menu:updateCheckbox', (_event, id: string, checked: boolean) => {
@@ -127,8 +121,6 @@ function setupMenuBar(showMenuBar: boolean, window: BrowserWindow) {
 
 function createWindow() {
   const devConfig = getDevConfig();
-  console.log('[Main] Dev config loaded:', devConfig);
-  console.log('[Main] isDev:', isDev);
   
   const mainWindow = new BrowserWindow({
     width: 1200,
@@ -148,15 +140,10 @@ function createWindow() {
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
   }
 
-  console.log('[Main] devTools setting:', devConfig.devTools);
   if (devConfig.devTools) {
-    console.log('[Main] Opening DevTools');
     mainWindow.webContents.openDevTools();
-  } else {
-    console.log('[Main] DevTools disabled by config');
   }
 
-  console.log('[Main] menuBar setting:', devConfig.menuBar);
   setupMenuBar(devConfig.menuBar, mainWindow);
   
   // 테마 변경 IPC 핸들러
@@ -180,44 +167,32 @@ function createWindow() {
 app.whenReady().then(async () => {
   // 개발자 설정 로드 확인
   const devConfig = getDevConfig();
-  console.log('[Main] Initial dev config:', devConfig);
   
   // 시작 경로 확인 및 선택
   const startPath = loadStartPath();
   if (!startPath) {
-    console.log('[Main] No start path found, showing dialog...');
     const selectedPath = await selectStartPath(true); // 처음 실행이므로 true 전달
     if (!selectedPath) {
       // 사용자가 취소한 경우 홈 디렉토리를 기본값으로 저장
       // 이렇게 하면 다음에 다시 대화상자가 표시되지 않음
-      console.log('[Main] No path selected, using home directory as default');
       const homePath = getStartPathOrHome();
       const { saveStartPath } = await import('./services/startPathService');
       saveStartPath(homePath);
-      console.log('[Main] Home directory saved as start path:', homePath);
     } else {
-      console.log('[Main] Start path selected:', selectedPath);
       // 처음 시작 경로 설정 시 가이드.md 생성
       try {
         const { createGuideFile } = await import('./services/fileSystemService');
-        const guidePath = createGuideFile(selectedPath);
-        if (guidePath) {
-          console.log('[Main] Guide file created:', guidePath);
-        }
+        createGuideFile(selectedPath);
       } catch (error) {
         console.error('[Main] Error creating guide file:', error);
       }
     }
-  } else {
-    console.log('[Main] Using saved start path:', startPath);
   }
   
   // IPC 핸들러 등록
-  console.log('[Main] Registering IPC handlers...');
   folderHandlers(ipcMain);
   noteHandlers(ipcMain);
   fileSystemHandlers(ipcMain);
-  console.log('[Main] All IPC handlers registered');
 
   const window = createWindow();
   mainWindow = window;

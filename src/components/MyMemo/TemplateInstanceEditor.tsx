@@ -19,6 +19,7 @@ function TemplateInstanceEditor({ filePath, content, config, onContentChange, on
   const [templateData, setTemplateData] = useState<CustomTemplate | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [partValues, setPartValues] = useState<Record<string, string>>({});
+  const [partTitles, setPartTitles] = useState<Record<string, string>>({}); // 파트 제목 편집용 상태
   const fileName = getFileName(filePath);
   const inputRefs = useRef<Map<string, HTMLInputElement | HTMLTextAreaElement>>(new Map());
   const isComposingRef = useRef<Map<string, boolean>>(new Map());
@@ -90,13 +91,18 @@ function TemplateInstanceEditor({ filePath, content, config, onContentChange, on
                       setTemplateData(template);
                       // 템플릿의 모든 파트에 대해 기본값 설정 (없는 경우) - 파트 제목을 키로 사용
                       const newPartValues: Record<string, string> = { ...parsed.data };
+                      const newPartTitles: Record<string, string> = {};
                       template.parts.forEach(part => {
-                        if (!(part.title in newPartValues)) {
-                          newPartValues[part.title] = part.default || '';
+                        // 인스턴스의 data 키 중 part.title과 일치하는 것이 있는지 확인
+                        const instanceKey = Object.keys(newPartValues).find(key => key === part.title) || part.title;
+                        newPartTitles[part.id] = instanceKey;
+                        if (!(instanceKey in newPartValues)) {
+                          newPartValues[instanceKey] = part.default || '';
                         }
                       });
                       isUpdatingFromContentRef.current = true;
                       setPartValues(newPartValues);
+                      setPartTitles(newPartTitles);
                       isUpdatingFromContentRef.current = false;
                       break;
                     }
@@ -163,6 +169,48 @@ function TemplateInstanceEditor({ filePath, content, config, onContentChange, on
           contentRef.current = newContent;
           onContentChange(newContent);
         }, 100);
+      }
+      
+      return newValues;
+    });
+  }, [onContentChange]);
+
+  const handlePartTitleChange = useCallback((partId: string, oldTitle: string, newTitle: string) => {
+    // 파트 제목 상태 업데이트 (입력 필드에 즉시 반영)
+    setPartTitles(prev => ({
+      ...prev,
+      [partId]: newTitle,
+    }));
+
+    // content에서 업데이트 중일 때는 data 업데이트만 무시
+    if (isUpdatingFromContentRef.current) {
+      return;
+    }
+
+    // 빈 제목이거나 변경사항이 없으면 data는 업데이트하지 않음
+    if (!newTitle.trim() || newTitle === oldTitle) {
+      return;
+    }
+
+    setPartValues(prev => {
+      const value = prev[oldTitle] || '';
+      const newValues = { ...prev };
+      
+      // 기존 키 삭제
+      delete newValues[oldTitle];
+      
+      // 새로운 키로 값 이동
+      newValues[newTitle] = value;
+      
+      // IME 입력 중이 아닐 때만 content 변경
+      if (instanceRef.current && !isComposingRef.current.get(oldTitle) && !isComposingRef.current.get(newTitle)) {
+        const updatedInstance: TemplateInstance = {
+          ...instanceRef.current,
+          data: newValues,
+        };
+        const newContent = JSON.stringify(updatedInstance, null, 2);
+        contentRef.current = newContent;
+        onContentChange(newContent);
       }
       
       return newValues;
@@ -372,16 +420,47 @@ function TemplateInstanceEditor({ filePath, content, config, onContentChange, on
         <div className="space-y-8">
           {sortedParts.length > 0 ? (
             sortedParts.map((part) => {
-              const value = partValues[part.title] || '';
+              // 인스턴스의 data 키를 찾기 (part.title과 일치하는 키 또는 첫 번째 매칭)
+              const instanceKey = Object.keys(partValues).find(key => key === part.title) || part.title;
+              const displayTitle = partTitles[part.id] || instanceKey;
+              const value = partValues[displayTitle] || partValues[instanceKey] || '';
               
               return (
                 <div key={part.id} className="space-y-2">
-                  <label className="block text-2xl font-semibold text-gray-900 dark:text-gray-100">
-                    {part.title}
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={displayTitle}
+                      onChange={(e) => {
+                        const newTitle = e.target.value;
+                        handlePartTitleChange(part.id, instanceKey, newTitle);
+                      }}
+                      onBlur={(e) => {
+                        // 포커스를 잃을 때 빈 제목이면 원래 제목으로 복원
+                        const newTitle = e.target.value.trim();
+                        if (!newTitle) {
+                          setPartTitles(prev => ({
+                            ...prev,
+                            [part.id]: instanceKey,
+                          }));
+                        } else if (newTitle !== instanceKey) {
+                          // 제목이 변경되었고 빈 값이 아니면 data 업데이트
+                          handlePartTitleChange(part.id, instanceKey, newTitle);
+                        }
+                      }}
+                      onKeyDown={(e) => {
+                        // 입력 필드 내부의 화살표 키는 정상 작동하도록 전파 차단
+                        if (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+                          e.stopPropagation();
+                        }
+                      }}
+                      className="text-2xl font-semibold text-gray-900 dark:text-gray-100 bg-transparent border-b-2 border-transparent hover:border-gray-300 dark:hover:border-gray-600 focus:border-blue-500 dark:focus:border-blue-400 focus:outline-none px-1 py-1"
+                      placeholder="파트 제목"
+                    />
                     {part.required && (
-                      <span className="ml-2 text-red-600 dark:text-red-400 text-lg">*</span>
+                      <span className="text-red-600 dark:text-red-400 text-lg">*</span>
                     )}
-                  </label>
+                  </div>
                   {renderInputField(part, value)}
                 </div>
               );

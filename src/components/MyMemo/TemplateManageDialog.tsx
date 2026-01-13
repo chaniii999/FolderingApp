@@ -57,7 +57,7 @@ function TemplateManageDialog({ onClose, onTemplateSelect, onTemplateInstanceCre
             }
           } catch (err) {
             // JSON 파싱 실패한 파일은 무시
-            console.warn(`Failed to parse template file: ${file.path}`, err);
+            // 템플릿 파일 파싱 실패 시 무시
           }
         }
 

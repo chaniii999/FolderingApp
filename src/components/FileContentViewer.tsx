@@ -124,7 +124,6 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
         setIsTemplate(templateFile);
         
         const templateInstanceFile = await isTemplateInstanceFile(filePath);
-        console.log('loadFile - templateInstanceFile:', templateInstanceFile, 'filePath:', filePath);
         setIsTemplateInstance(templateInstanceFile);
         isTemplateInstanceRef.current = templateInstanceFile;
 
@@ -160,7 +159,6 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
         setError(errorMessage);
         setContent('');
         setOriginalContent('');
-        console.error('Error loading file:', err);
       } finally {
         setLoading(false);
       }
@@ -501,14 +499,11 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
 
   const handleEditClick = useCallback(async () => {
     if (filePath && !loading && !error) {
-      console.log('handleEditClick - filePath:', filePath);
       // 템플릿 인스턴스 파일인지 확인
       const templateInstanceFile = await isTemplateInstanceFile(filePath);
-      console.log('handleEditClick - templateInstanceFile:', templateInstanceFile);
       setIsTemplateInstance(templateInstanceFile);
       isTemplateInstanceRef.current = templateInstanceFile;
       
-      console.log('handleEditClick - isTemplateInstance state:', templateInstanceFile, 'ref:', isTemplateInstanceRef.current);
       setIsEditing(true);
       
       // 편집 모드 진입 시 자동 저장 시작
@@ -671,7 +666,6 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
           contentToSave = JSON.stringify(updatedInstance, null, 2);
         } catch (parseErr) {
           // JSON 파싱 실패 시 원본 내용 그대로 저장
-          console.warn('Failed to parse template instance, saving as-is:', parseErr);
         }
       }
 
@@ -714,7 +708,7 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
             setShowRecoveryDialog(true);
           }
         } catch (recoveryErr) {
-          console.error('Error checking recovery:', recoveryErr);
+          // 복구 파일 확인 실패 시 무시
         }
       }
     }
@@ -802,7 +796,6 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
         return;
       }
     } catch (error) {
-      console.error('Error exporting to PDF:', error);
       const err = error as Error;
       const errorMessage = err.message || 'PDF 내보내기 중 오류가 발생했습니다.';
       toastService.error(errorMessage);
@@ -838,7 +831,7 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
           const content = await window.api.filesystem.readFile(filePath);
           fileContent = content || '';
         } catch (err) {
-          console.error('Error reading file for undo:', err);
+          // 되돌리기 파일 읽기 실패 시 무시
         }
       }
 
@@ -946,7 +939,6 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
           </div>
         ) : (() => {
           const shouldUseTemplateEditor = (isTemplateInstance || isTemplateInstanceRef.current) && isEditing;
-          console.log('Render check - isTemplateInstance:', isTemplateInstance, 'ref:', isTemplateInstanceRef.current, 'isEditing:', isEditing, 'shouldUseTemplateEditor:', shouldUseTemplateEditor, 'filePath:', filePath);
           return shouldUseTemplateEditor;
         })() ? (
           <TemplateInstanceEditor
@@ -1197,7 +1189,7 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
             try {
               await handleSave();
             } catch (err) {
-              console.error('Error saving after recovery:', err);
+              // 복구 후 저장 실패 시 무시
             }
           }}
           onDiscard={() => {
