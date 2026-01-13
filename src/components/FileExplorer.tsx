@@ -8,6 +8,7 @@ import { usePerformanceMeasure } from '../utils/usePerformanceMeasure';
 import { getFileName, joinPath } from '../utils/pathUtils';
 import { handleError } from '../utils/errorHandler';
 import ContextMenu from './ContextMenu';
+import FileTreeItem, { type TreeNode } from './FileExplorer/FileTreeItem';
 
 interface FileExplorerProps {
   currentPath: string;
@@ -31,11 +32,6 @@ export interface FileExplorerRef {
   getSelectedFolderPath: () => string | null;
 }
 
-interface TreeNode extends FileSystemItem {
-  children?: TreeNode[];
-  isExpanded?: boolean;
-  isLoading?: boolean;
-}
 
 const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
   ({ currentPath, onFileSelect, selectedFilePath, onFileDeleted, onNewFileClick, isDialogOpen = false, hideNonTextFiles = false, isEditing = false }, ref) => {
@@ -486,6 +482,28 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
     },
   }), [initializeTree, findNodeInTree, draggedFolderPath, cursorPath, refreshFolder]);
 
+  // 아이템 ref 콜백
+  const itemRefCallback = useCallback((el: HTMLDivElement | null, path: string): void => {
+    if (el) {
+      itemRefs.current.set(path, el);
+    } else {
+      itemRefs.current.delete(path);
+    }
+  }, []);
+
+  // 이름 변경 핸들러
+  const handleRenameChange = useCallback((name: string): void => {
+    setRenamingName(name);
+  }, []);
+
+  const handleRenameConfirmCallback = useCallback((): void => {
+    handleRenameConfirmRef.current?.();
+  }, []);
+
+  const handleRenameCancelCallback = useCallback((): void => {
+    handleRenameCancelRef.current?.();
+  }, []);
+
   // 트리 노드 렌더링 (재귀)
   const renderTreeNode = useCallback((node: TreeNode, depth: number = 0, flatIndex: { current: number } = { current: 0 }): JSX.Element | null => {
     const isExpanded = expandedPaths.has(node.path);
@@ -493,7 +511,7 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
     const isRenaming = renamingPath === node.path;
     flatIndex.current++;
 
-    const handleNodeClick = async () => {
+    const handleNodeClick = async (): Promise<void> => {
       if (renamingPath) return;
       setCursorPath(node.path);
       
@@ -504,19 +522,19 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
       }
     };
 
-    const handleContextMenu = (e: React.MouseEvent) => {
+    const handleContextMenu = (e: React.MouseEvent): void => {
       e.preventDefault();
       e.stopPropagation();
       setContextMenu({ x: e.clientX, y: e.clientY, item: node, path: node.path, isBlankSpace: false });
     };
 
-    const handleDragStart = (e: React.DragEvent) => {
+    const handleDragStart = (e: React.DragEvent): void => {
       e.stopPropagation();
       setDraggedItem({ path: node.path, isDirectory: node.isDirectory });
       e.dataTransfer.effectAllowed = 'move';
     };
 
-    const handleDragEnter = (e: React.DragEvent) => {
+    const handleDragEnter = (e: React.DragEvent): void => {
       if (node.isDirectory) {
         e.preventDefault();
         e.stopPropagation();
@@ -524,7 +542,7 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
       }
     };
 
-    const handleDragLeave = (e: React.DragEvent) => {
+    const handleDragLeave = (e: React.DragEvent): void => {
       if (node.isDirectory) {
         e.preventDefault();
         e.stopPropagation();
@@ -538,7 +556,7 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
       }
     };
 
-    const handleDrop = async (e: React.DragEvent) => {
+    const handleDrop = async (e: React.DragEvent): Promise<void> => {
       if (!node.isDirectory || !draggedItem) return;
       
       e.preventDefault();
@@ -601,125 +619,45 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
       }
     };
 
+    const handleDragOver = (e: React.DragEvent): void => {
+      if (draggedItem) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.dataTransfer.dropEffect = 'move';
+      }
+    };
+
+    const renderChildren = (children: TreeNode[], childDepth: number): React.ReactNode => {
+      return children.map(child => renderTreeNode(child, childDepth, flatIndex));
+    };
+
     return (
-      <div key={node.path}>
-        <div
-          ref={(el) => {
-            if (el) {
-              itemRefs.current.set(node.path, el);
-            } else {
-              itemRefs.current.delete(node.path);
-            }
-          }}
-          className={`flex items-center gap-2 py-1 cursor-pointer text-left ${
-            isSelected
-              ? 'bg-blue-500 text-white'
-              : 'hover:bg-gray-100 dark:hover:bg-gray-700'
-          }`}
-          style={{ 
-            paddingLeft: `${8 + depth * 16}px` 
-          }}
-          onClick={handleNodeClick}
-          onContextMenu={handleContextMenu}
-          draggable={!isRenaming}
-          onDragStart={!isRenaming ? handleDragStart : undefined}
-          onDragEnter={node.isDirectory ? handleDragEnter : undefined}
-          onDragLeave={node.isDirectory ? handleDragLeave : undefined}
-          onDrop={node.isDirectory ? handleDrop : undefined}
-          onDragOver={node.isDirectory ? (e: React.DragEvent) => {
-            if (draggedItem) {
-              e.preventDefault();
-              e.stopPropagation();
-              e.dataTransfer.dropEffect = 'move';
-            }
-          } : undefined}
-        >
-          <div className="w-4 flex items-center justify-center flex-shrink-0">
-            {isSelected && (
-              <span className="text-sm">▶</span>
-            )}
-          </div>
-          {node.isDirectory && (() => {
-            // 폴더가 비어있으면 화살표 표시하지 않음
-            // node.children이 명시적으로 빈 배열([])인 경우만 빈 폴더로 판단
-            // undefined인 경우는 아직 로드되지 않았을 수 있으므로 화살표 표시
-            const isEmpty = Array.isArray(node.children) && node.children.length === 0;
-            if (isEmpty) {
-              return <div className="w-4 flex-shrink-0" />;
-            }
-            return (
-              <div className="w-4 flex items-center justify-center flex-shrink-0">
-                {node.isLoading ? (
-                  <span className="text-xs">⏳</span>
-                ) : isExpanded ? (
-                  <span className="text-xs">▼</span>
-                ) : (
-                  <span className="text-xs">▶</span>
-                )}
-              </div>
-            );
-          })()}
-          {!node.isDirectory && <div className="w-4 flex-shrink-0" />}
-          <div className="flex items-center gap-2 min-w-0">
-            {(() => {
-              if (node.isDirectory) {
-                return <span className="text-sm flex-shrink-0">📁</span>;
-              }
-              
-              // 템플릿 인스턴스 파일인지 확인 (나만의 메모 경로이고 .json 파일)
-              const isTemplateInstance = isMyMemoPath && node.name.toLowerCase().endsWith('.json');
-              if (isTemplateInstance) {
-                return <span className="text-sm flex-shrink-0">✨</span>;
-              }
-              
-              // 마크다운 파일인지 확인
-              const isMarkdown = node.name.toLowerCase().endsWith('.md') || node.name.toLowerCase().endsWith('.markdown');
-              if (isMarkdown) {
-                return <span className="text-sm flex-shrink-0">📖</span>;
-              }
-              
-              // 일반 파일
-              return <span className="text-sm flex-shrink-0">📄</span>;
-            })()}
-            {isRenaming ? (
-              <input
-                ref={renamingPath === node.path ? renameInputRef : null}
-                type="text"
-                value={renamingName}
-                onChange={(e) => setRenamingName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handleRenameConfirmRef.current?.();
-                  } else if (e.key === 'Escape' || e.key === 'Esc') {
-                    e.preventDefault();
-                    handleRenameCancelRef.current?.();
-                  }
-                  e.stopPropagation();
-                }}
-                onBlur={() => handleRenameConfirmRef.current?.()}
-                className="flex-1 px-1 border border-blue-500 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm"
-                onClick={(e) => e.stopPropagation()}
-              />
-            ) : (() => {
-              // 템플릿 인스턴스 파일이면 확장자 제거
-              const isTemplateInstance = isMyMemoPath && !node.isDirectory && node.name.toLowerCase().endsWith('.json');
-              const displayName = isTemplateInstance 
-                ? node.name.replace(/\.json$/i, '')
-                : node.name;
-              
-              return <span className="truncate text-sm">{displayName}</span>;
-            })()}
-          </div>
-        </div>
-        {node.isDirectory && isExpanded && node.children && (
-          <div>
-            {node.children.map(child => renderTreeNode(child, depth + 1, flatIndex))}
-          </div>
-        )}
-      </div>
+      <FileTreeItem
+        key={node.path}
+        node={node}
+        depth={depth}
+        isExpanded={isExpanded}
+        isSelected={isSelected}
+        isRenaming={isRenaming}
+        renamingName={renamingName}
+        isMyMemoPath={isMyMemoPath}
+        draggedItem={draggedItem}
+        onNodeClick={handleNodeClick}
+        onContextMenu={handleContextMenu}
+        onDragStart={handleDragStart}
+        onDragEnter={handleDragEnter}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        onDragOver={handleDragOver}
+        onRenameChange={handleRenameChange}
+        onRenameConfirm={handleRenameConfirmCallback}
+        onRenameCancel={handleRenameCancelCallback}
+        itemRef={itemRefCallback}
+        renameInputRef={renameInputRef}
+        renderChildren={renderChildren}
+      />
     );
-  }, [expandedPaths, cursorPath, renamingPath, renamingName, toggleExpand, onFileSelect, draggedItem, initializeTree, loadChildren, updateTreeNode, findNodeInTree, isMyMemoPath, refreshFolder]);
+  }, [expandedPaths, cursorPath, renamingPath, renamingName, toggleExpand, onFileSelect, draggedItem, isMyMemoPath, refreshFolder, itemRefCallback, handleRenameChange, handleRenameConfirmCallback, handleRenameCancelCallback]);
 
   // 평면화된 노드 리스트 생성 (키보드 네비게이션용)
   const flattenTree = useCallback((nodes: TreeNode[], result: TreeNode[] = []): TreeNode[] => {
