@@ -693,6 +693,13 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
         await autoSaveService.clearAutoSave(filePath);
       }
       
+      // 저장 후 FileExplorer에 포커스 복원
+      if (onFocusExplorer) {
+        setTimeout(() => {
+          onFocusExplorer();
+        }, 0);
+      }
+      
       toastService.success('저장됨');
     } catch (err) {
       // handleError는 토스트를 표시하고 에러 메시지를 반환함

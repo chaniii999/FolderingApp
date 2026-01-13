@@ -57,6 +57,7 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
   const deleteDialogRef = useRef<HTMLDivElement>(null);
   const handleRenameConfirmRef = useRef<(() => Promise<void>) | null>(null);
   const handleRenameCancelRef = useRef<(() => void) | null>(null);
+  const isRenamingConfirmedRef = useRef<boolean>(false);
 
   // 루트 경로 가져오기 (SelectPath로 지정한 경로 또는 나만의 메모 경로)
   const getRootPath = useCallback(async (): Promise<string | null> => {
@@ -321,11 +322,20 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
 
   // 이름 변경 핸들러 (renderTreeNode보다 먼저 정의)
   const handleRenameConfirm = useCallback(async (): Promise<void> => {
+    // 중복 호출 방지
+    if (isRenamingConfirmedRef.current) {
+      return;
+    }
+    
     if (!renamingPath || !renamingName.trim()) {
       setRenamingPath(null);
       setRenamingName('');
+      isRenamingConfirmedRef.current = false;
       return;
     }
+
+    // 중복 호출 방지 플래그 설정
+    isRenamingConfirmedRef.current = true;
 
     try {
       if (!window.api?.filesystem) {
@@ -336,6 +346,7 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
       if (!node) {
         setRenamingPath(null);
         setRenamingName('');
+        isRenamingConfirmedRef.current = false;
         return;
       }
 
@@ -346,6 +357,7 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
       if (oldName === newName) {
         setRenamingPath(null);
         setRenamingName('');
+        isRenamingConfirmedRef.current = false;
         return;
       }
 
@@ -360,32 +372,79 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
         isDirectory: node.isDirectory,
       });
       
+      // 새 경로 계산
+      const newPath = node.path.replace(oldName, newName);
+      
+      // 부모 디렉토리 경로 계산 (커서를 부모 디렉토리로 이동하기 위해)
+      const separator = renamingPath.includes('\\') ? '\\' : '/';
+      const parentPath = renamingPath.substring(0, renamingPath.lastIndexOf(separator));
+      
       // 트리 업데이트
       setTreeData(prev => {
         const updated = updateTreeNode(prev, renamingPath, node => ({
           ...node,
           name: newName,
-          path: node.path.replace(oldName, newName),
+          path: newPath,
         }));
         treeDataRef.current = updated;
         return updated;
       });
       
-      // 이름 변경 후 선택 해제 및 포커스 복원
+      // input에서 포커스 제거 (먼저 처리)
+      if (renameInputRef.current) {
+        renameInputRef.current.blur();
+      }
+      
+      // 이름 변경 후 상태 정리
       setRenamingPath(null);
       setRenamingName('');
-      setCursorPath(null);
       
-      // FileExplorer에 포커스 복원
+      // 즉시 FileExplorer에 포커스 복원 시도
+      if (listRef.current) {
+        listRef.current.focus();
+      }
+      
+      // 트리 업데이트 후 커서 위치 설정 및 포커스 재확인
       setTimeout(() => {
-        if (listRef.current) {
-          listRef.current.focus();
+        const updatedTree = treeDataRef.current;
+        
+        // 커서를 부모 디렉토리로 이동
+        if (parentPath) {
+          const parentNode = findNodeInTree(updatedTree, parentPath);
+          if (parentNode && parentNode.isDirectory) {
+            setCursorPath(parentPath);
+          } else if (updatedTree.length > 0) {
+            // 부모 디렉토리를 찾을 수 없으면 루트의 첫 번째 항목으로
+            setCursorPath(updatedTree[0].path);
+          } else {
+            setCursorPath(null);
+          }
+        } else if (updatedTree.length > 0) {
+          // 루트 레벨이면 첫 번째 항목으로
+          setCursorPath(updatedTree[0].path);
+        } else {
+          setCursorPath(null);
         }
-      }, 0);
+        
+        // FileExplorer에 포커스 복원 재확인 (여러 번 시도)
+        const focusFileExplorer = (): void => {
+          if (listRef.current) {
+            listRef.current.focus();
+            if (document.activeElement !== listRef.current) {
+              setTimeout(focusFileExplorer, 50);
+            }
+          }
+        };
+        focusFileExplorer();
+        
+        // 중복 호출 방지 플래그 해제
+        isRenamingConfirmedRef.current = false;
+      }, 50);
     } catch (err) {
       handleError(err, '이름 변경 중 오류가 발생했습니다.');
       setRenamingPath(null);
       setRenamingName('');
+      isRenamingConfirmedRef.current = false;
     }
   }, [renamingPath, renamingName, findNodeInTree, updateTreeNode]);
 
@@ -399,6 +458,19 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
     handleRenameConfirmRef.current = handleRenameConfirm;
     handleRenameCancelRef.current = handleRenameCancel;
   }, [handleRenameConfirm, handleRenameCancel]);
+
+  // 편집 모드 종료 또는 이름 변경 종료 시 포커스 복원
+  useEffect(() => {
+    if (!isEditing && !renamingPath) {
+      // 편집 모드가 종료되고 이름 변경 중이 아닐 때 포커스 복원
+      const timer = setTimeout(() => {
+        if (listRef.current && document.activeElement !== listRef.current) {
+          listRef.current.focus();
+        }
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+  }, [isEditing, renamingPath]);
 
   // 특정 폴더만 새로고침 (확장 상태 유지)
   // 열린 폴더 상태를 기억하고 전체 새로고침 후 다시 열어줌

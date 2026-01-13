@@ -813,6 +813,12 @@ function App() {
     setSelectedFilePath(null);
     setNewlyCreatedFilePath(null);
     setFileViewerState({ isEditing: false, hasChanges: false });
+    // 파일 선택 해제 후 FileExplorer에 포커스 복원
+    setTimeout(() => {
+      if (fileExplorerRef.current) {
+        fileExplorerRef.current.focus();
+      }
+    }, 0);
   }, []);
 
   // 편집 모드 진입 핸들러

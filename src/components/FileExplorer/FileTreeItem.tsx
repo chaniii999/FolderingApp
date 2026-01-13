@@ -141,7 +141,19 @@ const FileTreeItem = memo<FileTreeItemProps>(({
                 }
                 e.stopPropagation();
               }}
-              onBlur={onRenameConfirm}
+              onBlur={() => {
+                // onBlur는 Enter 키로 이미 처리되었을 수 있으므로
+                // 약간의 지연을 두고 확인 (중복 호출 방지)
+                // 단, 포커스가 FileExplorer로 이동하는 경우는 제외
+                setTimeout(() => {
+                  // 포커스가 FileExplorer로 이동했는지 확인
+                  const activeElement = document.activeElement;
+                  if (activeElement && activeElement.getAttribute('data-file-explorer')) {
+                    return; // FileExplorer로 포커스가 이동했으면 확인하지 않음
+                  }
+                  onRenameConfirm();
+                }, 150);
+              }}
               className="flex-1 px-1 border border-blue-500 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm"
               onClick={(e) => e.stopPropagation()}
             />
