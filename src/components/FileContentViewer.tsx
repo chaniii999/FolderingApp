@@ -640,8 +640,46 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
     
     if (!filePath) return;
     
-    // 템플릿이 아닌 경우 hasChanges 체크
-    if (!isTemplate && !hasChanges) return;
+    // 템플릿이 아니고 템플릿 인스턴스도 아닌 경우, 변경사항이 없으면 저장하지 않고 편집 모드만 종료
+    const isInstance = isTemplateInstance || isTemplateInstanceRef.current;
+    if (!isTemplate && !isInstance && !hasChanges) {
+      setIsEditing(false);
+      setHasChanges(false);
+      
+      // 편집 모드 종료 시 자동 저장 중지
+      if (filePath) {
+        autoSaveService.stopAutoSave(filePath);
+      }
+      
+      // 편집 모드 종료 후 FileExplorer에 포커스 복원
+      if (onFocusExplorer) {
+        setTimeout(() => {
+          onFocusExplorer();
+        }, 0);
+      }
+      
+      return;
+    }
+    
+    // 템플릿 인스턴스인 경우 변경사항이 없어도 편집 모드만 종료 (updatedAt 갱신 없이)
+    if (isInstance && !hasChanges) {
+      setIsEditing(false);
+      setHasChanges(false);
+      
+      // 편집 모드 종료 시 자동 저장 중지
+      if (filePath) {
+        autoSaveService.stopAutoSave(filePath);
+      }
+      
+      // 편집 모드 종료 후 FileExplorer에 포커스 복원
+      if (onFocusExplorer) {
+        setTimeout(() => {
+          onFocusExplorer();
+        }, 0);
+      }
+      
+      return;
+    }
 
     try {
       if (!window.api?.filesystem) {
@@ -653,8 +691,8 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
       }
 
       // 템플릿 인스턴스 파일인 경우 updatedAt 갱신
-      const isInstance = await isTemplateInstanceFile(filePath);
-      if (isInstance) {
+      const isInstanceFile = await isTemplateInstanceFile(filePath);
+      if (isInstanceFile) {
         try {
           const parsed = JSON.parse(contentToSave) as TemplateInstance;
           const updatedInstance: TemplateInstance = {
@@ -678,7 +716,7 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
       // content state 업데이트
       if (newContent) {
         setContent(newContent);
-      } else if (isInstance) {
+      } else if (isInstanceFile) {
         // 템플릿 인스턴스인 경우 갱신된 내용으로 업데이트
         setContent(contentToSave);
       }
