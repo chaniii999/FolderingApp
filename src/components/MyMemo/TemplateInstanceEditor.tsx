@@ -404,7 +404,7 @@ function TemplateInstanceEditor({ filePath, content, config, onContentChange, on
         {/* 헤더: 파일명(좌측) + 날짜(우측) */}
         <div className="flex items-start justify-between mb-8 pb-4 border-b border-gray-300 dark:border-gray-600">
           <div className="flex flex-col gap-1">
-            <div className="text-lg font-semibold text-gray-500 dark:text-gray-400">
+            <div className="text-2xl font-semibold text-gray-500 dark:text-gray-400">
               {fileName.replace(/\.json$/i, '')}
             </div>
             {templateData?.name && (
