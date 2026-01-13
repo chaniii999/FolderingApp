@@ -84,16 +84,9 @@ function NewFileDialog({ currentPath, onClose, onCreated, onSelectTemplate, sele
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    console.log('[NewFileDialog] handleKeyDown called', {
-      key: e.key,
-      target: (e.target as HTMLElement)?.tagName,
-      currentTarget: (e.currentTarget as HTMLElement)?.tagName,
-    });
-    
     // input 필드에서 발생한 이벤트는 처리하지 않음 (input 필드에서 직접 처리)
     const target = e.target as HTMLElement;
     if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
-      console.log('[NewFileDialog] handleKeyDown: input field, returning');
       return;
     }
     
@@ -105,31 +98,26 @@ function NewFileDialog({ currentPath, onClose, onCreated, onSelectTemplate, sele
     
     // Enter로 확인 처리
     if (e.key === 'Enter' && !e.shiftKey) {
-      console.log('[NewFileDialog] handleKeyDown: Enter key detected');
       e.preventDefault();
       // 템플릿 타입이 선택된 경우
       if (selectedType.type === 'template') {
         // 템플릿이 이미 선택되어 있으면 생성
         if (selectedTemplateName) {
-          console.log('[NewFileDialog] handleKeyDown: calling handleCreate (template)');
           handleCreate();
           return;
         }
         // 템플릿이 선택되지 않았으면 템플릿 목록 팝업 표시
         if (onRequestTemplateList) {
-          console.log('[NewFileDialog] handleKeyDown: requesting template list');
           onRequestTemplateList();
         }
         return;
       }
-      console.log('[NewFileDialog] handleKeyDown: calling handleCreate');
       handleCreate();
       return;
     }
 
     // Esc로 취소 처리
     if (e.key === 'Escape' || e.key === 'Esc') {
-      console.log('[NewFileDialog] handleKeyDown: Escape key detected');
       e.preventDefault();
       onClose();
       return;
@@ -137,28 +125,16 @@ function NewFileDialog({ currentPath, onClose, onCreated, onSelectTemplate, sele
 
     // 위/아래 화살표로 파일 타입 선택
     if (e.key === 'ArrowUp') {
-      console.log('[NewFileDialog] handleKeyDown: ArrowUp detected');
       e.preventDefault();
-      setSelectedTypeIndex((prev) => {
-        const newIndex = prev > 0 ? prev - 1 : prev;
-        console.log('[NewFileDialog] handleKeyDown: ArrowUp - changing index from', prev, 'to', newIndex);
-        return newIndex;
-      });
+      setSelectedTypeIndex((prev) => (prev > 0 ? prev - 1 : prev));
       return;
     }
 
     if (e.key === 'ArrowDown') {
-      console.log('[NewFileDialog] handleKeyDown: ArrowDown detected');
       e.preventDefault();
-      setSelectedTypeIndex((prev) => {
-        const newIndex = prev < availableTypes.length - 1 ? prev + 1 : prev;
-        console.log('[NewFileDialog] handleKeyDown: ArrowDown - changing index from', prev, 'to', newIndex);
-        return newIndex;
-      });
+      setSelectedTypeIndex((prev) => (prev < availableTypes.length - 1 ? prev + 1 : prev));
       return;
     }
-    
-    console.log('[NewFileDialog] handleKeyDown: key not handled', e.key);
   };
 
   // 전역 핫키 차단
@@ -177,12 +153,6 @@ function NewFileDialog({ currentPath, onClose, onCreated, onSelectTemplate, sele
       if (dialogElement) {
         const isInput = target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA';
         
-        console.log('[NewFileDialog] capture phase handler: dialog element found', {
-          key: e.key,
-          target: target?.tagName,
-          isInput,
-        });
-        
         // input 필드의 이벤트는 React 이벤트가 정상 실행되도록 차단하지 않음
         // 다이얼로그의 다른 부분에서 발생한 이벤트만 다른 전역 핸들러 차단
         if (!isInput) {
@@ -190,20 +160,14 @@ function NewFileDialog({ currentPath, onClose, onCreated, onSelectTemplate, sele
           // preventDefault는 호출하지 않아서 React 이벤트는 정상 실행되도록 함
           // stopPropagation으로 다른 전역 핸들러만 차단
           e.stopPropagation();
-          console.log('[NewFileDialog] capture phase handler: stopPropagation called (not input)');
-        } else {
-          console.log('[NewFileDialog] capture phase handler: input field - allowing React event');
         }
       }
     };
 
     // capture phase에서 등록하여 다른 모든 핸들러보다 먼저 실행
-    // 가장 먼저 등록하여 최우선 실행
-    console.log('[NewFileDialog] useEffect: registering capture phase handler');
     window.addEventListener('keydown', handleGlobalKeyDownCapture, true);
 
     return () => {
-      console.log('[NewFileDialog] useEffect: removing capture phase handler');
       window.removeEventListener('keydown', handleGlobalKeyDownCapture, true);
     };
   }, []);
@@ -274,17 +238,10 @@ function NewFileDialog({ currentPath, onClose, onCreated, onSelectTemplate, sele
         }
       }}
       onKeyDown={(e) => {
-        console.log('[NewFileDialog] outer div onKeyDown called', {
-          key: e.key,
-          target: (e.target as HTMLElement)?.tagName,
-          showTemplateList,
-        });
-        
         // 다이얼로그 외부로 키 이벤트 전파 차단
         e.stopPropagation();
         // Enter와 화살표 키는 다이얼로그 내부에서 처리
         if (!showTemplateList && (e.key === 'Enter' || e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'Escape' || e.key === 'Esc')) {
-          console.log('[NewFileDialog] outer div onKeyDown: calling handleKeyDown');
           handleKeyDown(e);
         }
       }}
@@ -296,22 +253,15 @@ function NewFileDialog({ currentPath, onClose, onCreated, onSelectTemplate, sele
           handleDialogClick(e);
         }}
         onKeyDown={(e) => {
-          console.log('[NewFileDialog] inner div onKeyDown called', {
-            key: e.key,
-            target: (e.target as HTMLElement)?.tagName,
-          });
-          
           // input 필드에서 발생한 이벤트는 처리하지 않음 (input 필드에서 직접 처리)
           const target = e.target as HTMLElement;
           if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
-            console.log('[NewFileDialog] inner div onKeyDown: input field, returning');
             return;
           }
           
           e.stopPropagation();
           // Enter와 화살표 키는 다이얼로그 내부에서 처리
           if (e.key === 'Enter' || e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'Escape' || e.key === 'Esc') {
-            console.log('[NewFileDialog] inner div onKeyDown: calling handleKeyDown');
             handleKeyDown(e);
           }
         }}

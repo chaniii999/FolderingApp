@@ -90,7 +90,7 @@ function ExplorerPanel({
               }`}
               style={{
                 ...(isMyMemoModeActive && {
-                  textShadow: '1px 1px 2px rgba(0,0,0,0.5)',
+                textShadow: '1px 1px 2px rgba(0,0,0,0.5)',
                   boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.3), 0 2px 4px rgba(0,0,0,0.3), 0 0 8px rgba(251, 191, 36, 0.5)',
                 }),
               }}
@@ -99,13 +99,13 @@ function ExplorerPanel({
               <span className={`relative z-10 text-lg ${isMyMemoModeActive ? '' : 'opacity-70'}`}>📝</span>
               {isMyMemoModeActive && (
                 <>
-                  <span className="absolute -top-1 -right-1 w-2 h-2 bg-yellow-400 rounded-full animate-pulse" />
-                  <div 
-                    className="absolute inset-0 rounded opacity-0 hover:opacity-100 transition-opacity"
-                    style={{
-                      background: 'linear-gradient(to bottom, rgba(255,255,255,0.2), transparent)',
-                    }}
-                  />
+                <span className="absolute -top-1 -right-1 w-2 h-2 bg-yellow-400 rounded-full animate-pulse" />
+              <div 
+                className="absolute inset-0 rounded opacity-0 hover:opacity-100 transition-opacity"
+                style={{
+                  background: 'linear-gradient(to bottom, rgba(255,255,255,0.2), transparent)',
+                }}
+              />
                 </>
               )}
             </button>
