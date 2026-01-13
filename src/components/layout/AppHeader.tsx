@@ -3,7 +3,6 @@ import { BackIcon } from '../icons/BackIcon';
 import { ForwardIcon } from '../icons/ForwardIcon';
 import { getHotkeys } from '../../config/hotkeys';
 import type { FileContentViewerRef } from '../FileContentViewer';
-import { usePerformanceMeasure } from '../../utils/usePerformanceMeasure';
 
 interface AppHeaderProps {
   isExplorerVisible: boolean;
@@ -22,7 +21,6 @@ function AppHeader({
   fileViewerState,
   fileContentViewerRef,
 }: AppHeaderProps) {
-  usePerformanceMeasure('AppHeader');
 
   const handleEditClick = useCallback(() => {
     fileContentViewerRef.current?.handleEdit();

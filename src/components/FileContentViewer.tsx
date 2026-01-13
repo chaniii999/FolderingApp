@@ -4,7 +4,6 @@ import { isTextFile, isPdfFile, isTemplateFile, isTemplateInstanceFile } from '.
 import { undoService } from '../services/undoService';
 import { toastService } from '../services/toastService';
 import { autoSaveService } from '../services/autoSaveService';
-import { usePerformanceMeasure } from '../utils/usePerformanceMeasure';
 import { useScrollAcceleration } from '../hooks/useScrollAcceleration';
 import { getFileName } from '../utils/pathUtils';
 import { handleError, getErrorMessage } from '../utils/errorHandler';
@@ -48,7 +47,6 @@ interface FileContentViewerProps {
 }
 
 const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProps>(({ filePath, onSelectPreviousFile, onSelectNextFile, onDeselectFile, textEditorConfig, autoEdit = false, onEditModeEntered, onRenameRequest: _onRenameRequest, onEditModeChange, onEditStateChange, onFileDeleted, isDialogOpen = false, onFocusExplorer }, ref) => {
-  usePerformanceMeasure('FileContentViewer');
   const config = textEditorConfig || { horizontalPadding: 80, fontSize: 14 };
   const [content, setContent] = useState<string>('');
   const [originalContent, setOriginalContent] = useState<string>('');

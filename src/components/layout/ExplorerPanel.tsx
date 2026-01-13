@@ -1,7 +1,6 @@
 import React from 'react';
 import FileExplorer, { type FileExplorerRef } from '../FileExplorer';
 import Resizer from '../Resizer';
-import { usePerformanceMeasure } from '../../utils/usePerformanceMeasure';
 
 interface ExplorerPanelProps {
   fileExplorerRef: React.RefObject<FileExplorerRef>;
@@ -46,7 +45,6 @@ function ExplorerPanel({
   onResize,
   getCurrentFolderName,
 }: ExplorerPanelProps) {
-  usePerformanceMeasure('ExplorerPanel');
   return (
     <>
       <div

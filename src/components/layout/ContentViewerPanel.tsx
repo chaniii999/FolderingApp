@@ -3,7 +3,6 @@ import TabBar from '../TabBar';
 import FileContentViewer, { type FileContentViewerRef } from '../FileContentViewer';
 import type { Tab } from '../../types/tabs';
 import type { TextEditorConfig } from '../../services/textEditorConfigService';
-import { usePerformanceMeasure } from '../../utils/usePerformanceMeasure';
 
 interface ContentViewerPanelProps {
   tabs: Tab[];
@@ -44,7 +43,6 @@ function ContentViewerPanel({
   onFileDeleted,
   onFocusExplorer,
 }: ContentViewerPanelProps) {
-  usePerformanceMeasure('ContentViewerPanel');
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       {tabs.length > 0 && (

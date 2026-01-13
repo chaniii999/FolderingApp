@@ -77,7 +77,7 @@ function HelpPanel(_props: HelpPanelProps) {
               </div>
               <div className="flex items-center justify-between gap-2">
                 <span className="text-gray-700 dark:text-gray-300">이름 변경</span>
-                <kbd className="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs font-mono dark:text-gray-200">e</kbd>
+                <kbd className="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs font-mono dark:text-gray-200">e / F2</kbd>
               </div>
               <div className="flex items-center justify-between gap-2">
                 <span className="text-gray-700 dark:text-gray-300">삭제</span>
@@ -86,6 +86,15 @@ function HelpPanel(_props: HelpPanelProps) {
               <div className="flex items-center justify-between gap-2">
                 <span className="text-gray-700 dark:text-gray-300">되돌리기</span>
                 <kbd className="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs font-mono dark:text-gray-200">Ctrl+Z</kbd>
+              </div>
+            </div>
+          </div>
+          <div>
+            <h4 className="font-semibold mb-0.5 text-xs dark:text-gray-200">텍스트 편집</h4>
+            <div className="space-y-0.5 text-xs">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-gray-700 dark:text-gray-300">탭 문자 삽입</span>
+                <kbd className="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs font-mono dark:text-gray-200">Tab</kbd>
               </div>
             </div>
           </div>

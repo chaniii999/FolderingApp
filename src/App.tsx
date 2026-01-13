@@ -20,12 +20,9 @@ import { getFileName, getLastPathPart } from './utils/pathUtils';
 import { handleError } from './utils/errorHandler';
 import { useTabs } from './hooks/useTabs';
 import { useSettings } from './hooks/useSettings';
-import { usePerformanceMeasure } from './utils/usePerformanceMeasure';
-import { performanceMonitor } from './utils/performanceMonitor';
 import { isMyMemoMode } from './services/myMemoService';
 
 function App() {
-  usePerformanceMeasure('App');
   
   const [currentPath, setCurrentPath] = useState<string>('');
   const [selectedFilePath, setSelectedFilePath] = useState<string | null>(null);

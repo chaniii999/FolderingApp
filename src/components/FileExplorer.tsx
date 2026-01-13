@@ -4,7 +4,6 @@ import { isHotkey } from '../config/hotkeys';
 import { undoService } from '../services/undoService';
 import { isTextFile } from '../utils/fileUtils';
 import { toastService } from '../services/toastService';
-import { usePerformanceMeasure } from '../utils/usePerformanceMeasure';
 import { getFileName, joinPath } from '../utils/pathUtils';
 import { handleError } from '../utils/errorHandler';
 import ContextMenu from './ContextMenu';
@@ -35,7 +34,6 @@ export interface FileExplorerRef {
 
 const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
   ({ currentPath, onFileSelect, selectedFilePath, onFileDeleted, onNewFileClick, isDialogOpen = false, hideNonTextFiles = false, isEditing = false }, ref) => {
-  usePerformanceMeasure('FileExplorer');
   const [treeData, setTreeData] = useState<TreeNode[]>([]);
   const treeDataRef = useRef<TreeNode[]>([]);
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
