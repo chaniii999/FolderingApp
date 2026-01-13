@@ -41,6 +41,7 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
   ({ currentPath, onFileSelect, selectedFilePath, onFileDeleted, onNewFileClick, isDialogOpen = false, hideNonTextFiles = false, isEditing = false }, ref) => {
   usePerformanceMeasure('FileExplorer');
   const [treeData, setTreeData] = useState<TreeNode[]>([]);
+  const treeDataRef = useRef<TreeNode[]>([]);
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
   const [loadedPaths, setLoadedPaths] = useState<Set<string>>(new Set());
   const [cursorPath, setCursorPath] = useState<string | null>(null);
@@ -58,6 +59,8 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
   const itemRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const renameInputRef = useRef<HTMLInputElement>(null);
   const deleteDialogRef = useRef<HTMLDivElement>(null);
+  const handleRenameConfirmRef = useRef<(() => Promise<void>) | null>(null);
+  const handleRenameCancelRef = useRef<(() => void) | null>(null);
 
   // 루트 경로 가져오기 (SelectPath로 지정한 경로 또는 나만의 메모 경로)
   const getRootPath = useCallback(async (): Promise<string | null> => {
@@ -161,6 +164,7 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
       };
 
       const nodesWithChildren = await loadAllChildren(rootNodes);
+      treeDataRef.current = nodesWithChildren;
       setTreeData(nodesWithChildren);
       
       // 모든 폴더 경로를 loadedPaths에 추가
@@ -220,6 +224,7 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
         };
 
         const nodesWithChildren = await loadAllChildren(rootNodes);
+        treeDataRef.current = nodesWithChildren;
         setTreeData(nodesWithChildren);
         
         // 모든 폴더 경로를 loadedPaths에 추가
@@ -295,20 +300,85 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
       
       // 하위 항목이 아직 로드되지 않았으면 로드
       if (!loadedPaths.has(nodePath)) {
-        setTreeData(prev => updateTreeNode(prev, nodePath, node => ({ ...node, isLoading: true })));
+        setTreeData(prev => {
+          const updated = updateTreeNode(prev, nodePath, node => ({ ...node, isLoading: true }));
+          treeDataRef.current = updated;
+          return updated;
+        });
         
         const children = await loadChildren(nodePath);
         
-        setTreeData(prev => updateTreeNode(prev, nodePath, node => ({
-          ...node,
-          children,
-          isLoading: false,
-        })));
+        setTreeData(prev => {
+          const updated = updateTreeNode(prev, nodePath, node => ({
+            ...node,
+            children,
+            isLoading: false,
+          }));
+          treeDataRef.current = updated;
+          return updated;
+        });
         
         setLoadedPaths(prev => new Set(prev).add(nodePath));
       }
     }
   }, [expandedPaths, loadedPaths, loadChildren, updateTreeNode]);
+
+  // 이름 변경 핸들러 (renderTreeNode보다 먼저 정의)
+  const handleRenameConfirm = useCallback(async (): Promise<void> => {
+    if (!renamingPath || !renamingName.trim()) {
+      setRenamingPath(null);
+      setRenamingName('');
+      return;
+    }
+
+    try {
+      if (!window.api?.filesystem) {
+        throw new Error('API가 로드되지 않았습니다.');
+      }
+
+      const node = findNodeInTree(treeDataRef.current, renamingPath);
+      if (!node) return;
+
+      const oldName = node.name;
+      const oldPath = node.path;
+      await window.api.filesystem.renameFile(node.path, renamingName.trim());
+      
+      undoService.addAction({
+        type: 'rename',
+        path: node.path.replace(oldName, renamingName.trim()),
+        oldPath: oldPath,
+        newName: renamingName.trim(),
+        isDirectory: node.isDirectory,
+      });
+      
+      // 트리 업데이트
+      setTreeData(prev => {
+        const updated = updateTreeNode(prev, renamingPath, node => ({
+          ...node,
+          name: renamingName.trim(),
+          path: node.path.replace(oldName, renamingName.trim()),
+        }));
+        treeDataRef.current = updated;
+        return updated;
+      });
+      
+      setRenamingPath(null);
+      setRenamingName('');
+    } catch (err) {
+      handleError(err, '이름 변경 중 오류가 발생했습니다.');
+    }
+  }, [renamingPath, renamingName, findNodeInTree, updateTreeNode]);
+
+  const handleRenameCancel = useCallback((): void => {
+    setRenamingPath(null);
+    setRenamingName('');
+  }, []);
+
+  // ref 업데이트
+  useEffect(() => {
+    handleRenameConfirmRef.current = handleRenameConfirm;
+    handleRenameCancelRef.current = handleRenameCancel;
+  }, [handleRenameConfirm, handleRenameCancel]);
 
   // 특정 폴더만 새로고침 (확장 상태 유지)
   // 열린 폴더 상태를 기억하고 전체 새로고침 후 다시 열어줌
@@ -361,6 +431,7 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
       };
       
       const restoredNodes = restoreExpandedFolders(nodesWithChildren);
+      treeDataRef.current = restoredNodes;
       setTreeData(restoredNodes);
       
       // 모든 폴더 경로를 loadedPaths에 추가
@@ -399,7 +470,7 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
     },
     startRenameForPath: (filePath: string) => {
       setRenamingPath(filePath);
-      const node = findNodeInTree(treeData, filePath);
+      const node = findNodeInTree(treeDataRef.current, filePath);
       if (node) {
         setRenamingName(node.name);
       }
@@ -407,13 +478,13 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
     getDraggedFolderPath: () => draggedFolderPath,
     getSelectedFolderPath: () => {
       if (!cursorPath) return null;
-      const node = findNodeInTree(treeData, cursorPath);
+      const node = findNodeInTree(treeDataRef.current, cursorPath);
       if (node && node.isDirectory) {
         return node.path;
       }
       return null;
     },
-  }), [initializeTree, findNodeInTree, treeData, draggedFolderPath, cursorPath, refreshFolder]);
+  }), [initializeTree, findNodeInTree, draggedFolderPath, cursorPath, refreshFolder]);
 
   // 트리 노드 렌더링 (재귀)
   const renderTreeNode = useCallback((node: TreeNode, depth: number = 0, flatIndex: { current: number } = { current: 0 }): JSX.Element | null => {
@@ -619,14 +690,14 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     e.preventDefault();
-                    handleRenameConfirm();
+                    handleRenameConfirmRef.current?.();
                   } else if (e.key === 'Escape' || e.key === 'Esc') {
                     e.preventDefault();
-                    handleRenameCancel();
+                    handleRenameCancelRef.current?.();
                   }
                   e.stopPropagation();
                 }}
-                onBlur={handleRenameConfirm}
+                onBlur={() => handleRenameConfirmRef.current?.()}
                 className="flex-1 px-1 border border-blue-500 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm"
                 onClick={(e) => e.stopPropagation()}
               />
@@ -648,7 +719,7 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
         )}
       </div>
     );
-  }, [expandedPaths, cursorPath, renamingPath, renamingName, toggleExpand, onFileSelect, draggedItem, initializeTree, loadChildren, updateTreeNode, findNodeInTree, treeData]);
+  }, [expandedPaths, cursorPath, renamingPath, renamingName, toggleExpand, onFileSelect, draggedItem, initializeTree, loadChildren, updateTreeNode, findNodeInTree, isMyMemoPath, refreshFolder]);
 
   // 평면화된 노드 리스트 생성 (키보드 네비게이션용)
   const flattenTree = useCallback((nodes: TreeNode[], result: TreeNode[] = []): TreeNode[] => {
@@ -740,51 +811,6 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
     }
   };
 
-  const handleRenameConfirm = async () => {
-    if (!renamingPath || !renamingName.trim()) {
-      setRenamingPath(null);
-      setRenamingName('');
-      return;
-    }
-
-    try {
-      if (!window.api?.filesystem) {
-        throw new Error('API가 로드되지 않았습니다.');
-      }
-
-      const node = findNodeInTree(treeData, renamingPath);
-      if (!node) return;
-
-      const oldName = node.name;
-      const oldPath = node.path;
-      await window.api.filesystem.renameFile(node.path, renamingName.trim());
-      
-      undoService.addAction({
-        type: 'rename',
-        path: node.path.replace(oldName, renamingName.trim()),
-        oldPath: oldPath,
-        newName: renamingName.trim(),
-        isDirectory: node.isDirectory,
-      });
-      
-      // 트리 업데이트
-      setTreeData(prev => updateTreeNode(prev, renamingPath, node => ({
-        ...node,
-        name: renamingName.trim(),
-        path: node.path.replace(oldName, renamingName.trim()),
-      })));
-      
-      setRenamingPath(null);
-      setRenamingName('');
-    } catch (err) {
-      handleError(err, '이름 변경 중 오류가 발생했습니다.');
-    }
-  };
-
-  const handleRenameCancel = () => {
-    setRenamingPath(null);
-    setRenamingName('');
-  };
 
   const handleDeleteConfirm = async () => {
     if (!showDeleteDialog) return;
@@ -864,7 +890,11 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
         });
       };
       
-      setTreeData(prev => removeNode(prev, item.path));
+      setTreeData(prev => {
+        const updated = removeNode(prev, item.path);
+        treeDataRef.current = updated;
+        return updated;
+      });
       setExpandedPaths(prev => {
         const next = new Set(prev);
         next.delete(item.path);
