@@ -101,6 +101,11 @@ function NewFileDialog({ currentPath, onClose, onCreated, onSelectTemplate, sele
       e.preventDefault();
       // 템플릿 타입이 선택된 경우
       if (selectedType.type === 'template') {
+        // 이름이 입력되지 않았으면 경고 메시지 표시
+        if (!fileName.trim()) {
+          setError('이름을 먼저 입력해주세요.');
+          return;
+        }
         // 템플릿이 이미 선택되어 있으면 생성
         if (selectedTemplateName) {
           handleCreate();
@@ -290,6 +295,11 @@ function NewFileDialog({ currentPath, onClose, onCreated, onSelectTemplate, sele
                 const selectedType = availableTypes[selectedTypeIndex];
                 // 템플릿 타입이 선택된 경우
                 if (selectedType.type === 'template') {
+                  // 이름이 입력되지 않았으면 경고 메시지 표시
+                  if (!fileName.trim()) {
+                    setError('이름을 먼저 입력해주세요.');
+                    return;
+                  }
                   // 템플릿이 이미 선택되어 있으면 생성
                   if (selectedTemplateName) {
                     handleCreate();
@@ -344,8 +354,15 @@ function NewFileDialog({ currentPath, onClose, onCreated, onSelectTemplate, sele
                   onClick={() => {
                     setSelectedTypeIndex(index);
                     // 템플릿 타입을 클릭하면 템플릿 목록 팝업 표시
-                    if (isTemplate && !selectedTemplateName && onRequestTemplateList) {
-                      onRequestTemplateList();
+                    if (isTemplate && !selectedTemplateName) {
+                      // 이름이 입력되지 않았으면 경고 메시지 표시
+                      if (!fileName.trim()) {
+                        setError('이름을 먼저 입력해주세요.');
+                        return;
+                      }
+                      if (onRequestTemplateList) {
+                        onRequestTemplateList();
+                      }
                     }
                   }}
                 >

@@ -179,10 +179,10 @@ function TemplateManageDialog({ onClose, onTemplateSelect, onTemplateInstanceCre
   const handleKeyDown = (e: React.KeyboardEvent) => {
     // 모든 키 이벤트를 다이얼로그 내부에서만 처리하도록 전파 차단
     e.stopPropagation();
+    e.preventDefault(); // 기본 동작 방지
 
     // Esc 또는 x로 닫기 (새로 만들기 창으로 돌아가기)
     if (e.key === 'Escape' || e.key === 'Esc' || e.key === 'x' || e.key === 'X') {
-      e.preventDefault();
       if (onBackToNewFile) {
         onBackToNewFile();
       } else {
@@ -198,7 +198,6 @@ function TemplateManageDialog({ onClose, onTemplateSelect, onTemplateInstanceCre
 
     // 위/아래 화살표로 템플릿 선택
     if (e.key === 'ArrowUp') {
-      e.preventDefault();
       setSelectedTemplateIndex((prev) => {
         const newIndex = prev > 0 ? prev - 1 : prev;
         if (templates[newIndex]) {
@@ -210,7 +209,6 @@ function TemplateManageDialog({ onClose, onTemplateSelect, onTemplateInstanceCre
     }
 
     if (e.key === 'ArrowDown') {
-      e.preventDefault();
       setSelectedTemplateIndex((prev) => {
         const newIndex = prev < templates.length - 1 ? prev + 1 : prev;
         if (templates[newIndex]) {
@@ -222,10 +220,9 @@ function TemplateManageDialog({ onClose, onTemplateSelect, onTemplateInstanceCre
     }
 
     // Enter 또는 z로 템플릿 선택
-    if ((e.key === 'Enter' || e.key === 'z' || e.key === 'Z') && !e.shiftKey) {
-      e.preventDefault();
+    if ((e.key === 'Enter' || e.key === 'z' || e.key === 'Z') && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
       if (selectedTemplate) {
-        handleTemplateSelect(selectedTemplate);
+        void handleTemplateSelect(selectedTemplate);
       }
       return;
     }
@@ -233,9 +230,23 @@ function TemplateManageDialog({ onClose, onTemplateSelect, onTemplateInstanceCre
 
   // 전역 핫키 차단
   useBlockGlobalHotkeys({
-    dialogSelector: dialogRef,
+    dialogSelector: '[data-template-manage-dialog]',
     allowArrowKeysInInput: true,
   });
+
+  // 다이얼로그가 열릴 때 포커스 설정 (템플릿 목록이 로드된 후)
+  useEffect(() => {
+    if (!loading && !showEditDialog) {
+      setTimeout(() => {
+        // 템플릿 목록이 있으면 템플릿 목록에 포커스, 없으면 다이얼로그에 포커스
+        if (templates.length > 0 && templateListRef.current) {
+          templateListRef.current.focus();
+        } else if (dialogRef.current) {
+          dialogRef.current.focus();
+        }
+      }, 200); // 약간 더 긴 지연으로 렌더링 완료 보장
+    }
+  }, [loading, showEditDialog, templates.length]);
 
   return (
     <>
@@ -255,7 +266,9 @@ function TemplateManageDialog({ onClose, onTemplateSelect, onTemplateInstanceCre
           onKeyDown={handleKeyDown}
           tabIndex={0}
         >
-          <h3 className="text-lg font-semibold mb-4 dark:text-gray-200">템플릿 관리</h3>
+          <h3 className="text-lg font-semibold mb-4 dark:text-gray-200">
+            {isInstanceMode ? '템플릿 선택' : '템플릿 관리'}
+          </h3>
 
         {loading ? (
           <div className="flex items-center justify-center py-8 text-gray-500 dark:text-gray-400">
@@ -275,9 +288,15 @@ function TemplateManageDialog({ onClose, onTemplateSelect, onTemplateInstanceCre
               ) : (
                 <div 
                   ref={templateListRef}
-                  className="space-y-2"
-                  onKeyDown={handleKeyDown}
+                  className="space-y-2 outline-none focus:ring-2 focus:ring-blue-500"
+                  onKeyDown={(e) => {
+                    // 템플릿 목록에서 키 이벤트 처리
+                    e.stopPropagation();
+                    handleKeyDown(e);
+                  }}
                   tabIndex={0}
+                  role="listbox"
+                  aria-label="템플릿 목록"
                 >
                   {templates.map(({ path, template }, index) => (
                     <div
