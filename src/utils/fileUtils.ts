@@ -167,3 +167,56 @@ export async function isTemplateInstanceFile(filePath: string | null): Promise<b
   
   return false;
 }
+
+/**
+ * 템플릿 인스턴스의 템플릿 이름 가져오기
+ */
+export async function getTemplateNameFromInstance(filePath: string | null): Promise<string | null> {
+  if (!filePath || !window.api?.filesystem || !window.api?.mymemo) {
+    return null;
+  }
+
+  try {
+    // 템플릿 인스턴스 파일인지 확인
+    const isInstance = await isTemplateInstanceFile(filePath);
+    if (!isInstance) {
+      return null;
+    }
+
+    // 파일 내용 읽기
+    const content = await window.api.filesystem.readFile(filePath);
+    if (!content) {
+      return null;
+    }
+
+    const parsed = JSON.parse(content);
+    const templateId = parsed.templateId;
+    if (!templateId) {
+      return null;
+    }
+
+    // 템플릿 파일 찾기
+    const { getTemplatesPath } = await import('../services/myMemoService');
+    const templatesPath = await getTemplatesPath();
+    const items = await window.api.filesystem.listDirectory(templatesPath);
+    const jsonFiles = items.filter(item => !item.isDirectory && item.name.endsWith('.json'));
+
+    for (const file of jsonFiles) {
+      try {
+        const templateContent = await window.api.filesystem.readFile(file.path);
+        if (templateContent) {
+          const template = JSON.parse(templateContent);
+          if (template.id === templateId && template.name) {
+            return template.name;
+          }
+        }
+      } catch {
+        // 무시
+      }
+    }
+  } catch {
+    // 무시
+  }
+
+  return null;
+}

@@ -3,6 +3,7 @@ import type { Tab } from '../types/tabs';
 import type { FileContentViewerRef } from '../components/FileContentViewer';
 import { getFileName } from '../utils/pathUtils';
 import { handleError } from '../utils/errorHandler';
+import { isTemplateInstanceFile } from '../utils/fileUtils';
 
 /**
  * 탭 관리 커스텀 훅
@@ -34,8 +35,15 @@ export function useTabs(
   }, []);
 
   // 탭 추가 또는 전환
-  const addOrSwitchTab = useCallback((filePath: string) => {
-    const fileName = getFileName(filePath);
+  const addOrSwitchTab = useCallback(async (filePath: string) => {
+    let fileName = getFileName(filePath);
+    
+    // 템플릿 인스턴스인 경우 확장자 제거
+    const isInstance = await isTemplateInstanceFile(filePath);
+    if (isInstance && fileName.toLowerCase().endsWith('.json')) {
+      fileName = fileName.replace(/\.json$/i, '');
+    }
+    
     const tabId = filePath;
     
     setTabs(prevTabs => {

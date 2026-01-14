@@ -1,8 +1,9 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import { BackIcon } from '../icons/BackIcon';
 import { ForwardIcon } from '../icons/ForwardIcon';
 import { getHotkeys } from '../../config/hotkeys';
 import type { FileContentViewerRef } from '../FileContentViewer';
+import { isTemplateInstanceFile, getTemplateNameFromInstance } from '../../utils/fileUtils';
 
 interface AppHeaderProps {
   isExplorerVisible: boolean;
@@ -21,6 +22,41 @@ function AppHeader({
   fileViewerState,
   fileContentViewerRef,
 }: AppHeaderProps) {
+  const [isTemplateInstance, setIsTemplateInstance] = useState<boolean>(false);
+  const [templateName, setTemplateName] = useState<string | null>(null);
+  const [displayFileName, setDisplayFileName] = useState<string | null>(selectedFileName);
+
+  // 템플릿 인스턴스 확인 및 파일명 처리
+  useEffect(() => {
+    const checkTemplate = async (): Promise<void> => {
+      if (!selectedFilePath || !selectedFileName) {
+        setIsTemplateInstance(false);
+        setTemplateName(null);
+        setDisplayFileName(selectedFileName);
+        return;
+      }
+
+      const isInstance = await isTemplateInstanceFile(selectedFilePath);
+      setIsTemplateInstance(isInstance);
+
+      if (isInstance) {
+        // 확장자 제거
+        const nameWithoutExt = selectedFileName.toLowerCase().endsWith('.json')
+          ? selectedFileName.replace(/\.json$/i, '')
+          : selectedFileName;
+        setDisplayFileName(nameWithoutExt);
+
+        // 템플릿 이름 가져오기
+        const name = await getTemplateNameFromInstance(selectedFilePath);
+        setTemplateName(name);
+      } else {
+        setDisplayFileName(selectedFileName);
+        setTemplateName(null);
+      }
+    };
+
+    void checkTemplate();
+  }, [selectedFilePath, selectedFileName]);
 
   const handleEditClick = useCallback(() => {
     fileContentViewerRef.current?.handleEdit();
@@ -53,10 +89,17 @@ function AppHeader({
           {isExplorerVisible ? <BackIcon /> : <ForwardIcon />}
         </button>
         <div className="flex items-center gap-2 flex-1">
-          {selectedFileName && (
-            <span className="text-lg text-gray-700 dark:text-gray-300 font-semibold">
-              {selectedFileName}
-            </span>
+          {displayFileName && (
+            <div className="flex items-center gap-2">
+              <span className="text-lg text-gray-700 dark:text-gray-300 font-semibold">
+                {displayFileName}
+              </span>
+              {isTemplateInstance && templateName && (
+                <span className="text-sm text-gray-500 dark:text-gray-400">
+                  ({templateName})
+                </span>
+              )}
+            </div>
           )}
         </div>
         <div className="flex items-center gap-2">

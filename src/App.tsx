@@ -169,11 +169,11 @@ function App() {
           const guideFile = files.find(file => file.name === '가이드.md' && !file.isDirectory);
           if (guideFile) {
             // 약간의 지연 후 선택 및 탭 추가 (FileExplorer가 로드된 후)
-            setTimeout(() => {
+            setTimeout(async () => {
               // 최신 tabs 참조 사용
               const isAlreadyOpen = tabsRef.current.some(tab => tab.filePath === guideFile.path);
               if (!isAlreadyOpen) {
-                addOrSwitchTab(guideFile.path);
+                await addOrSwitchTab(guideFile.path);
               }
               hasInitializedGuideRef.current = true;
             }, 500);
@@ -250,10 +250,10 @@ function App() {
               if (fileExplorerRef.current) {
                 fileExplorerRef.current.refresh();
                 // 새로고침 후 파일 목록이 로드된 후 가이드.md 선택 및 탭 추가 (이미 열려있지 않은 경우만)
-                setTimeout(() => {
+                setTimeout(async () => {
                   const isAlreadyOpen = tabsRef.current.some(tab => tab.filePath === guidePath);
                   if (!isAlreadyOpen) {
-                    addOrSwitchTab(guidePath);
+                    await addOrSwitchTab(guidePath);
                   }
                 }, 300);
               }
@@ -494,7 +494,7 @@ function App() {
     // 파일 경로를 먼저 명시적으로 설정
     setSelectedFilePath(templatePath);
     // 탭 추가 또는 전환 (내부에서도 setSelectedFilePath 호출하지만 중복은 문제 없음)
-    addOrSwitchTab(templatePath);
+    await addOrSwitchTab(templatePath);
   }, [addOrSwitchTab]);
 
   // activeTabId 변경 시 selectedFilePath 동기화
@@ -812,8 +812,8 @@ function App() {
         
         // 파일인 경우에만 탭 추가
         if (!isDirectory) {
-          setTimeout(() => {
-            addOrSwitchTab(filePath);
+          setTimeout(async () => {
+            await addOrSwitchTab(filePath);
             setNewlyCreatedFilePath(filePath);
           }, 200); // 디렉토리 새로고침 후 파일 선택 및 탭 추가
         } else {
@@ -863,7 +863,7 @@ function App() {
     }
   }, [newFileDialogPath, handleNewFileCreated]);
 
-  const handleFileSelect = useCallback((filePath: string) => {
+  const handleFileSelect = useCallback(async (filePath: string) => {
     // 빈 문자열이 전달되면 선택 해제
     if (!filePath || filePath === '') {
       setSelectedFilePath(null);
@@ -871,7 +871,7 @@ function App() {
       return;
     }
     // 탭 추가 또는 전환
-    addOrSwitchTab(filePath);
+    await addOrSwitchTab(filePath);
     // 파일 선택 후에는 포커스를 이동시키지 않음 (뒤로가기 버튼을 누를 때만 포커스 이동)
   }, [addOrSwitchTab]);
 
@@ -899,7 +899,7 @@ function App() {
     if (currentIndex > 0) {
       const previousFilePath = files[currentIndex - 1];
       // 현재 탭의 파일만 변경 (탭 추가하지 않음)
-      switchCurrentTab(previousFilePath);
+      await switchCurrentTab(previousFilePath);
     }
   }, [getFileList, selectedFilePath, switchCurrentTab]);
 
@@ -911,7 +911,7 @@ function App() {
     if (currentIndex < files.length - 1) {
       const nextFilePath = files[currentIndex + 1];
       // 현재 탭의 파일만 변경 (탭 추가하지 않음)
-      switchCurrentTab(nextFilePath);
+      await switchCurrentTab(nextFilePath);
     }
   }, [getFileList, selectedFilePath, switchCurrentTab]);
 

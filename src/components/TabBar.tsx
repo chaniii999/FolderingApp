@@ -1,5 +1,6 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import type { Tab } from '../types/tabs';
+import { isTemplateInstanceFile } from '../utils/fileUtils';
 
 interface TabBarProps {
   tabs: Tab[];
@@ -9,6 +10,21 @@ interface TabBarProps {
 }
 
 function TabBar({ tabs, activeTabId, onTabClick, onTabClose }: TabBarProps) {
+  const [templateInstanceMap, setTemplateInstanceMap] = useState<Map<string, boolean>>(new Map());
+
+  // 템플릿 인스턴스 확인
+  useEffect(() => {
+    const checkTemplates = async (): Promise<void> => {
+      const map = new Map<string, boolean>();
+      for (const tab of tabs) {
+        const isInstance = await isTemplateInstanceFile(tab.filePath);
+        map.set(tab.id, isInstance);
+      }
+      setTemplateInstanceMap(map);
+    };
+    void checkTemplates();
+  }, [tabs]);
+
   const handleTabClick = useCallback((tabId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     onTabClick(tabId);
@@ -27,6 +43,11 @@ function TabBar({ tabs, activeTabId, onTabClick, onTabClose }: TabBarProps) {
     <div className="flex items-center gap-0.5 bg-gray-100 dark:bg-gray-900 border-b border-gray-300 dark:border-gray-700 overflow-x-auto">
       {tabs.map((tab) => {
         const isActive = tab.id === activeTabId;
+        const isTemplateInstance = templateInstanceMap.get(tab.id) || false;
+        const displayName = isTemplateInstance && tab.fileName.toLowerCase().endsWith('.json')
+          ? tab.fileName.replace(/\.json$/i, '')
+          : tab.fileName;
+        
         return (
           <div
             key={tab.id}
@@ -46,7 +67,7 @@ function TabBar({ tabs, activeTabId, onTabClick, onTabClose }: TabBarProps) {
                 : 'text-gray-600 dark:text-gray-400'
               }
             `} title={tab.fileName}>
-              {tab.fileName}
+              {displayName}
             </span>
             {tab.hasChanges && (
               <span className="w-1.5 h-1.5 rounded-full bg-blue-500 dark:bg-blue-400 flex-shrink-0" />
