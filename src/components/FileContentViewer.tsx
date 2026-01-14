@@ -41,7 +41,7 @@ interface FileContentViewerProps {
   onRenameRequest?: (filePath: string) => void;
   onEditModeChange?: (isEditing: boolean) => void;
   onEditStateChange?: (state: { isEditing: boolean; hasChanges: boolean }) => void;
-  onFileDeleted?: () => void;
+  onFileDeleted?: (filePath: string) => void;
   isDialogOpen?: boolean;
   onFocusExplorer?: () => void;
 }
@@ -906,9 +906,9 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
         onDeselectFile();
       }
 
-      // 디렉토리 새로고침
+      // 디렉토리 새로고침 및 탭 닫기
       if (onFileDeleted) {
-        onFileDeleted();
+        onFileDeleted(filePath);
       }
     } catch (err) {
       handleError(err, '삭제 중 오류가 발생했습니다.');

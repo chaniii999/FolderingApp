@@ -20,7 +20,7 @@ interface ContentViewerPanelProps {
   onEditStateChange: (state: { isEditing: boolean; hasChanges: boolean }) => void;
   onEditModeEntered: () => void;
   onRenameRequest: (filePath: string) => void;
-  onFileDeleted: () => void;
+  onFileDeleted: (filePath: string) => void;
   onFocusExplorer: () => void;
 }
 

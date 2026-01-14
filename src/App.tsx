@@ -977,12 +977,14 @@ function App() {
   }, [showNewFileDialog]);
 
   // 콘텐츠 뷰어에서 파일 삭제 핸들러
-  const handleContentViewerFileDeleted = useCallback(() => {
+  const handleContentViewerFileDeleted = useCallback((filePath: string) => {
+    // 삭제된 파일의 탭 닫기
+    closeTabByFilePath(filePath);
     setFileViewerState({ isEditing: false, hasChanges: false });
     if (fileExplorerRef.current) {
       fileExplorerRef.current.refresh();
     }
-  }, []);
+  }, [closeTabByFilePath, setFileViewerState]);
 
   // FileExplorer 포커스 핸들러
   const handleFocusExplorer = useCallback(() => {
