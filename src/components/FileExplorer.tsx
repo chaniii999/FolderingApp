@@ -619,7 +619,8 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
   // 트리 노드 렌더링 (재귀)
   const renderTreeNode = useCallback((node: TreeNode, depth: number = 0, flatIndex: { current: number } = { current: 0 }): JSX.Element | null => {
     const isExpanded = expandedPaths.has(node.path);
-    const isSelected = cursorPath === node.path;
+    const isSelected = selectedFilePath === node.path;
+    const isCursor = cursorPath === node.path && !isSelected;
     const isRenaming = renamingPath === node.path;
     flatIndex.current++;
 
@@ -757,6 +758,7 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
         depth={depth}
         isExpanded={isExpanded}
         isSelected={isSelected}
+        isCursor={isCursor}
         isRenaming={isRenaming}
         renamingName={renamingName}
         isMyMemoPath={isMyMemoPath}
@@ -777,7 +779,7 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
         renderChildren={renderChildren}
       />
     );
-  }, [expandedPaths, cursorPath, renamingPath, renamingName, toggleExpand, onFileSelect, draggedItem, isMyMemoPath, refreshFolder, itemRefCallback, handleRenameChange, handleRenameConfirmCallback, handleRenameCancelCallback]);
+  }, [expandedPaths, cursorPath, selectedFilePath, renamingPath, renamingName, toggleExpand, onFileSelect, draggedItem, isMyMemoPath, refreshFolder, itemRefCallback, handleRenameChange, handleRenameConfirmCallback, handleRenameCancelCallback, isEditing]);
 
   // 평면화된 노드 리스트 생성 (키보드 네비게이션용)
   const flattenTree = useCallback((nodes: TreeNode[], result: TreeNode[] = []): TreeNode[] => {

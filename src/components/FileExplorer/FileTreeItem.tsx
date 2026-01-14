@@ -15,6 +15,7 @@ interface FileTreeItemProps {
   depth: number;
   isExpanded: boolean;
   isSelected: boolean;
+  isCursor: boolean;
   isRenaming: boolean;
   renamingName: string;
   isMyMemoPath: boolean;
@@ -40,6 +41,7 @@ const FileTreeItem = memo<FileTreeItemProps>(({
   depth,
   isExpanded,
   isSelected,
+  isCursor,
   isRenaming,
   renamingName,
   isMyMemoPath,
@@ -59,17 +61,30 @@ const FileTreeItem = memo<FileTreeItemProps>(({
   renameInputRef,
   renderChildren,
 }) => {
+  // 배경색 결정 로직
+  let bgClassName = 'hover:bg-gray-100 dark:hover:bg-gray-700';
+  let textClassName = '';
+  
+  if (isSelected) {
+    // 파일 선택 시
+    if (isEditing) {
+      bgClassName = 'bg-green-500';
+      textClassName = 'text-white';
+    } else {
+      bgClassName = 'bg-blue-500';
+      textClassName = 'text-white';
+    }
+  } else if (isCursor) {
+    // 커서만 있을 때 (파일 선택 모드가 아닐 때)
+    bgClassName = 'bg-gray-200 dark:bg-gray-600';
+    textClassName = '';
+  }
+  
   return (
     <div>
       <div
         ref={(el) => itemRef(el, node.path)}
-        className={`flex items-center gap-2 py-1 cursor-pointer text-left ${
-          isSelected
-            ? isEditing
-              ? 'bg-green-500 text-white'
-              : 'bg-blue-500 text-white'
-            : 'hover:bg-gray-100 dark:hover:bg-gray-700'
-        }`}
+        className={`flex items-center gap-2 py-1 cursor-pointer text-left ${bgClassName} ${textClassName}`}
         style={{ 
           paddingLeft: `${8 + depth * 16}px` 
         }}
@@ -83,7 +98,7 @@ const FileTreeItem = memo<FileTreeItemProps>(({
         onDragOver={node.isDirectory ? onDragOver : undefined}
       >
         <div className="w-4 flex items-center justify-center flex-shrink-0">
-          {isSelected && (
+          {(isSelected || isCursor) && (
             <span className="text-sm">▶</span>
           )}
         </div>
