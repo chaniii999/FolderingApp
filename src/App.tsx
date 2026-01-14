@@ -46,6 +46,33 @@ function App() {
   const previousPathRef = useRef<string>(''); // 나만의 메모 모드 진입 전 경로 저장
   const hasInitializedGuideRef = useRef<boolean>(false);
   
+  // 모드별 상태 저장 (탭, 경로, 선택된 파일 모두 모드별로 저장)
+  interface ModeState {
+    tabs: Tab[];
+    activeTabId: string | null;
+    tabStates: Map<string, { isEditing: boolean; hasChanges: boolean }>;
+    currentPath: string;
+    selectedFilePath: string | null;
+  }
+  
+  const normalModeStateRef = useRef<ModeState>({
+    tabs: [],
+    activeTabId: null,
+    tabStates: new Map(),
+    currentPath: '',
+    selectedFilePath: null,
+  });
+  
+  const myMemoModeStateRef = useRef<ModeState>({
+    tabs: [],
+    activeTabId: null,
+    tabStates: new Map(),
+    currentPath: '',
+    selectedFilePath: null,
+  });
+  
+  const isModeSwitchingRef = useRef<boolean>(false);
+  
   // 탭 관리
   const {
     tabs,
@@ -60,6 +87,8 @@ function App() {
     handleDiscardAndClose,
     handleCancelClose,
     closeTabByFilePath,
+    getState,
+    setState,
   } = useTabs(
     setSelectedFilePath,
     setFileViewerState,
@@ -71,6 +100,36 @@ function App() {
   useEffect(() => {
     tabsRef.current = tabs;
   }, [tabs]);
+
+  // 모드별 상태 자동 저장 (탭, 경로, 선택된 파일 모두 저장)
+  useEffect(() => {
+    // 모드 전환 중에는 상태 저장하지 않음
+    if (isModeSwitchingRef.current) {
+      return;
+    }
+    
+    if (isMyMemoModeActive) {
+      // 나만의 메모 모드일 때 상태 저장
+      const currentTabState = getState();
+      myMemoModeStateRef.current = {
+        tabs: currentTabState.tabs,
+        activeTabId: currentTabState.activeTabId,
+        tabStates: currentTabState.tabStates,
+        currentPath: currentPath,
+        selectedFilePath: selectedFilePath,
+      };
+    } else {
+      // 일반 모드일 때 상태 저장
+      const currentTabState = getState();
+      normalModeStateRef.current = {
+        tabs: currentTabState.tabs,
+        activeTabId: currentTabState.activeTabId,
+        tabStates: currentTabState.tabStates,
+        currentPath: currentPath,
+        selectedFilePath: selectedFilePath,
+      };
+    }
+  }, [tabs, activeTabId, currentPath, selectedFilePath, isMyMemoModeActive, getState]);
   
   // 설정 관리
   const {
@@ -497,29 +556,93 @@ function App() {
         return;
       }
       
+      // 모드 전환 시작
+      isModeSwitchingRef.current = true;
+      
       // 현재 나만의 메모 모드인지 확인
       const isCurrentlyMyMemo = await isMyMemoMode(currentPath);
       
       if (isCurrentlyMyMemo) {
         // 나만의 메모 모드 → 일반 모드로 전환
-        const previousPath = previousPathRef.current || '';
-        if (previousPath) {
-          handlePathChange(previousPath);
+        // 현재 상태 저장 (나만의 메모 모드)
+        const currentTabState = getState();
+        myMemoModeStateRef.current = {
+          tabs: currentTabState.tabs,
+          activeTabId: currentTabState.activeTabId,
+          tabStates: currentTabState.tabStates,
+          currentPath: currentPath,
+          selectedFilePath: selectedFilePath,
+        };
+        
+        // 일반 모드 상태 복원
+        const normalState = normalModeStateRef.current;
+        setState({
+          tabs: normalState.tabs,
+          activeTabId: normalState.activeTabId,
+          tabStates: normalState.tabStates,
+        });
+        
+        if (normalState.currentPath) {
+          handlePathChange(normalState.currentPath);
         } else {
-          // 이전 경로가 없으면 홈 경로로
-          const homePath = await window.api.filesystem.getHomePath();
-          handlePathChange(homePath);
+          const previousPath = previousPathRef.current || '';
+          if (previousPath) {
+            handlePathChange(previousPath);
+          } else {
+            // 이전 경로가 없으면 홈 경로로
+            const homePath = await window.api.filesystem.getHomePath();
+            handlePathChange(homePath);
+          }
         }
+        
+        // 선택된 파일 복원 (경로 변경 후)
+        setTimeout(() => {
+          if (normalState.selectedFilePath) {
+            setSelectedFilePath(normalState.selectedFilePath);
+          } else {
+            setSelectedFilePath(null);
+          }
+          isModeSwitchingRef.current = false;
+        }, 150);
+        
         previousPathRef.current = '';
       } else {
         // 일반 모드 → 나만의 메모 모드로 전환
+        // 현재 상태 저장 (일반 모드)
+        const currentTabState = getState();
+        normalModeStateRef.current = {
+          tabs: currentTabState.tabs,
+          activeTabId: currentTabState.activeTabId,
+          tabStates: currentTabState.tabStates,
+          currentPath: currentPath,
+          selectedFilePath: selectedFilePath,
+        };
+        
         // 현재 경로를 저장
         if (currentPath) {
           previousPathRef.current = currentPath;
         }
         
+        // 나만의 메모 모드 상태 복원
+        const myMemoState = myMemoModeStateRef.current;
+        setState({
+          tabs: myMemoState.tabs,
+          activeTabId: myMemoState.activeTabId,
+          tabStates: myMemoState.tabStates,
+        });
+        
         const myMemoPath = await window.api.mymemo.getPath();
         handlePathChange(myMemoPath);
+        
+        // 선택된 파일 복원 (경로 변경 후)
+        setTimeout(() => {
+          if (myMemoState.selectedFilePath) {
+            setSelectedFilePath(myMemoState.selectedFilePath);
+          } else {
+            setSelectedFilePath(null);
+          }
+          isModeSwitchingRef.current = false;
+        }, 150);
       }
       
       // FileExplorer 새로고침 및 포커스 복원 (약간의 지연 후)
@@ -535,9 +658,10 @@ function App() {
         }
       }, 100);
     } catch (err) {
+      isModeSwitchingRef.current = false;
       toastService.error('나만의 Memo 전환에 실패했습니다.');
     }
-  }, [currentPath, handlePathChange]);
+  }, [currentPath, selectedFilePath, handlePathChange, getState, setState, setSelectedFilePath]);
 
   // 나만의 Memo 버튼 클릭 핸들러 (토글)
   const handleMyMemoClick = useCallback(async () => {

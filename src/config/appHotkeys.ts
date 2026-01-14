@@ -138,6 +138,30 @@ export function createAppHotkeys(deps: AppHotkeysDependencies): HotkeyConfig[] {
         }
       },
     },
+    // Ctrl+ArrowLeft: 이전 탭으로 전환 (순환)
+    {
+      key: 'ArrowLeft',
+      ctrl: true,
+      handler: () => {
+        if (tabs.length > 1) {
+          const currentIndex = tabs.findIndex(t => t.id === activeTabId);
+          const prevIndex = currentIndex > 0 ? currentIndex - 1 : tabs.length - 1;
+          handleTabClick(tabs[prevIndex]?.id);
+        }
+      },
+    },
+    // Ctrl+ArrowRight: 다음 탭으로 전환 (순환)
+    {
+      key: 'ArrowRight',
+      ctrl: true,
+      handler: () => {
+        if (tabs.length > 1) {
+          const currentIndex = tabs.findIndex(t => t.id === activeTabId);
+          const nextIndex = (currentIndex + 1) % tabs.length;
+          handleTabClick(tabs[nextIndex]?.id);
+        }
+      },
+    },
     // Ctrl++: 글씨 크기 증가
     {
       key: '+',

@@ -262,6 +262,39 @@ export function useTabs(
     addOrSwitchTab(filePath);
   }, [activeTabId, tabs, setSelectedFilePath, setFileViewerState, addOrSwitchTab]);
 
+  // 탭 상태 저장 (모드별 상태 저장용)
+  const getState = useCallback(() => {
+    return {
+      tabs,
+      activeTabId,
+      tabStates: new Map(tabStateRef.current),
+    };
+  }, [tabs, activeTabId]);
+
+  // 탭 상태 복원 (모드별 상태 복원용)
+  const setState = useCallback((state: { tabs: Tab[]; activeTabId: string | null; tabStates: Map<string, { isEditing: boolean; hasChanges: boolean }> }) => {
+    setTabs(state.tabs);
+    setActiveTabId(state.activeTabId);
+    tabStateRef.current = new Map(state.tabStates);
+    
+    // 활성 탭이 있으면 해당 파일 선택 및 상태 복원
+    if (state.activeTabId && state.tabs.length > 0) {
+      const activeTab = state.tabs.find(t => t.id === state.activeTabId);
+      if (activeTab) {
+        setSelectedFilePath(activeTab.filePath);
+        const savedState = state.tabStates.get(state.activeTabId);
+        if (savedState) {
+          setFileViewerState(savedState);
+        } else {
+          setFileViewerState({ isEditing: false, hasChanges: false });
+        }
+      }
+    } else {
+      setSelectedFilePath(null);
+      setFileViewerState({ isEditing: false, hasChanges: false });
+    }
+  }, [setSelectedFilePath, setFileViewerState]);
+
   return {
     tabs,
     activeTabId,
@@ -275,6 +308,8 @@ export function useTabs(
     handleDiscardAndClose,
     handleCancelClose,
     closeTabByFilePath,
+    getState,
+    setState,
   };
 }
 
