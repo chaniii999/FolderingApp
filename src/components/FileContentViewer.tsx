@@ -967,7 +967,7 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
   return (
     <div 
       ref={containerRef}
-      className="flex flex-col h-full relative"
+      className={`flex flex-col h-full relative ${isEditing ? 'border border-green-400 dark:border-green-500' : ''}`}
       onKeyDown={handleKeyDown}
       onKeyUp={handleKeyUp}
       tabIndex={isDialogOpen ? -1 : (isEditing || (filePath && !loading && !error) ? 0 : -1)}
@@ -1003,6 +1003,7 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
               setHasChanges(newContent !== originalContent);
             }}
             onSave={handleSave}
+            onCancel={handleCancel}
           />
         ) : isEditing ? (
           <textarea

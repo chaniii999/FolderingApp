@@ -8,13 +8,14 @@ interface TemplateInstanceEditorProps {
   config: { horizontalPadding: number; fontSize: number };
   onContentChange: (newContent: string) => void;
   onSave: () => Promise<void>;
+  onCancel?: () => void;
 }
 
 /**
  * 템플릿 인스턴스 전용 편집 컴포넌트
  * 템플릿 뷰어와 유사하지만 파트 값 부분을 입력폼으로 표시
  */
-function TemplateInstanceEditor({ filePath, content, config, onContentChange, onSave }: TemplateInstanceEditorProps) {
+function TemplateInstanceEditor({ filePath, content, config, onContentChange, onSave, onCancel }: TemplateInstanceEditorProps) {
   const [instance, setInstance] = useState<TemplateInstance | null>(null);
   const [templateData, setTemplateData] = useState<CustomTemplate | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -28,6 +29,7 @@ function TemplateInstanceEditor({ filePath, content, config, onContentChange, on
   const isUpdatingFromContentRef = useRef<boolean>(false);
   const updateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isInitialMountRef = useRef<boolean>(true);
+  const hasFocusedFirstInputRef = useRef<boolean>(false);
 
   // JSON 파싱 및 템플릿 인스턴스 로드
   useEffect(() => {
@@ -141,6 +143,63 @@ function TemplateInstanceEditor({ filePath, content, config, onContentChange, on
       }
     };
   }, []);
+
+  // 전역 키보드 이벤트 핸들러 (저장/취소)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent): void => {
+      // 입력 필드에 포커스가 있을 때는 저장/취소 키만 처리
+      const target = e.target as HTMLElement;
+      const isInputElement = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT';
+      
+      if (isInputElement) {
+        // Ctrl+S 또는 Cmd+S 저장
+        if ((e.key === 's' || e.key === 'S') && (e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey) {
+          e.preventDefault();
+          e.stopPropagation();
+          void onSave();
+          return;
+        }
+        
+        // Esc 취소
+        if (e.key === 'Escape' || e.key === 'Esc') {
+          e.preventDefault();
+          e.stopPropagation();
+          if (onCancel) {
+            onCancel();
+          }
+          return;
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown, true);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown, true);
+    };
+  }, [onSave, onCancel]);
+
+  // 첫 파트의 입력 필드에 포커스 설정
+  useEffect(() => {
+    if (templateData && !hasFocusedFirstInputRef.current) {
+      const parts = templateData.parts || [];
+      const sortedParts = [...parts].sort((a, b) => a.order - b.order);
+      
+      if (sortedParts.length > 0) {
+        const firstPart = sortedParts[0];
+        // inputRefs는 part.title을 키로 사용
+        const partTitle = firstPart.title;
+        
+        // 첫 번째 입력 필드에 포커스 설정
+        setTimeout(() => {
+          const firstInput = inputRefs.current.get(partTitle);
+          if (firstInput) {
+            firstInput.focus();
+            hasFocusedFirstInputRef.current = true;
+          }
+        }, 100);
+      }
+    }
+  }, [templateData]);
 
   // 파트 값 변경 핸들러
   const handlePartValueChange = useCallback((partTitle: string, value: string) => {

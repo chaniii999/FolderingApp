@@ -19,6 +19,7 @@ interface FileTreeItemProps {
   renamingName: string;
   isMyMemoPath: boolean;
   draggedItem: { path: string; isDirectory: boolean } | null;
+  isEditing?: boolean;
   onNodeClick: () => void;
   onContextMenu: (e: React.MouseEvent) => void;
   onDragStart: (e: React.DragEvent) => void;
@@ -43,6 +44,7 @@ const FileTreeItem = memo<FileTreeItemProps>(({
   renamingName,
   isMyMemoPath,
   draggedItem,
+  isEditing = false,
   onNodeClick,
   onContextMenu,
   onDragStart,
@@ -63,7 +65,9 @@ const FileTreeItem = memo<FileTreeItemProps>(({
         ref={(el) => itemRef(el, node.path)}
         className={`flex items-center gap-2 py-1 cursor-pointer text-left ${
           isSelected
-            ? 'bg-blue-500 text-white'
+            ? isEditing
+              ? 'bg-green-500 text-white'
+              : 'bg-blue-500 text-white'
             : 'hover:bg-gray-100 dark:hover:bg-gray-700'
         }`}
         style={{ 

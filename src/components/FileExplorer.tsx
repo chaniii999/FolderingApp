@@ -761,6 +761,7 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
         renamingName={renamingName}
         isMyMemoPath={isMyMemoPath}
         draggedItem={draggedItem}
+        isEditing={isEditing}
         onNodeClick={handleNodeClick}
         onContextMenu={handleContextMenu}
         onDragStart={handleDragStart}
