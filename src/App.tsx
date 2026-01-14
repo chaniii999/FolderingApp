@@ -490,7 +490,7 @@ function App() {
   }, []);
 
   // 템플릿 선택 핸들러 (템플릿 관리에서 편집 클릭 시)
-  const handleTemplateSelect = useCallback((templatePath: string) => {
+  const handleTemplateSelect = useCallback(async (templatePath: string) => {
     // 파일 경로를 먼저 명시적으로 설정
     setSelectedFilePath(templatePath);
     // 탭 추가 또는 전환 (내부에서도 setSelectedFilePath 호출하지만 중복은 문제 없음)
