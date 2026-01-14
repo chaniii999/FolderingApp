@@ -1088,14 +1088,31 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
     try {
       const sourcePath = clipboard.path;
       const sourceName = getFileName(sourcePath);
-      const destPath = joinPath(currentPath, sourceName);
+      
+      // 현재 커서 위치의 폴더 경로 결정
+      let targetFolderPath = currentPath;
+      if (cursorPath) {
+        const cursorNode = findNodeInTree(treeDataRef.current, cursorPath);
+        if (cursorNode) {
+          // 커서가 폴더에 있으면 그 폴더에 붙여넣기
+          if (cursorNode.isDirectory) {
+            targetFolderPath = cursorPath;
+          } else {
+            // 커서가 파일에 있으면 그 파일의 부모 폴더에 붙여넣기
+            const separator = cursorPath.includes('\\') ? '\\' : '/';
+            targetFolderPath = cursorPath.substring(0, cursorPath.lastIndexOf(separator));
+          }
+        }
+      }
+      
+      const destPath = joinPath(targetFolderPath, sourceName);
 
       if (sourcePath === destPath) {
         toastService.warning('같은 위치에는 붙여넣을 수 없습니다.');
         return;
       }
 
-      const items = await window.api.filesystem.listDirectory(currentPath);
+      const items = await window.api.filesystem.listDirectory(targetFolderPath);
       const exists = items.some(item => item.name === sourceName);
       
       if (exists) {
@@ -1122,11 +1139,11 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
       }
 
       // 현재 폴더와 원본 폴더만 새로고침 (확장 상태 유지)
-      await refreshFolder(currentPath);
+      await refreshFolder(targetFolderPath);
       if (clipboard.isCut) {
         const separator = sourcePath.includes('\\') ? '\\' : '/';
         const sourceParentPath = sourcePath.substring(0, sourcePath.lastIndexOf(separator));
-        if (sourceParentPath && sourceParentPath !== currentPath) {
+        if (sourceParentPath && sourceParentPath !== targetFolderPath) {
           await refreshFolder(sourceParentPath);
         }
       }
@@ -1142,7 +1159,7 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
     } catch (err) {
       handleError(err, '붙여넣기 중 오류가 발생했습니다.');
     }
-  }, [clipboard, currentPath, onFileSelect, selectedFilePath, refreshFolder]);
+  }, [clipboard, currentPath, cursorPath, onFileSelect, selectedFilePath, refreshFolder, findNodeInTree]);
 
   const handleContextMenuRename = useCallback((): void => {
     if (!contextMenu || !contextMenu.item || !contextMenu.path) return;
