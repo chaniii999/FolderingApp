@@ -293,30 +293,80 @@ function TemplateInstanceEditor({ filePath, content, config, onContentChange, on
     }
   };
 
-  // Tab 키로 탭 문자 삽입하는 핸들러
+  // Tab 키로 다음 입력 필드로 포커스 이동하는 핸들러
   const handleTabKey = useCallback((e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>, element: HTMLInputElement | HTMLTextAreaElement, partTitle: string) => {
     if (e.key === 'Tab' && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
       e.preventDefault();
       e.stopPropagation();
       
-      const start = element.selectionStart || 0;
-      const end = element.selectionEnd || 0;
-      const text = element.value;
-      const tabChar = '\t'; // 탭 문자 (4개 공백으로 표시됨)
+      if (!templateData) return;
       
-      // 선택된 텍스트가 있으면 탭 문자로 대체, 없으면 삽입
-      const newText = text.substring(0, start) + tabChar + text.substring(end);
-      const newCursorPos = start + 1; // 탭 문자는 1개 문자
+      const parts = templateData.parts || [];
+      const sortedParts = [...parts].sort((a, b) => a.order - b.order);
       
-      // 값 업데이트
-      handlePartValueChange(partTitle, newText);
+      // 현재 파트의 인덱스 찾기
+      const currentPartIndex = sortedParts.findIndex(part => part.title === partTitle);
       
-      // 커서 위치 설정 (다음 프레임에서 실행하여 상태 업데이트 후 적용)
-      setTimeout(() => {
-        element.setSelectionRange(newCursorPos, newCursorPos);
-      }, 0);
+      if (currentPartIndex === -1) return;
+      
+      // 다음 파트 찾기
+      const nextPartIndex = currentPartIndex + 1;
+      
+      if (nextPartIndex < sortedParts.length) {
+        // 다음 파트가 있으면 해당 파트의 입력 필드로 포커스 이동
+        const nextPart = sortedParts[nextPartIndex];
+        const nextPartTitle = nextPart.title;
+        
+        setTimeout(() => {
+          const nextInput = inputRefs.current.get(nextPartTitle);
+          if (nextInput) {
+            nextInput.focus();
+            // 텍스트 입력 필드인 경우 커서를 끝으로 이동
+            if (nextInput instanceof HTMLInputElement || nextInput instanceof HTMLTextAreaElement) {
+              const length = nextInput.value.length;
+              nextInput.setSelectionRange(length, length);
+            }
+          }
+        }, 0);
+      }
+      // 마지막 파트에서 Tab을 누르면 아무 동작도 하지 않음 (기본 동작 방지)
+    } else if (e.key === 'Tab' && e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
+      // Shift+Tab: 이전 입력 필드로 포커스 이동
+      e.preventDefault();
+      e.stopPropagation();
+      
+      if (!templateData) return;
+      
+      const parts = templateData.parts || [];
+      const sortedParts = [...parts].sort((a, b) => a.order - b.order);
+      
+      // 현재 파트의 인덱스 찾기
+      const currentPartIndex = sortedParts.findIndex(part => part.title === partTitle);
+      
+      if (currentPartIndex === -1) return;
+      
+      // 이전 파트 찾기
+      const prevPartIndex = currentPartIndex - 1;
+      
+      if (prevPartIndex >= 0) {
+        // 이전 파트가 있으면 해당 파트의 입력 필드로 포커스 이동
+        const prevPart = sortedParts[prevPartIndex];
+        const prevPartTitle = prevPart.title;
+        
+        setTimeout(() => {
+          const prevInput = inputRefs.current.get(prevPartTitle);
+          if (prevInput) {
+            prevInput.focus();
+            // 텍스트 입력 필드인 경우 커서를 끝으로 이동
+            if (prevInput instanceof HTMLInputElement || prevInput instanceof HTMLTextAreaElement) {
+              const length = prevInput.value.length;
+              prevInput.setSelectionRange(length, length);
+            }
+          }
+        }, 0);
+      }
     }
-  }, [handlePartValueChange]);
+  }, [templateData]);
 
   // 파트 타입에 따른 입력 필드 렌더링
   const renderInputField = (part: TemplatePart, value: string) => {
