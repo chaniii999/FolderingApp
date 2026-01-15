@@ -1,4 +1,4 @@
-import React from 'react';
+import { memo } from 'react';
 import TabBar from '../TabBar';
 import FileContentViewer, { type FileContentViewerRef } from '../FileContentViewer';
 import type { Tab } from '../../types/tabs';
@@ -13,7 +13,11 @@ interface ContentViewerPanelProps {
   textEditorConfig: TextEditorConfig;
   showNewFileDialog: boolean;
   onTabClick: (tabId: string) => void;
-  onTabClose: (tabId: string, e: React.MouseEvent) => void;
+  onTabClose: (tabId: string) => void;
+  onTabCloseOthers: (tabId: string) => void;
+  onTabCloseToRight: (tabId: string) => void;
+  onTabCloseSaved: () => void;
+  onTabCloseAll: () => void;
   onSelectPreviousFile: () => void;
   onSelectNextFile: () => void;
   onDeselectFile: () => void;
@@ -34,6 +38,10 @@ function ContentViewerPanel({
   showNewFileDialog,
   onTabClick,
   onTabClose,
+  onTabCloseOthers,
+  onTabCloseToRight,
+  onTabCloseSaved,
+  onTabCloseAll,
   onSelectPreviousFile,
   onSelectNextFile,
   onDeselectFile,
@@ -51,6 +59,10 @@ function ContentViewerPanel({
           activeTabId={activeTabId}
           onTabClick={onTabClick}
           onTabClose={onTabClose}
+          onTabCloseOthers={onTabCloseOthers}
+          onTabCloseToRight={onTabCloseToRight}
+          onTabCloseSaved={onTabCloseSaved}
+          onTabCloseAll={onTabCloseAll}
         />
       )}
       <div className="flex-1 overflow-hidden">
@@ -77,5 +89,5 @@ function ContentViewerPanel({
   );
 }
 
-export default React.memo(ContentViewerPanel);
+export default memo(ContentViewerPanel);
 

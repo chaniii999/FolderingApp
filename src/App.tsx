@@ -83,6 +83,10 @@ function App() {
     switchCurrentTab,
     handleTabClick,
     handleTabClose,
+    closeOtherTabs,
+    closeTabsToRight,
+    closeSavedTabs,
+    closeAllTabs,
     handleSaveAndClose,
     handleDiscardAndClose,
     handleCancelClose,
@@ -1086,6 +1090,10 @@ function App() {
           showNewFileDialog={showNewFileDialog}
           onTabClick={handleTabClick}
           onTabClose={handleTabClose}
+          onTabCloseOthers={closeOtherTabs}
+          onTabCloseToRight={closeTabsToRight}
+          onTabCloseSaved={closeSavedTabs}
+          onTabCloseAll={closeAllTabs}
           onSelectPreviousFile={handleSelectPreviousFile}
           onSelectNextFile={handleSelectNextFile}
           onDeselectFile={handleDeselectFile}

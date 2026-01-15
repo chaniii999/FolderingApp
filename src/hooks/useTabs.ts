@@ -148,10 +148,8 @@ export function useTabs(
     }
   }, [tabs, activeTabId, setSelectedFilePath, setFileViewerState]);
 
-  // 탭 닫기
-  const handleTabClose = useCallback((tabId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    
+  // 탭 닫기 요청 (이벤트 없이 호출 가능)
+  const handleTabClose = useCallback((tabId: string) => {
     const tab = tabs.find(t => t.id === tabId);
     if (!tab) return;
     
@@ -165,6 +163,75 @@ export function useTabs(
     // 변경사항이 없으면 바로 닫기
     closeTabInternal(tabId);
   }, [tabs, closeTabInternal]);
+
+  const isTabSafeToClose = useCallback((tabId: string): boolean => {
+    const tabState = tabStateRef.current.get(tabId);
+    return !tabState?.isEditing && !tabState?.hasChanges;
+  }, []);
+
+  const closeTabsByIds = useCallback((tabIds: string[]) => {
+    if (tabIds.length === 0) return;
+    
+    setTabs((prevTabs) => {
+      const remainingTabs = prevTabs.filter(tab => !tabIds.includes(tab.id));
+      tabIds.forEach((tabId) => tabStateRef.current.delete(tabId));
+      
+      if (remainingTabs.length === 0) {
+        setActiveTabId(null);
+        setSelectedFilePath(null);
+        setFileViewerState({ isEditing: false, hasChanges: false });
+        return remainingTabs;
+      }
+      
+      const activeTabStillExists = remainingTabs.find(tab => tab.id === activeTabId);
+      if (!activeTabStillExists) {
+        const newActiveTab = remainingTabs[0];
+        setActiveTabId(newActiveTab.id);
+        setSelectedFilePath(newActiveTab.filePath);
+        const savedState = tabStateRef.current.get(newActiveTab.id);
+        if (savedState) {
+          setFileViewerState(savedState);
+        } else {
+          setFileViewerState({ isEditing: false, hasChanges: false });
+        }
+      }
+      
+      return remainingTabs;
+    });
+  }, [activeTabId, setSelectedFilePath, setFileViewerState]);
+
+  const closeOtherTabs = useCallback((tabId: string) => {
+    const tabIdsToClose = tabs
+      .filter(tab => tab.id !== tabId)
+      .filter(tab => isTabSafeToClose(tab.id))
+      .map(tab => tab.id);
+    closeTabsByIds(tabIdsToClose);
+  }, [tabs, isTabSafeToClose, closeTabsByIds]);
+
+  const closeTabsToRight = useCallback((tabId: string) => {
+    const targetIndex = tabs.findIndex(tab => tab.id === tabId);
+    if (targetIndex < 0) return;
+    
+    const tabIdsToClose = tabs
+      .slice(targetIndex + 1)
+      .filter(tab => isTabSafeToClose(tab.id))
+      .map(tab => tab.id);
+    closeTabsByIds(tabIdsToClose);
+  }, [tabs, isTabSafeToClose, closeTabsByIds]);
+
+  const closeSavedTabs = useCallback(() => {
+    const tabIdsToClose = tabs
+      .filter(tab => isTabSafeToClose(tab.id))
+      .map(tab => tab.id);
+    closeTabsByIds(tabIdsToClose);
+  }, [tabs, isTabSafeToClose, closeTabsByIds]);
+
+  const closeAllTabs = useCallback(() => {
+    const tabIdsToClose = tabs
+      .filter(tab => isTabSafeToClose(tab.id))
+      .map(tab => tab.id);
+    closeTabsByIds(tabIdsToClose);
+  }, [tabs, isTabSafeToClose, closeTabsByIds]);
 
   // 저장 확인 다이얼로그에서 저장 선택
   const handleSaveAndClose = useCallback(async () => {
@@ -312,6 +379,10 @@ export function useTabs(
     switchCurrentTab,
     handleTabClick,
     handleTabClose,
+    closeOtherTabs,
+    closeTabsToRight,
+    closeSavedTabs,
+    closeAllTabs,
     handleSaveAndClose,
     handleDiscardAndClose,
     handleCancelClose,
