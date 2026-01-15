@@ -313,16 +313,16 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
         return;
       }
 
-      // 왼쪽 화살표: 이전 파일 선택
-      if (e.key === 'ArrowLeft' && onSelectPreviousFile) {
+      // 왼쪽 화살표: 이전 파일 선택 (Ctrl/Meta 조합은 탭 이동용으로 허용)
+      if (e.key === 'ArrowLeft' && !e.ctrlKey && !e.metaKey && onSelectPreviousFile) {
         e.preventDefault();
         e.stopPropagation();
         onSelectPreviousFile();
         return;
       }
 
-      // 오른쪽 화살표: 다음 파일 선택
-      if (e.key === 'ArrowRight' && onSelectNextFile) {
+      // 오른쪽 화살표: 다음 파일 선택 (Ctrl/Meta 조합은 탭 이동용으로 허용)
+      if (e.key === 'ArrowRight' && !e.ctrlKey && !e.metaKey && onSelectNextFile) {
         e.preventDefault();
         e.stopPropagation();
         onSelectNextFile();
