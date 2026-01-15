@@ -133,11 +133,6 @@ function TemplateManageDialog({ onClose, onTemplateSelect, onTemplateInstanceCre
   const handleTemplateSave = async (templatePath: string): Promise<void> => {
     // 템플릿 목록 새로고침
     await loadTemplates();
-    
-    // 저장된 템플릿을 편집 모드로 열기 (선택사항)
-    if (onTemplateSelect) {
-      onTemplateSelect(templatePath);
-    }
   };
 
   const handleEditDialogClose = (): void => {

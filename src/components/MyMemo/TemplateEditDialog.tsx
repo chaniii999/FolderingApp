@@ -391,18 +391,20 @@ function TemplateEditDialog({ template, templatePath: initialTemplatePath, onClo
                           />
                         </div>
 
-                        <div className="flex items-center">
-                          <input
-                            type="checkbox"
-                            id={`required-${part.id}`}
-                            checked={part.required || false}
-                            onChange={(e) => handlePartChange(part.id, 'required', e.target.checked)}
-                            className="mr-2"
-                          />
-                          <label htmlFor={`required-${part.id}`} className="text-sm text-gray-700 dark:text-gray-300">
-                            필수 항목
-                          </label>
-                        </div>
+                        {template && (
+                          <div className="flex items-center">
+                            <input
+                              type="checkbox"
+                              id={`required-${part.id}`}
+                              checked={part.required || false}
+                              onChange={(e) => handlePartChange(part.id, 'required', e.target.checked)}
+                              className="mr-2"
+                            />
+                            <label htmlFor={`required-${part.id}`} className="text-sm text-gray-700 dark:text-gray-300">
+                              필수 항목
+                            </label>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}

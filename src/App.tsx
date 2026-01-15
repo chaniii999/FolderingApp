@@ -411,12 +411,23 @@ function App() {
   // 핫키가 작동하지 않아야 할 상황 체크
   const shouldBlockHotkey = useCallback(() => {
     return (
-      showNewFileDialog || 
-      showSearchDialog || 
+      showNewFileDialog ||
+      showSearchDialog ||
+      showTemplateManageDialog ||
+      showTemplateListInNewFile ||
+      showMyMemoToggleConfirmDialog ||
       fileViewerState.isEditing ||
       pendingTabClose !== null
     );
-  }, [showNewFileDialog, showSearchDialog, fileViewerState.isEditing, pendingTabClose]);
+  }, [
+    showNewFileDialog,
+    showSearchDialog,
+    showTemplateManageDialog,
+    showTemplateListInNewFile,
+    showMyMemoToggleConfirmDialog,
+    fileViewerState.isEditing,
+    pendingTabClose,
+  ]);
   
   // 입력 요소인지 확인 (textarea, input 등)
   const isInputElement = useCallback((target: EventTarget | null): boolean => {
