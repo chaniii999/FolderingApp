@@ -209,7 +209,10 @@ function TemplateViewer({ filePath, content, config }: TemplateViewerProps) {
           {/* 헤더: 파일명(좌측) + 날짜(우측) */}
           <div className="flex items-start justify-between mb-8 pb-4 border-b-2 border-gray-800 dark:border-gray-200">
             <div className="flex flex-col gap-1">
-              <div className="text-2xl font-semibold text-gray-500 dark:text-gray-400">
+              <div
+                className="text-2xl font-semibold text-gray-500 dark:text-gray-400"
+                style={{ textAlign: config.textAlign }}
+              >
                 {fileName.replace(/\.json$/i, '')}
               </div>
               {templateData?.name && (
@@ -237,7 +240,10 @@ function TemplateViewer({ filePath, content, config }: TemplateViewerProps) {
                 return (
                   <div key={part.id} className="space-y-4">
                     <div className="pb-3 border-b border-gray-200 dark:border-gray-700">
-                      <h2 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
+                      <h2
+                        className="text-2xl font-semibold text-gray-900 dark:text-gray-100"
+                        style={{ textAlign: config.textAlign }}
+                      >
                         {part.title}
                       </h2>
                     </div>
@@ -263,7 +269,10 @@ function TemplateViewer({ filePath, content, config }: TemplateViewerProps) {
               Object.entries(instance.data).map(([key, value]) => (
                 <div key={key} className="space-y-4">
                   <div className="pb-3 border-b border-gray-200 dark:border-gray-700">
-                    <h2 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
+                    <h2
+                      className="text-2xl font-semibold text-gray-900 dark:text-gray-100"
+                      style={{ textAlign: config.textAlign }}
+                    >
                       {key}
                     </h2>
                   </div>
@@ -401,7 +410,10 @@ function TemplateViewer({ filePath, content, config }: TemplateViewerProps) {
             <div className="space-y-8">
               {Object.entries(parsed.data).map(([key, value]) => (
                 <div key={key} className="space-y-2">
-                  <h2 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
+                  <h2
+                    className="text-2xl font-semibold text-gray-900 dark:text-gray-100"
+                    style={{ textAlign: config.textAlign }}
+                  >
                     {key}
                   </h2>
                   <div 
