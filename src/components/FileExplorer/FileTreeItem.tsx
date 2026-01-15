@@ -99,7 +99,7 @@ const FileTreeItem = memo<FileTreeItemProps>(({
       >
         <div className="w-4 flex items-center justify-center flex-shrink-0">
           {(isSelected || isCursor) && (
-            <span className="text-sm">▶</span>
+            <span className="text-sm">👉</span>
           )}
         </div>
         {node.isDirectory && (() => {
