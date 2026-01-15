@@ -15,12 +15,14 @@ let applicationMenu: Menu | null = null;
 interface TextEditorConfig {
   horizontalPadding: number;
   fontSize: number;
+  textAlign: 'left' | 'center' | 'right';
 }
 
 function loadTextEditorConfig(): TextEditorConfig {
   const defaultConfig: TextEditorConfig = {
     horizontalPadding: 80,
     fontSize: 14,
+    textAlign: 'left',
   };
 
   try {
@@ -33,6 +35,7 @@ function loadTextEditorConfig(): TextEditorConfig {
       return {
         horizontalPadding: config.horizontalPadding ?? defaultConfig.horizontalPadding,
         fontSize: config.fontSize ?? defaultConfig.fontSize,
+        textAlign: config.textAlign ?? defaultConfig.textAlign,
       };
     }
   } catch (error) {
@@ -75,6 +78,21 @@ function updateFontMenu() {
   const fontSizeMenuItem = applicationMenu?.getMenuItemById(`fontsize-${config.fontSize}`);
   if (fontSizeMenuItem) {
     fontSizeMenuItem.checked = true;
+  }
+  
+  // 텍스트 정렬 옵션 업데이트
+  const textAlignOptions: ('left' | 'center' | 'right')[] = ['left', 'center', 'right'];
+  // 먼저 모든 항목을 false로 설정
+  textAlignOptions.forEach((align) => {
+    const menuItem = applicationMenu?.getMenuItemById(`textalign-${align}`);
+    if (menuItem) {
+      menuItem.checked = false;
+    }
+  });
+  // 그 다음 올바른 항목만 true로 설정
+  const textAlignMenuItem = applicationMenu?.getMenuItemById(`textalign-${config.textAlign}`);
+  if (textAlignMenuItem) {
+    textAlignMenuItem.checked = true;
   }
 }
 

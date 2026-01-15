@@ -869,6 +869,10 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
     handleExportPdf,
   }), [isEditing, hasChanges, isExportingPdf, handleEditClick, handleSave, handleCancel, handleDeleteClick, handleExportPdf]);
 
+  const handleDeleteDialogCancel = useCallback((): void => {
+    setShowDeleteDialog(false);
+  }, []);
+
   const handleDeleteConfirm = async () => {
     if (!filePath) return;
 
@@ -919,8 +923,21 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
   useEffect(() => {
     if (showDeleteDialog && deleteDialogRef.current) {
       deleteDialogRef.current.focus();
+      return;
     }
-  }, [showDeleteDialog]);
+    
+    if (!showDeleteDialog) {
+      setTimeout(() => {
+        if (!isEditing && onFocusExplorer) {
+          onFocusExplorer();
+          return;
+        }
+        if (isEditing && textareaRef.current) {
+          textareaRef.current.focus();
+        }
+      }, 0);
+    }
+  }, [showDeleteDialog, isEditing, onFocusExplorer]);
 
   // 저장 다이얼로그가 열리기 전에 커서 위치 저장
   useEffect(() => {
@@ -1130,6 +1147,7 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
               paddingTop: '1rem',
               paddingBottom: '1rem',
               fontSize: `${config.fontSize}px`,
+              textAlign: config.textAlign,
             }}
           >
             {content}
@@ -1237,7 +1255,7 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
                 handleDeleteConfirm();
               } else if (e.key === 'Escape' || e.key === 'Esc') {
                 e.preventDefault();
-                setShowDeleteDialog(false);
+                handleDeleteDialogCancel();
               }
             }}
             tabIndex={0}
@@ -1248,7 +1266,7 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
             </p>
             <div className="flex gap-2 justify-end">
               <button
-                onClick={() => setShowDeleteDialog(false)}
+                onClick={handleDeleteDialogCancel}
                 className="px-4 py-2 rounded bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600"
               >
                 취소 (Esc)

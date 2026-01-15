@@ -19,6 +19,18 @@
   }
 }
 
+@layer base {
+  .markdown-viewer ol,
+  .markdown-viewer ul {
+    list-style-position: inside;
+    padding-left: 0;
+  }
+
+  .markdown-viewer li {
+    text-align: inherit;
+  }
+}
+
 /* 스크롤바 스타일 */
 @layer utilities {
   /* Webkit 브라우저 (Chrome, Edge, Safari) */

@@ -17,7 +17,7 @@ export function useSettings(
   selectedFilePath: string | null,
   setSelectedFilePath: (path: string | null) => void
 ) {
-  const [textEditorConfig, setTextEditorConfig] = useState<TextEditorConfig>({ horizontalPadding: 80, fontSize: 14 });
+  const [textEditorConfig, setTextEditorConfig] = useState<TextEditorConfig>({ horizontalPadding: 80, fontSize: 14, textAlign: 'left' });
   const [systemConfig, setSystemConfig] = useState<SystemConfig>({ hideNonTextFiles: false, theme: 'light', showHelp: false });
 
   // 초기 설정 로드

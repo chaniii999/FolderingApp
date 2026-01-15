@@ -9,7 +9,7 @@ import { getFileName } from '../../utils/pathUtils';
 interface TemplateViewerProps {
   filePath: string;
   content: string;
-  config: { horizontalPadding: number; fontSize: number };
+  config: { horizontalPadding: number; fontSize: number; textAlign: 'left' | 'center' | 'right' };
 }
 
 /**
@@ -242,7 +242,10 @@ function TemplateViewer({ filePath, content, config }: TemplateViewerProps) {
                       </h2>
                     </div>
                     {content.trim() ? (
-                      <div className="pl-4 prose prose-sm dark:prose-invert max-w-none text-gray-700 dark:text-gray-300">
+                      <div 
+                        className="markdown-viewer pl-4 prose prose-sm dark:prose-invert max-w-none text-gray-700 dark:text-gray-300"
+                        style={{ textAlign: config.textAlign }}
+                      >
                         <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
                           {content}
                         </ReactMarkdown>
@@ -264,7 +267,10 @@ function TemplateViewer({ filePath, content, config }: TemplateViewerProps) {
                       {key}
                     </h2>
                   </div>
-                  <div className="pl-4 prose prose-sm dark:prose-invert max-w-none text-gray-700 dark:text-gray-300">
+                  <div 
+                    className="markdown-viewer pl-4 prose prose-sm dark:prose-invert max-w-none text-gray-700 dark:text-gray-300"
+                    style={{ textAlign: config.textAlign }}
+                  >
                     <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
                       {String(value)}
                     </ReactMarkdown>
@@ -289,6 +295,7 @@ function TemplateViewer({ filePath, content, config }: TemplateViewerProps) {
           paddingTop: '1.5rem',
           paddingBottom: '1.5rem',
           fontSize: `${config.fontSize}px`,
+          textAlign: config.textAlign,
         }}
       >
         <div className="max-w-4xl mx-auto">
@@ -370,6 +377,7 @@ function TemplateViewer({ filePath, content, config }: TemplateViewerProps) {
           paddingTop: '1.5rem',
           paddingBottom: '1.5rem',
           fontSize: `${config.fontSize}px`,
+          textAlign: config.textAlign,
         }}
       >
         <div className="max-w-4xl mx-auto">
@@ -396,7 +404,10 @@ function TemplateViewer({ filePath, content, config }: TemplateViewerProps) {
                   <h2 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
                     {key}
                   </h2>
-                  <div className="prose prose-sm dark:prose-invert max-w-none text-gray-700 dark:text-gray-300">
+                  <div 
+                    className="markdown-viewer prose prose-sm dark:prose-invert max-w-none text-gray-700 dark:text-gray-300"
+                    style={{ textAlign: config.textAlign }}
+                  >
                     <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
                       {String(value)}
                     </ReactMarkdown>
@@ -423,6 +434,7 @@ function TemplateViewer({ filePath, content, config }: TemplateViewerProps) {
           paddingTop: '1rem',
           paddingBottom: '1rem',
           fontSize: `${config.fontSize}px`,
+          textAlign: config.textAlign,
         }}
       >
         {content}

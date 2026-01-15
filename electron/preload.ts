@@ -175,6 +175,17 @@ ipcRenderer.on('menu:changeFontSize', (_event, fontSize: number) => {
   }
 });
 
+ipcRenderer.on('menu:changeTextAlign', (_event, textAlign: 'left' | 'center' | 'right') => {
+  const customEvent = new CustomEvent('menu:changeTextAlign', { detail: textAlign });
+  if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    window.dispatchEvent(customEvent);
+  } else {
+    document.addEventListener('DOMContentLoaded', () => {
+      window.dispatchEvent(customEvent);
+    });
+  }
+});
+
 // 테마 변경 이벤트 리스너
 window.addEventListener('theme:change', ((event: CustomEvent<string>) => {
   ipcRenderer.send('theme:change', event.detail);

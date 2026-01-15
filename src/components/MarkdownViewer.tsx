@@ -15,13 +15,14 @@ interface MarkdownViewerProps {
 export default function MarkdownViewer({ content, config }: MarkdownViewerProps) {
   return (
     <div 
-      className="prose prose-sm dark:prose-invert max-w-none"
+      className="markdown-viewer prose prose-sm dark:prose-invert max-w-none"
       style={{
         paddingLeft: `${config.horizontalPadding}px`,
         paddingRight: `${config.horizontalPadding}px`,
         paddingTop: '1.5rem',
         paddingBottom: '1.5rem',
         fontSize: `${config.fontSize}px`,
+        textAlign: config.textAlign,
       }}
     >
       <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>

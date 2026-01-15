@@ -4,6 +4,7 @@ import type { MenuItemConstructorOptions } from 'electron';
 interface TextEditorConfig {
   horizontalPadding: number;
   fontSize: number;
+  textAlign: 'left' | 'center' | 'right';
 }
 
 interface CreateMenuTemplateOptions {
@@ -139,6 +140,48 @@ export function createMenuTemplate({
               },
             }));
           })(),
+        },
+        { type: 'separator' },
+        {
+          label: '텍스트 정렬',
+          submenu: [
+            {
+              label: '좌측 정렬',
+              type: 'radio' as const,
+              id: 'textalign-left',
+              checked: config.textAlign === 'left',
+              click: () => {
+                const window = BrowserWindow.getAllWindows()[0];
+                if (window && !window.isDestroyed()) {
+                  window.webContents.send('menu:changeTextAlign', 'left');
+                }
+              },
+            },
+            {
+              label: '가운데 정렬',
+              type: 'radio' as const,
+              id: 'textalign-center',
+              checked: config.textAlign === 'center',
+              click: () => {
+                const window = BrowserWindow.getAllWindows()[0];
+                if (window && !window.isDestroyed()) {
+                  window.webContents.send('menu:changeTextAlign', 'center');
+                }
+              },
+            },
+            {
+              label: '우측 정렬',
+              type: 'radio' as const,
+              id: 'textalign-right',
+              checked: config.textAlign === 'right',
+              click: () => {
+                const window = BrowserWindow.getAllWindows()[0];
+                if (window && !window.isDestroyed()) {
+                  window.webContents.send('menu:changeTextAlign', 'right');
+                }
+              },
+            },
+          ],
         },
       ],
     },

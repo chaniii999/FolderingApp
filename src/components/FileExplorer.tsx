@@ -895,6 +895,10 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
   };
 
 
+  const handleDeleteDialogCancel = useCallback((): void => {
+    setShowDeleteDialog(null);
+  }, []);
+
   const handleDeleteConfirm = async () => {
     if (!showDeleteDialog) return;
 
@@ -1029,6 +1033,15 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
   useEffect(() => {
     if (showDeleteDialog && deleteDialogRef.current) {
       deleteDialogRef.current.focus();
+      return;
+    }
+    
+    if (!showDeleteDialog) {
+      setTimeout(() => {
+        if (listRef.current) {
+          listRef.current.focus();
+        }
+      }, 0);
     }
   }, [showDeleteDialog]);
 
@@ -1412,7 +1425,7 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
                 handleDeleteConfirm();
               } else if (e.key === 'Escape' || e.key === 'Esc') {
                 e.preventDefault();
-                setShowDeleteDialog(null);
+                handleDeleteDialogCancel();
               }
             }}
             tabIndex={0}
@@ -1423,7 +1436,7 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
             </p>
             <div className="flex gap-2 justify-end">
               <button
-                onClick={() => setShowDeleteDialog(null)}
+                onClick={handleDeleteDialogCancel}
                 className="px-4 py-2 rounded bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600"
               >
                 취소 (Esc)

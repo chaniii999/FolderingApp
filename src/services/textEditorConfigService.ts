@@ -3,11 +3,13 @@ import { getPathSeparator } from '../utils/pathUtils';
 export interface TextEditorConfig {
   horizontalPadding: number;
   fontSize: number;
+  textAlign: 'left' | 'center' | 'right';
 }
 
 const defaultConfig: TextEditorConfig = {
   horizontalPadding: 80,
   fontSize: 14,
+  textAlign: 'left',
 };
 
 let cachedConfig: TextEditorConfig | null = null;
@@ -42,6 +44,7 @@ export async function loadTextEditorConfig(): Promise<TextEditorConfig> {
         cachedConfig = {
           horizontalPadding: config.horizontalPadding ?? defaultConfig.horizontalPadding,
           fontSize: config.fontSize ?? defaultConfig.fontSize,
+          textAlign: config.textAlign ?? defaultConfig.textAlign,
         };
         return cachedConfig;
       }

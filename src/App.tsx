@@ -378,6 +378,11 @@ function App() {
       await handleConfigChangeRef.current({ fontSize: customEvent.detail });
     };
     
+    const handleMenuChangeTextAlign = async (e: Event) => {
+      const customEvent = e as CustomEvent<'left' | 'center' | 'right'>;
+      await handleConfigChangeRef.current({ textAlign: customEvent.detail });
+    };
+    
     window.addEventListener('menu:toggleHideNonTextFiles', handleMenuToggleHideNonTextFiles);
     window.addEventListener('menu:toggleShowHelp', handleMenuToggleShowHelp);
     window.addEventListener('menu:changeTheme', handleMenuChangeTheme);
@@ -385,6 +390,7 @@ function App() {
     window.addEventListener('menu:openFolder', handleMenuOpenFolder);
     window.addEventListener('menu:changeHorizontalPadding', handleMenuChangeHorizontalPadding);
     window.addEventListener('menu:changeFontSize', handleMenuChangeFontSize);
+    window.addEventListener('menu:changeTextAlign', handleMenuChangeTextAlign);
     
     return () => {
       window.removeEventListener('menu:toggleHideNonTextFiles', handleMenuToggleHideNonTextFiles);
@@ -394,6 +400,7 @@ function App() {
       window.removeEventListener('menu:openFolder', handleMenuOpenFolder);
       window.removeEventListener('menu:changeHorizontalPadding', handleMenuChangeHorizontalPadding);
       window.removeEventListener('menu:changeFontSize', handleMenuChangeFontSize);
+      window.removeEventListener('menu:changeTextAlign', handleMenuChangeTextAlign);
     };
   }, []); // 빈 dependency 배열 - 한 번만 등록
 
@@ -547,6 +554,23 @@ function App() {
     
     void checkMyMemoMode();
   }, [currentPath]);
+
+  // 뷰어 모드일 때만 텍스트 정렬 메뉴 활성화
+  useEffect(() => {
+    const updateTextAlignMenu = async (): Promise<void> => {
+      if (!window.api?.menu) return;
+      
+      // 뷰어 모드일 때만 활성화 (편집 모드가 아니고 파일이 선택되어 있을 때)
+      const isViewerMode = !fileViewerState.isEditing && selectedFilePath !== null;
+      
+      const textAlignMenuIds = ['textalign-left', 'textalign-center', 'textalign-right'];
+      for (const menuId of textAlignMenuIds) {
+        await window.api.menu.setEnabled(menuId, isViewerMode);
+      }
+    };
+    
+    void updateTextAlignMenu();
+  }, [fileViewerState.isEditing, selectedFilePath]);
 
   // 나만의 Memo 모드 전환 실행 함수
   const executeMyMemoToggle = useCallback(async () => {
