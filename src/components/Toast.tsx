@@ -1,12 +1,18 @@
-import React, { useEffect, useRef } from 'react';
+import { type MouseEvent, memo, useCallback, useEffect, useRef } from 'react';
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info';
+
+export interface ToastAction {
+  label: string;
+  onClick: () => void;
+}
 
 export interface Toast {
   id: string;
   message: string;
   type: ToastType;
   duration?: number;
+  actions?: ToastAction[];
 }
 
 interface ToastProps {
@@ -62,6 +68,19 @@ function ToastComponent({ toast, onClose }: ToastProps) {
     }
   };
 
+  const handleActionButtonClick = useCallback((e: MouseEvent<HTMLButtonElement>): void => {
+    const actionIndexValue = e.currentTarget.dataset.actionIndex;
+    if (!actionIndexValue) {
+      return;
+    }
+    const actionIndex = Number(actionIndexValue);
+    const action = toast.actions?.[actionIndex];
+    if (action) {
+      action.onClick();
+    }
+    onClose(toast.id);
+  }, [toast.actions, toast.id, onClose]);
+
   return (
     <div
       className={`
@@ -73,9 +92,24 @@ function ToastComponent({ toast, onClose }: ToastProps) {
     >
       <span className="text-sm flex-shrink-0">{getIcon()}</span>
       <p className="flex-1 font-medium whitespace-nowrap">{toast.message}</p>
+      {toast.actions && toast.actions.length > 0 && (
+        <div className="flex items-center gap-1">
+          {toast.actions.map((action, index) => (
+            <button
+              key={`${toast.id}-action-${action.label}`}
+              data-action-index={index}
+              onClick={handleActionButtonClick}
+              className="px-2 py-1 text-[11px] rounded bg-white/20 hover:bg-white/30 text-white"
+              type="button"
+            >
+              {action.label}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
-export default React.memo(ToastComponent);
+export default memo(ToastComponent);
 

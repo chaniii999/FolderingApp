@@ -60,3 +60,18 @@ export function joinPath(basePath: string, relativePath: string): string {
   return `${normalizedBase}${normalizedRelative}`;
 }
 
+/**
+ * 파일 경로에서 디렉토리 경로를 반환합니다.
+ * 
+ * @param path 파일 경로
+ * @returns 디렉토리 경로 (경로가 없으면 빈 문자열)
+ */
+export function getDirectoryPath(path: string): string {
+  const separator = getPathSeparator(path);
+  const lastSeparatorIndex = path.lastIndexOf(separator);
+  if (lastSeparatorIndex <= 0) {
+    return '';
+  }
+  return path.slice(0, lastSeparatorIndex);
+}
+

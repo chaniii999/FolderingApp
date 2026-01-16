@@ -5,7 +5,8 @@ import { handleError } from '../utils/errorHandler';
 import { remark } from 'remark';
 import remarkGfm from 'remark-gfm';
 import remarkHtml from 'remark-html';
-import { getFileName } from '../utils/pathUtils';
+import remarkBreaks from 'remark-breaks';
+import { getDirectoryPath, getFileName } from '../utils/pathUtils';
 
 /**
  * PDF 내보내기 서비스
@@ -45,7 +46,38 @@ class PdfExportService {
         return false;
       }
 
-      toastService.success('PDF로 저장되었습니다.');
+      const handleOpenFolderClick = async (): Promise<void> => {
+        const folderPath = getDirectoryPath(filePath);
+        if (!folderPath || !window.api?.filesystem?.openFolder) {
+          toastService.error('폴더를 열 수 없습니다.');
+          return;
+        }
+        try {
+          await window.api.filesystem.openFolder(folderPath);
+        } catch (err) {
+          handleError(err, '폴더를 여는 중 오류가 발생했습니다.');
+        }
+      };
+
+      const handleOpenFileClick = async (): Promise<void> => {
+        if (!window.api?.filesystem?.openFile) {
+          toastService.error('파일을 열 수 없습니다.');
+          return;
+        }
+        try {
+          await window.api.filesystem.openFile(filePath);
+        } catch (err) {
+          handleError(err, '파일을 여는 중 오류가 발생했습니다.');
+        }
+      };
+
+      toastService.success('PDF로 저장되었습니다.', {
+        duration: 5000,
+        actions: [
+          { label: '폴더 열기', onClick: handleOpenFolderClick },
+          { label: '파일 열기', onClick: handleOpenFileClick },
+        ],
+      });
       return true;
     } catch (error) {
       const err = error as Error;
@@ -100,6 +132,32 @@ class PdfExportService {
       return html;
     } catch (error) {
       console.error('Error converting markdown to HTML:', error);
+      const err = error as Error;
+      throw new Error(`마크다운 변환 실패: ${err.message || '알 수 없는 오류'}`);
+    }
+  }
+
+  private async convertMarkdownToHtmlWithBreaks(markdownContent: string): Promise<string> {
+    try {
+      if (!markdownContent || markdownContent.trim().length === 0) {
+        return '';
+      }
+
+      const result = await remark()
+        .use(remarkGfm)
+        .use(remarkBreaks)
+        .use(remarkHtml)
+        .process(markdownContent);
+
+      const html = String(result);
+
+      if (!html || html.trim().length === 0) {
+        throw new Error('마크다운 변환 결과가 비어있습니다.');
+      }
+
+      return html;
+    } catch (error) {
+      console.error('Error converting markdown to HTML with breaks:', error);
       const err = error as Error;
       throw new Error(`마크다운 변환 실패: ${err.message || '알 수 없는 오류'}`);
     }
@@ -614,6 +672,7 @@ class PdfExportService {
     try {
       const parsed = JSON.parse(content) as TemplateInstance;
       const fileName = getFileName(filePath);
+      const displayFileName = fileName.replace(/\.json$/i, '');
       
       // 날짜 포맷팅
       const formatDate = (dateString: string): string => {
@@ -663,61 +722,68 @@ class PdfExportService {
       const parts = templateData?.parts || [];
       const sortedParts = [...parts].sort((a, b) => a.order - b.order);
 
-      // HTML 콘텐츠 생성
-      let bodyContent = '';
-      
-      // 헤더
-      bodyContent += `
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 1px solid #d1d5db;">
-          <div style="font-size: 0.75rem; color: #6b7280;">${this.escapeHtml(fileName)}</div>
-          <div style="font-size: 0.75rem; color: #6b7280; text-align: right;">`;
-      
-      if (parsed.updatedAt && parsed.updatedAt !== parsed.createdAt) {
-        bodyContent += `<div>수정: ${formatDate(parsed.updatedAt)}</div>`;
+      let sectionsHtml = '';
+
+      if (sortedParts.length > 0) {
+        for (const part of sortedParts) {
+          const partContent = String(parsed.data?.[part.title] ?? '');
+          const markdownHtml = partContent.trim()
+            ? await this.convertMarkdownToHtmlWithBreaks(partContent)
+            : '';
+
+          sectionsHtml += `
+            <section class="template-section">
+              <div class="template-section-header">
+                <div class="template-section-title">${this.escapeHtml(part.title)}</div>
+              </div>
+              ${partContent.trim()
+                ? `<div class="template-section-content markdown-content">${markdownHtml}</div>`
+                : `<div class="template-section-empty">(내용 없음)</div>`}
+            </section>`;
+        }
+      } else {
+        for (const [key, value] of Object.entries(parsed.data || {})) {
+          const valueText = String(value ?? '');
+          const markdownHtml = valueText.trim()
+            ? await this.convertMarkdownToHtmlWithBreaks(valueText)
+            : '';
+
+          sectionsHtml += `
+            <section class="template-section">
+              <div class="template-section-header">
+                <div class="template-section-title">${this.escapeHtml(key)}</div>
+              </div>
+              ${valueText.trim()
+                ? `<div class="template-section-content markdown-content">${markdownHtml}</div>`
+                : `<div class="template-section-empty">(내용 없음)</div>`}
+            </section>`;
+        }
       }
-      if (parsed.createdAt) {
-        bodyContent += `<div>작성: ${formatDate(parsed.createdAt)}</div>`;
-      }
-      
-      bodyContent += `
+
+      const headerDates = `
+        ${parsed.updatedAt && parsed.updatedAt !== parsed.createdAt ? `<div>수정: ${formatDate(parsed.updatedAt)}</div>` : ''}
+        ${parsed.createdAt ? `<div>작성: ${formatDate(parsed.createdAt)}</div>` : ''}
+      `;
+
+      const templateNameHtml = templateData?.name
+        ? `<div class="template-subtitle">${this.escapeHtml(templateData.name)}</div>`
+        : '';
+
+      const bodyContent = `
+        <div class="template-page">
+          <div class="template-header">
+            <div class="template-header-left">
+              <div class="template-title">${this.escapeHtml(displayFileName)}</div>
+              ${templateNameHtml}
+            </div>
+            <div class="template-header-right">
+              ${headerDates}
+            </div>
+          </div>
+          <div class="template-sections">
+            ${sectionsHtml}
           </div>
         </div>`;
-
-      // data 영역
-      bodyContent += '<div style="display: flex; flex-direction: column; gap: 2rem;">';
-      
-      if (sortedParts.length > 0) {
-        sortedParts.forEach((part) => {
-          const partContent = parsed.data[part.id] || '';
-          bodyContent += `
-            <div style="display: flex; flex-direction: column; gap: 0.5rem;">
-              <h2 style="font-size: 1.5rem; font-weight: 600; color: #111827; margin: 0;">${this.escapeHtml(part.title)}</h2>`;
-          
-          if (partContent.trim()) {
-            // 줄바꿈을 <br>로 변환하고 HTML 이스케이프
-            const escapedContent = this.escapeHtml(partContent).replace(/\n/g, '<br>');
-            bodyContent += `
-              <div style="font-size: 0.875rem; color: #374151; white-space: pre-wrap; word-wrap: break-word; line-height: 1.75;">${escapedContent}</div>`;
-          } else {
-            bodyContent += `
-              <div style="font-size: 0.875rem; color: #9ca3af; font-style: italic;">(내용 없음)</div>`;
-          }
-          
-          bodyContent += `
-            </div>`;
-        });
-      } else {
-        // 템플릿 정보가 없으면 data를 그대로 표시
-        Object.entries(parsed.data).forEach(([key, value]) => {
-          bodyContent += `
-            <div style="display: flex; flex-direction: column; gap: 0.5rem;">
-              <h2 style="font-size: 1.5rem; font-weight: 600; color: #111827; margin: 0;">${this.escapeHtml(key)}</h2>
-              <div style="font-size: 0.875rem; color: #374151; white-space: pre-wrap; word-wrap: break-word; line-height: 1.75;">${this.escapeHtml(String(value)).replace(/\n/g, '<br>')}</div>
-            </div>`;
-        });
-      }
-      
-      bodyContent += '</div>';
 
       const baseFontSize = config.fontSize || 14;
       const horizontalPadding = config.horizontalPadding || 80;
@@ -728,7 +794,7 @@ class PdfExportService {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${this.escapeHtml(fileName)}</title>
+  <title>${this.escapeHtml(displayFileName)}</title>
   <style>
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
@@ -736,18 +802,107 @@ class PdfExportService {
       line-height: 1.75;
       color: #111827;
       background-color: #ffffff;
-      padding: ${horizontalPadding}px;
       margin: 0;
-      max-width: 56rem;
-      margin-left: auto;
-      margin-right: auto;
     }
-    h2 {
+    .template-page {
+      padding: 24px ${horizontalPadding}px;
+      max-width: 56rem;
+      margin: 0 auto;
+    }
+    .template-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      padding-bottom: 16px;
+      border-bottom: 2px solid #1f2937;
+    }
+    .template-header-left {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .template-title {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: #6b7280;
+    }
+    .template-subtitle {
+      font-size: 0.75rem;
+      color: #9ca3af;
+    }
+    .template-header-right {
+      font-size: 0.75rem;
+      color: #6b7280;
+      text-align: right;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .template-sections {
+      display: flex;
+      flex-direction: column;
+      gap: 48px;
+      padding-top: 32px;
+    }
+    .template-section {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .template-section-header {
+      padding-bottom: 12px;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    .template-section-title {
       font-size: 1.5rem;
       font-weight: 600;
       color: #111827;
-      margin-top: 0;
-      margin-bottom: 0.5rem;
+    }
+    .template-section-content {
+      padding-left: 16px;
+      color: #374151;
+    }
+    .template-section-empty {
+      padding-left: 16px;
+      font-size: 0.875rem;
+      color: #9ca3af;
+      font-style: italic;
+    }
+    .markdown-content p {
+      margin: 0 0 8px 0;
+    }
+    .markdown-content ul,
+    .markdown-content ol {
+      margin: 0 0 8px 0;
+      padding-left: 20px;
+    }
+    .markdown-content li {
+      margin: 0 0 4px 0;
+    }
+    .markdown-content blockquote {
+      margin: 0 0 8px 0;
+      padding-left: 12px;
+      border-left: 3px solid #d1d5db;
+      color: #4b5563;
+    }
+    .markdown-content code {
+      font-family: 'Courier New', Courier, monospace;
+      background-color: #f3f4f6;
+      padding: 2px 4px;
+      border-radius: 4px;
+      font-size: 0.875em;
+    }
+    .markdown-content pre {
+      margin: 0 0 12px 0;
+      padding: 12px;
+      background-color: #f3f4f6;
+      border-radius: 6px;
+      overflow-wrap: break-word;
+      white-space: pre-wrap;
+    }
+    .markdown-content pre code {
+      padding: 0;
+      background-color: transparent;
     }
   </style>
 </head>

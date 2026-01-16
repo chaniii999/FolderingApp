@@ -154,6 +154,15 @@ export function fileSystemHandlers(ipcMain: IpcMain): void {
     }
   });
 
+  ipcMain.handle('filesystem:openFile', async (_event, filePath: string) => {
+    try {
+      await shell.openPath(filePath);
+    } catch (error) {
+      console.error('Error opening file:', error);
+      throw error;
+    }
+  });
+
   ipcMain.handle('filesystem:copyFile', async (_event, sourcePath: string, destPath: string) => {
     try {
       fileSystemService.copyFile(sourcePath, destPath);

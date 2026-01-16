@@ -1,6 +1,11 @@
-import { type Toast, type ToastType } from '../components/Toast';
+import { type Toast, type ToastAction, type ToastType } from '../components/Toast';
 
 type ToastListener = (toasts: Toast[]) => void;
+
+interface ToastOptions {
+  duration?: number;
+  actions?: ToastAction[];
+}
 
 class ToastService {
   private toasts: Toast[] = [];
@@ -22,13 +27,15 @@ class ToastService {
     return [...this.toasts];
   }
 
-  show(message: string, type: ToastType = 'info', duration?: number) {
+  show(message: string, type: ToastType = 'info', options?: number | ToastOptions) {
+    const normalizedOptions = typeof options === 'number' ? { duration: options } : options;
     const id = `toast-${this.nextId++}`;
     const toast: Toast = {
       id,
       message,
       type,
-      duration,
+      duration: normalizedOptions?.duration,
+      actions: normalizedOptions?.actions,
     };
 
     this.toasts.push(toast);
@@ -37,20 +44,24 @@ class ToastService {
     return id;
   }
 
-  success(message: string, duration?: number) {
-    return this.show(message, 'success', duration ?? 1000);
+  success(message: string, options?: number | ToastOptions) {
+    const normalizedOptions = typeof options === 'number' ? { duration: options } : options;
+    return this.show(message, 'success', { duration: normalizedOptions?.duration ?? 1000, actions: normalizedOptions?.actions });
   }
 
-  error(message: string, duration?: number) {
-    return this.show(message, 'error', duration ?? 1000);
+  error(message: string, options?: number | ToastOptions) {
+    const normalizedOptions = typeof options === 'number' ? { duration: options } : options;
+    return this.show(message, 'error', { duration: normalizedOptions?.duration ?? 1000, actions: normalizedOptions?.actions });
   }
 
-  warning(message: string, duration?: number) {
-    return this.show(message, 'warning', duration ?? 1000);
+  warning(message: string, options?: number | ToastOptions) {
+    const normalizedOptions = typeof options === 'number' ? { duration: options } : options;
+    return this.show(message, 'warning', { duration: normalizedOptions?.duration ?? 1000, actions: normalizedOptions?.actions });
   }
 
-  info(message: string, duration?: number) {
-    return this.show(message, 'info', duration ?? 1000);
+  info(message: string, options?: number | ToastOptions) {
+    const normalizedOptions = typeof options === 'number' ? { duration: options } : options;
+    return this.show(message, 'info', { duration: normalizedOptions?.duration ?? 1000, actions: normalizedOptions?.actions });
   }
 
   close(id: string) {
