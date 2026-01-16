@@ -11,7 +11,7 @@ interface ContentViewerPanelProps {
   newlyCreatedFilePath: string | null;
   fileContentViewerRef: React.RefObject<FileContentViewerRef>;
   textEditorConfig: TextEditorConfig;
-  showNewFileDialog: boolean;
+  isDialogOpen: boolean;
   onTabClick: (tabId: string) => void;
   onTabClose: (tabId: string) => void;
   onTabCloseOthers: (tabId: string) => void;
@@ -35,7 +35,7 @@ function ContentViewerPanel({
   newlyCreatedFilePath,
   fileContentViewerRef,
   textEditorConfig,
-  showNewFileDialog,
+  isDialogOpen,
   onTabClick,
   onTabClose,
   onTabCloseOthers,
@@ -81,7 +81,7 @@ function ContentViewerPanel({
           onEditStateChange={onEditStateChange}
           onRenameRequest={onRenameRequest}
           onFileDeleted={onFileDeleted}
-          isDialogOpen={showNewFileDialog}
+          isDialogOpen={isDialogOpen}
           onFocusExplorer={onFocusExplorer}
         />
       </div>

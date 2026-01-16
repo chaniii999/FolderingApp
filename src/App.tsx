@@ -1057,6 +1057,13 @@ function App() {
     toastService.close(id);
   }, []);
 
+  const isDialogOpen = showNewFileDialog ||
+    showSearchDialog ||
+    showTemplateManageDialog ||
+    showTemplateListInNewFile ||
+    showMyMemoToggleConfirmDialog ||
+    pendingTabClose !== null;
+
   return (
     <div className="flex flex-col h-screen w-screen">
       <AppHeader
@@ -1098,7 +1105,7 @@ function App() {
           newlyCreatedFilePath={newlyCreatedFilePath}
           fileContentViewerRef={fileContentViewerRef}
           textEditorConfig={textEditorConfig}
-          showNewFileDialog={showNewFileDialog}
+          isDialogOpen={isDialogOpen}
           onTabClick={handleTabClick}
           onTabClose={handleTabClose}
           onTabCloseOthers={closeOtherTabs}

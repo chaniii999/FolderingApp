@@ -290,7 +290,7 @@ const FileContentViewer = forwardRef<FileContentViewerRef, FileContentViewerProp
       const target = e.target as HTMLElement;
       if (target) {
         // data 속성으로 다이얼로그 확인
-        const dialogElement = target.closest('[data-new-file-dialog], [data-search-dialog], [data-template-manage-dialog]');
+        const dialogElement = target.closest('[data-new-file-dialog], [data-search-dialog], [data-template-manage-dialog], [data-template-edit-dialog]');
         if (dialogElement) {
           return;
         }

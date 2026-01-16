@@ -62,6 +62,13 @@ export function useBlockGlobalHotkeys(options: UseBlockGlobalHotkeysOptions = {}
         }
       }
 
+      const anyDialogElement = target.closest(
+        '[data-new-file-dialog], [data-search-dialog], [data-template-manage-dialog], [data-template-edit-dialog], [data-save-confirm-dialog], [data-recovery-dialog]'
+      );
+      if (anyDialogElement && (!dialogElement || !dialogElement.contains(target))) {
+        return;
+      }
+
       // 다이얼로그 내부 요소에서 발생한 이벤트 처리
       if (dialogElement && dialogElement.contains(target)) {
         const isInputElement = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT';

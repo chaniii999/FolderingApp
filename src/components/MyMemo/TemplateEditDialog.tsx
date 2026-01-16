@@ -16,7 +16,6 @@ interface TemplateEditDialogProps {
 function TemplateEditDialog({ template, templatePath: initialTemplatePath, onClose, onSave }: TemplateEditDialogProps) {
   const [templateData, setTemplateData] = useState<CustomTemplate | null>(null);
   const [templateName, setTemplateName] = useState('');
-  const [hasChanges, setHasChanges] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
 
@@ -63,25 +62,18 @@ function TemplateEditDialog({ template, templatePath: initialTemplatePath, onClo
       const dialogElement = target?.closest('[data-template-edit-dialog]');
 
       if (dialogElement) {
-        e.stopPropagation();
+        const isInput = target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA';
+        if (!isInput) {
+          e.stopPropagation();
+        }
       }
     };
 
     window.addEventListener('keydown', handleGlobalKeyDownCapture, true);
-
     return () => {
       window.removeEventListener('keydown', handleGlobalKeyDownCapture, true);
     };
   }, []);
-
-  // 변경사항 추적
-  useEffect(() => {
-    if (templateData) {
-      const currentJson = JSON.stringify(templateData, null, 2);
-      const originalJson = template ? JSON.stringify(template, null, 2) : '';
-      setHasChanges(currentJson !== originalJson || templateName !== (template?.name || '새 템플릿'));
-    }
-  }, [templateData, templateName, template]);
 
   const handleSave = async (): Promise<void> => {
     if (!templateData || !templateName.trim()) {
@@ -288,9 +280,6 @@ function TemplateEditDialog({ template, templatePath: initialTemplatePath, onClo
                 setTemplateName(e.target.value);
                 setError(null);
               }}
-              onKeyDown={(e) => {
-                e.stopPropagation();
-              }}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
               placeholder="템플릿 이름을 입력하세요"
             />
@@ -304,9 +293,6 @@ function TemplateEditDialog({ template, templatePath: initialTemplatePath, onClo
             <textarea
               value={templateData.description || ''}
               onChange={(e) => setTemplateData({ ...templateData, description: e.target.value })}
-              onKeyDown={(e) => {
-                e.stopPropagation();
-              }}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
               rows={2}
             />
@@ -374,9 +360,6 @@ function TemplateEditDialog({ template, templatePath: initialTemplatePath, onClo
                             type="text"
                             value={part.title}
                             onChange={(e) => handlePartChange(part.id, 'title', e.target.value)}
-                            onKeyDown={(e) => {
-                              e.stopPropagation();
-                            }}
                             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                           />
                         </div>
@@ -389,9 +372,6 @@ function TemplateEditDialog({ template, templatePath: initialTemplatePath, onClo
                             type="text"
                             value={part.default || ''}
                             onChange={(e) => handlePartChange(part.id, 'default', e.target.value)}
-                            onKeyDown={(e) => {
-                              e.stopPropagation();
-                            }}
                             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                           />
                         </div>

@@ -172,6 +172,13 @@ function TemplateManageDialog({ onClose, onTemplateSelect, onTemplateInstanceCre
   }, [selectedTemplate, templates, selectedTemplateIndex]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    const target = e.target as HTMLElement;
+    const isInput = target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA';
+    const isTemplateEditDialog = target?.closest('[data-template-edit-dialog]');
+    if (showEditDialog || isInput || isTemplateEditDialog) {
+      return;
+    }
+
     // 모든 키 이벤트를 다이얼로그 내부에서만 처리하도록 전파 차단
     e.stopPropagation();
     e.preventDefault(); // 기본 동작 방지
