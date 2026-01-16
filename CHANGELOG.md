@@ -5,7 +5,9 @@
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)를 따르며,
 이 프로젝트는 [Semantic Versioning](https://semver.org/lang/ko/)을 준수합니다.
 
-## [1.4.4] - 2026-01-15
+
+
+## [1.4.4] - 2026-01-16
 
 ### ✨ 새로운 기능 (Added)
 
