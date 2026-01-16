@@ -59,23 +59,10 @@ class PdfExportService {
         }
       };
 
-      const handleOpenFileClick = async (): Promise<void> => {
-        if (!window.api?.filesystem?.openFile) {
-          toastService.error('파일을 열 수 없습니다.');
-          return;
-        }
-        try {
-          await window.api.filesystem.openFile(filePath);
-        } catch (err) {
-          handleError(err, '파일을 여는 중 오류가 발생했습니다.');
-        }
-      };
-
       toastService.success('PDF로 저장되었습니다.', {
         duration: 5000,
         actions: [
           { label: '폴더 열기', onClick: handleOpenFolderClick },
-          { label: '파일 열기', onClick: handleOpenFileClick },
         ],
       });
       return true;

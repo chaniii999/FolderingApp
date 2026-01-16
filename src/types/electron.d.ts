@@ -71,7 +71,6 @@ export interface ElectronAPI {
     saveStartPath: (startPath: string) => Promise<void>;
     deleteStartPath: () => Promise<void>;
     openFolder: (folderPath: string) => Promise<void>;
-    openFile: (filePath: string) => Promise<void>;
     createGuideFile: (dirPath: string) => Promise<string | null>;
     getUserDataPath: () => Promise<string>;
     exportToPDF: (htmlContent: string, defaultFileName: string, options?: PdfExportOptions) => Promise<string | null>;
