@@ -79,8 +79,8 @@ function AppHeader({
   }, [fileContentViewerRef]);
 
   const explorerToggleClassName = isExplorerVisible
-    ? 'flex items-center justify-center w-8 h-8 rounded bg-blue-100 dark:bg-blue-900 border border-blue-400 dark:border-blue-500 text-blue-700 dark:text-blue-200 shadow-sm'
-    : 'flex items-center justify-center w-8 h-8 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 cursor-pointer';
+    ? 'flex items-center justify-center w-8 h-8 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200'
+    : 'flex items-center justify-center w-8 h-8 rounded bg-transparent border border-transparent text-gray-700 dark:text-gray-200 hover:bg-transparent cursor-pointer';
 
   return (
     <header className="flex flex-col gap-1 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">

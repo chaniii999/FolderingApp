@@ -57,6 +57,23 @@ function TemplateEditDialog({ template, templatePath: initialTemplatePath, onClo
     }
   }, []);
 
+  useEffect(() => {
+    const handleGlobalKeyDownCapture = (e: KeyboardEvent): void => {
+      const target = e.target as HTMLElement;
+      const dialogElement = target?.closest('[data-template-edit-dialog]');
+
+      if (dialogElement) {
+        e.stopPropagation();
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalKeyDownCapture, true);
+
+    return () => {
+      window.removeEventListener('keydown', handleGlobalKeyDownCapture, true);
+    };
+  }, []);
+
   // 변경사항 추적
   useEffect(() => {
     if (templateData) {
@@ -272,10 +289,7 @@ function TemplateEditDialog({ template, templatePath: initialTemplatePath, onClo
                 setError(null);
               }}
               onKeyDown={(e) => {
-                // 입력 필드 내부의 화살표 키는 정상 작동하도록 전파 차단
-                if (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
-                  e.stopPropagation();
-                }
+                e.stopPropagation();
               }}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
               placeholder="템플릿 이름을 입력하세요"
@@ -291,10 +305,7 @@ function TemplateEditDialog({ template, templatePath: initialTemplatePath, onClo
               value={templateData.description || ''}
               onChange={(e) => setTemplateData({ ...templateData, description: e.target.value })}
               onKeyDown={(e) => {
-                // 입력 필드 내부의 화살표 키는 정상 작동하도록 전파 차단
-                if (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
-                  e.stopPropagation();
-                }
+                e.stopPropagation();
               }}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
               rows={2}
@@ -364,10 +375,7 @@ function TemplateEditDialog({ template, templatePath: initialTemplatePath, onClo
                             value={part.title}
                             onChange={(e) => handlePartChange(part.id, 'title', e.target.value)}
                             onKeyDown={(e) => {
-                              // 입력 필드 내부의 화살표 키는 정상 작동하도록 전파 차단
-                              if (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
-                                e.stopPropagation();
-                              }
+                              e.stopPropagation();
                             }}
                             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                           />
@@ -382,10 +390,7 @@ function TemplateEditDialog({ template, templatePath: initialTemplatePath, onClo
                             value={part.default || ''}
                             onChange={(e) => handlePartChange(part.id, 'default', e.target.value)}
                             onKeyDown={(e) => {
-                              // 입력 필드 내부의 화살표 키는 정상 작동하도록 전파 차단
-                              if (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
-                                e.stopPropagation();
-                              }
+                              e.stopPropagation();
                             }}
                             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                           />
