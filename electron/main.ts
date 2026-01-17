@@ -13,6 +13,7 @@ const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
 let mainWindow: BrowserWindow | null = null;
 let applicationMenu: Menu | null = null;
 let isMenuHandlersRegistered = false;
+let isThemeHandlerRegistered = false;
 
 interface TextEditorConfig {
   horizontalPadding: number;
@@ -133,6 +134,59 @@ function registerMenuHandlers() {
   isMenuHandlersRegistered = true;
 }
 
+function registerThemeHandler() {
+  // 기존 리스너 제거 (중복 등록 방지)
+  ipcMain.removeAllListeners('theme:change');
+  
+  console.log('[Main] Registering theme:change handler');
+  
+  ipcMain.on('theme:change', (event, theme: string) => {
+    try {
+      // 이벤트 발신자 체크
+      if (event.sender.isDestroyed()) {
+        console.warn('[Main] theme:change received from destroyed sender, ignoring');
+        return;
+      }
+      
+      console.log(`[Main] theme:change received, theme: ${theme}, mainWindow: ${mainWindow ? 'exists' : 'null'}`);
+      
+      // 현재 활성화된 창 찾기
+      const activeWindow = mainWindow || BrowserWindow.getFocusedWindow();
+      
+      if (theme === 'dark') {
+        nativeTheme.themeSource = 'dark';
+        if (activeWindow && !activeWindow.isDestroyed() && !activeWindow.webContents.isDestroyed()) {
+          try {
+            console.log('[Main] Setting background color to dark');
+            activeWindow.setBackgroundColor('#1f2937'); // gray-800
+          } catch (err) {
+            console.error('[Main] Error setting dark background:', err);
+          }
+        } else {
+          console.warn('[Main] Cannot set dark background: window is destroyed or null');
+        }
+      } else {
+        nativeTheme.themeSource = 'light';
+        if (activeWindow && !activeWindow.isDestroyed() && !activeWindow.webContents.isDestroyed()) {
+          try {
+            console.log('[Main] Setting background color to light');
+            activeWindow.setBackgroundColor('#ffffff'); // white
+          } catch (err) {
+            console.error('[Main] Error setting light background:', err);
+          }
+        } else {
+          console.warn('[Main] Cannot set light background: window is destroyed or null');
+        }
+      }
+    } catch (error) {
+      console.error('[Main] Error in theme:change handler:', error);
+    }
+  });
+  
+  isThemeHandlerRegistered = true;
+  console.log('[Main] Theme handler registered successfully');
+}
+
 function setupMenuBar(showMenuBar: boolean, window: BrowserWindow) {
   mainWindow = window;
   
@@ -155,7 +209,7 @@ function setupMenuBar(showMenuBar: boolean, window: BrowserWindow) {
 function createWindow() {
   const devConfig = getDevConfig();
   
-  const mainWindow = new BrowserWindow({
+  mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
     backgroundColor: '#1f2937', // 다크 테마 기본 배경색 (gray-800)
@@ -179,19 +233,15 @@ function createWindow() {
 
   setupMenuBar(devConfig.menuBar, mainWindow);
   
-  // 테마 변경 IPC 핸들러
-  ipcMain.on('theme:change', (_event, theme: string) => {
-    if (theme === 'dark') {
-      nativeTheme.themeSource = 'dark';
-      if (mainWindow) {
-        mainWindow.setBackgroundColor('#1f2937'); // gray-800
-      }
-    } else {
-      nativeTheme.themeSource = 'light';
-      if (mainWindow) {
-        mainWindow.setBackgroundColor('#ffffff'); // white
-      }
-    }
+  // 창이 닫힐 때 mainWindow를 null로 설정
+  mainWindow.on('closed', () => {
+    console.log('[Main] Window closed, setting mainWindow to null');
+    mainWindow = null;
+  });
+  
+  // 창이 destroy될 때도 처리
+  mainWindow.on('close', () => {
+    console.log('[Main] Window closing');
   });
   
   return mainWindow;
@@ -226,6 +276,9 @@ app.whenReady().then(async () => {
   folderHandlers(ipcMain);
   noteHandlers(ipcMain);
   fileSystemHandlers(ipcMain);
+  
+  // 테마 변경 핸들러 등록 (한 번만)
+  registerThemeHandler();
 
   const window = createWindow();
   mainWindow = window;
