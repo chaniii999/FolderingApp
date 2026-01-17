@@ -76,6 +76,7 @@
     "files": [
       "dist/**/*",
       "dist-electron/**/*",
+      "FolderingIcon.png",
       "package.json",
       "!**/*.{md,ts,tsx,map,js.map,css.map}",
       "!**/node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme,LICENSE,LICENSE.txt,license.txt}",

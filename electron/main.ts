@@ -208,12 +208,14 @@ function setupMenuBar(showMenuBar: boolean, window: BrowserWindow) {
 
 function createWindow() {
   const devConfig = getDevConfig();
+  const iconPath = getWindowIconPath();
   
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
     backgroundColor: '#1f2937', // 다크 테마 기본 배경색 (gray-800)
     autoHideMenuBar: false, // Windows에서 메뉴바 항상 표시
+    icon: iconPath ?? undefined,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
@@ -245,6 +247,18 @@ function createWindow() {
   });
   
   return mainWindow;
+}
+
+function getWindowIconPath(): string | null {
+  if (process.platform === 'darwin') {
+    return null;
+  }
+
+  if (app.isPackaged) {
+    return path.join(process.resourcesPath, 'FolderingIcon.png');
+  }
+
+  return path.join(process.cwd(), 'FolderingIcon.png');
 }
 
 app.whenReady().then(async () => {
