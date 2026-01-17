@@ -1,5 +1,5 @@
 import { app, BrowserWindow } from 'electron';
-import type { MenuItemConstructorOptions } from 'electron';
+import type { MenuItem, MenuItemConstructorOptions } from 'electron';
 
 interface TextEditorConfig {
   horizontalPadding: number;
@@ -20,7 +20,58 @@ export function createMenuTemplate({
   mainWindow,
 }: CreateMenuTemplateOptions): MenuItemConstructorOptions[] {
   const config = loadTextEditorConfig();
-  
+
+  function getAvailableWindow(): BrowserWindow | null {
+    const windows = BrowserWindow.getAllWindows();
+    for (const window of windows) {
+      if (!window.isDestroyed() && !window.webContents.isDestroyed()) {
+        return window;
+      }
+    }
+    return null;
+  }
+
+  function sendMenuEvent(channel: string, ...args: unknown[]) {
+    const window = getAvailableWindow();
+    if (!window) return;
+    window.webContents.send(channel, ...args);
+  }
+
+  function handleSelectPathClick() {
+    sendMenuEvent('menu:selectPath');
+  }
+
+  function handleOpenFolderClick() {
+    sendMenuEvent('menu:openFolder');
+  }
+
+  function handleToggleHideNonTextFiles(menuItem: MenuItem) {
+    sendMenuEvent('menu:toggleHideNonTextFiles', menuItem.checked);
+  }
+
+  function handleLightThemeClick() {
+    sendMenuEvent('menu:changeTheme', 'light');
+  }
+
+  function handleDarkThemeClick() {
+    sendMenuEvent('menu:changeTheme', 'dark');
+  }
+
+  function handleChangeHorizontalPadding(padding: number) {
+    sendMenuEvent('menu:changeHorizontalPadding', padding);
+  }
+
+  function handleChangeFontSize(fontSize: number) {
+    sendMenuEvent('menu:changeFontSize', fontSize);
+  }
+
+  function handleChangeTextAlign(align: TextEditorConfig['textAlign']) {
+    sendMenuEvent('menu:changeTextAlign', align);
+  }
+
+  function handleToggleShowHelp(menuItem: MenuItem) {
+    sendMenuEvent('menu:toggleShowHelp', menuItem.checked);
+  }
   const template: MenuItemConstructorOptions[] = [
     {
       label: 'File',
@@ -29,21 +80,11 @@ export function createMenuTemplate({
           label: 'Select Path',
           id: 'selectPath',
           enabled: true,
-          click: () => {
-            const window = BrowserWindow.getAllWindows()[0];
-            if (window && !window.isDestroyed()) {
-              window.webContents.send('menu:selectPath');
-            }
-          },
+          click: handleSelectPathClick,
         },
         {
           label: 'Open Folder',
-          click: () => {
-            const window = BrowserWindow.getAllWindows()[0];
-            if (window && !window.isDestroyed()) {
-              window.webContents.send('menu:openFolder');
-            }
-          },
+          click: handleOpenFolderClick,
         },
         { type: 'separator' },
         {
@@ -62,12 +103,7 @@ export function createMenuTemplate({
           label: '텍스트 파일만 표시',
           type: 'checkbox',
           id: 'hideNonTextFiles',
-          click: (menuItem) => {
-            const window = BrowserWindow.getAllWindows()[0];
-            if (window && !window.isDestroyed()) {
-              window.webContents.send('menu:toggleHideNonTextFiles', menuItem.checked);
-            }
-          },
+          click: handleToggleHideNonTextFiles,
         },
       ],
     },
@@ -79,24 +115,14 @@ export function createMenuTemplate({
           type: 'radio',
           id: 'theme-light',
           checked: true,
-          click: () => {
-            const window = BrowserWindow.getAllWindows()[0];
-            if (window && !window.isDestroyed()) {
-              window.webContents.send('menu:changeTheme', 'light');
-            }
-          },
+          click: handleLightThemeClick,
         },
         {
           label: 'Dark',
           type: 'radio',
           id: 'theme-dark',
           checked: false,
-          click: () => {
-            const window = BrowserWindow.getAllWindows()[0];
-            if (window && !window.isDestroyed()) {
-              window.webContents.send('menu:changeTheme', 'dark');
-            }
-          },
+          click: handleDarkThemeClick,
         },
       ],
     },
@@ -113,12 +139,7 @@ export function createMenuTemplate({
               type: 'radio' as const,
               id: `padding-${padding}`,
               checked: config.horizontalPadding === padding,
-              click: () => {
-                const window = BrowserWindow.getAllWindows()[0];
-                if (window && !window.isDestroyed()) {
-                  window.webContents.send('menu:changeHorizontalPadding', padding);
-                }
-              },
+              click: handleChangeHorizontalPadding.bind(null, padding),
             }));
           })(),
         },
@@ -132,12 +153,7 @@ export function createMenuTemplate({
               type: 'radio' as const,
               id: `fontsize-${fontSize}`,
               checked: config.fontSize === fontSize,
-              click: () => {
-                const window = BrowserWindow.getAllWindows()[0];
-                if (window && !window.isDestroyed()) {
-                  window.webContents.send('menu:changeFontSize', fontSize);
-                }
-              },
+              click: handleChangeFontSize.bind(null, fontSize),
             }));
           })(),
         },
@@ -150,36 +166,21 @@ export function createMenuTemplate({
               type: 'radio' as const,
               id: 'textalign-left',
               checked: config.textAlign === 'left',
-              click: () => {
-                const window = BrowserWindow.getAllWindows()[0];
-                if (window && !window.isDestroyed()) {
-                  window.webContents.send('menu:changeTextAlign', 'left');
-                }
-              },
+              click: handleChangeTextAlign.bind(null, 'left'),
             },
             {
               label: '가운데 정렬',
               type: 'radio' as const,
               id: 'textalign-center',
               checked: config.textAlign === 'center',
-              click: () => {
-                const window = BrowserWindow.getAllWindows()[0];
-                if (window && !window.isDestroyed()) {
-                  window.webContents.send('menu:changeTextAlign', 'center');
-                }
-              },
+              click: handleChangeTextAlign.bind(null, 'center'),
             },
             {
               label: '우측 정렬',
               type: 'radio' as const,
               id: 'textalign-right',
               checked: config.textAlign === 'right',
-              click: () => {
-                const window = BrowserWindow.getAllWindows()[0];
-                if (window && !window.isDestroyed()) {
-                  window.webContents.send('menu:changeTextAlign', 'right');
-                }
-              },
+              click: handleChangeTextAlign.bind(null, 'right'),
             },
           ],
         },
@@ -192,12 +193,7 @@ export function createMenuTemplate({
           label: '도움말',
           type: 'checkbox',
           id: 'showHelp',
-          click: (menuItem) => {
-            const window = BrowserWindow.getAllWindows()[0];
-            if (window && !window.isDestroyed()) {
-              window.webContents.send('menu:toggleShowHelp', menuItem.checked);
-            }
-          },
+          click: handleToggleShowHelp,
         },
       ],
     },

@@ -1,4 +1,5 @@
 import { app, BrowserWindow, ipcMain, Menu, nativeTheme } from 'electron';
+import type { IpcMainInvokeEvent } from 'electron';
 import path from 'path';
 import fs from 'fs';
 import { folderHandlers } from './handlers/folderHandlers';
@@ -11,6 +12,7 @@ const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
 
 let mainWindow: BrowserWindow | null = null;
 let applicationMenu: Menu | null = null;
+let isMenuHandlersRegistered = false;
 
 interface TextEditorConfig {
   horizontalPadding: number;
@@ -46,7 +48,7 @@ function loadTextEditorConfig(): TextEditorConfig {
 }
 
 function updateFontMenu() {
-  if (!applicationMenu || !mainWindow) return;
+  if (!applicationMenu) return;
   
   const config = loadTextEditorConfig();
   
@@ -98,6 +100,39 @@ function updateFontMenu() {
 
 import { createMenuTemplate } from './menu/createMenuTemplate';
 
+function handleMenuUpdateCheckbox(_event: IpcMainInvokeEvent, id: string, checked: boolean) {
+  if (!applicationMenu) return false;
+  const menuItem = applicationMenu.getMenuItemById(id);
+  if (menuItem) {
+    menuItem.checked = checked;
+    return true;
+  }
+  return false;
+}
+
+function handleMenuSetEnabled(_event: IpcMainInvokeEvent, id: string, enabled: boolean) {
+  if (!applicationMenu) return false;
+  const menuItem = applicationMenu.getMenuItemById(id);
+  if (menuItem) {
+    menuItem.enabled = enabled;
+    return true;
+  }
+  return false;
+}
+
+function handleMenuUpdateFontMenu() {
+  updateFontMenu();
+  return true;
+}
+
+function registerMenuHandlers() {
+  if (isMenuHandlersRegistered) return;
+  ipcMain.handle('menu:updateCheckbox', handleMenuUpdateCheckbox);
+  ipcMain.handle('menu:setEnabled', handleMenuSetEnabled);
+  ipcMain.handle('menu:updateFontMenu', handleMenuUpdateFontMenu);
+  isMenuHandlersRegistered = true;
+}
+
 function setupMenuBar(showMenuBar: boolean, window: BrowserWindow) {
   mainWindow = window;
   
@@ -110,30 +145,10 @@ function setupMenuBar(showMenuBar: boolean, window: BrowserWindow) {
 
     applicationMenu = Menu.buildFromTemplate(template);
     Menu.setApplicationMenu(applicationMenu);
-    
-    // 메뉴바 업데이트를 위한 IPC 핸들러
-    ipcMain.handle('menu:updateCheckbox', (_event, id: string, checked: boolean) => {
-      const menuItem = applicationMenu?.getMenuItemById(id);
-      if (menuItem) {
-        menuItem.checked = checked;
-      }
-    });
-    
-    // 메뉴 아이템 활성화/비활성화 IPC 핸들러
-    ipcMain.handle('menu:setEnabled', (_event, id: string, enabled: boolean) => {
-      const menuItem = applicationMenu?.getMenuItemById(id);
-      if (menuItem) {
-        menuItem.enabled = enabled;
-      }
-    });
-    
-    // Font 메뉴 업데이트 IPC 핸들러
-    ipcMain.handle('menu:updateFontMenu', () => {
-      updateFontMenu();
-      return true;
-    });
+    registerMenuHandlers();
   } else {
     Menu.setApplicationMenu(null);
+    applicationMenu = null;
   }
 }
 
